@@ -1,0 +1,8 @@
+{
+    "cmake.buildDirectory": "${workspaceFolder}/build",
+    "cmake.sourceDirectory": "${workspaceFolder}",
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.intelliSenseEngineFallback": "enabled",
+    "C_Cpp.errorSquiggles": "enabled"
+}

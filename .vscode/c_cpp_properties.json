@@ -1,0 +1,36 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/external/nlohmann",
+                "${workspaceFolder}/external",
+                "${workspaceFolder}/kolosal-server/include",
+                "${workspaceFolder}/kolosal-server/external/nlohmann",
+                "${workspaceFolder}/kolosal-server/external/yaml-cpp/include",
+                "${workspaceFolder}/kolosal-server/inference/include",
+                "${workspaceFolder}/kolosal-server/external/llama.cpp/include",
+                "${workspaceFolder}/kolosal-server/external/llama.cpp/common",
+                "${workspaceFolder}/kolosal-server/external/llama.cpp/ggml/include",
+                "${workspaceFolder}/kolosal-server/external/pugixml/src"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE",
+                "WIN32_LEAN_AND_MEAN",
+                "NOMINMAX",
+                "_WIN32_WINNT=0x602",
+                "KOLOSAL_AGENT_BUILD"
+            ],
+            "windowsSdkVersion": "10.0.22621.0",
+            "compilerPath": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.38.33130/bin/Hostx64/x64/cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        }
+    ],
+    "version": 4
+}

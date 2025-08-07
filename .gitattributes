@@ -1,2 +1,66 @@
-# Auto detect text files and perform LF normalization
+# Set default behavior to automatically normalize line endings.
 * text=auto
+
+# Force batch scripts to have CRLF line endings on checkout.
+*.bat text eol=crlf
+
+# Force bash scripts to have LF line endings on checkout.
+*.sh text eol=lf
+
+# Denote all files that are truly binary and should not be modified.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.mov binary
+*.mp4 binary
+*.mp3 binary
+*.flv binary
+*.fla binary
+*.swf binary
+*.gz binary
+*.zip binary
+*.7z binary
+*.ttf binary
+*.eot binary
+*.woff binary
+*.pyc binary
+*.pdf binary
+*.ez binary
+*.bz2 binary
+*.swp binary
+*.so binary
+*.dll binary
+*.exe binary
+*.a binary
+*.lib binary
+*.dylib binary
+
+# CMake files
+CMakeLists.txt text
+*.cmake text
+
+# YAML files
+*.yaml text
+*.yml text
+
+# Source code
+*.cpp text
+*.hpp text
+*.h text
+*.c text
+*.cc text
+*.cxx text
+
+# Documentation
+*.md text
+*.txt text
+*.rst text
+
+# Configuration files
+*.json text
+*.xml text
+*.ini text
+*.cfg text
+*.conf text

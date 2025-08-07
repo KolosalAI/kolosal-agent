@@ -30,3 +30,15 @@
 *.exe
 *.out
 *.app
+
+
+# Build Files
+build
+*.cmake
+*.ninja
+*.make
+*.o
+*.obj
+*.so
+*.dll
+*.exe
