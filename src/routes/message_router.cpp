@@ -1,5 +1,5 @@
 // File: src/agents/message_router.cpp
-#include "message_router.hpp"
+#include "routes/message_router.hpp"
 #include "server_logger_adapter.hpp"
 
 namespace kolosal::agents {

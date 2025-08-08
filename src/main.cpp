@@ -1,523 +1,699 @@
 #include <iostream>
 #include <string>
+#include <vector>
 #include <chrono>
 #include <thread>
 #include <csignal>
 #include <atomic>
-#include <vector>
-#include <filesystem>
 #include <memory>
+#include <filesystem>
 #include <fstream>
-
-// Agent system includes
-#include "multi_agent_system.hpp"
-#include "agent_core.hpp"
-#include "yaml_config.hpp"
-#include "kolosal_server_client.h"
 
 // Platform-specific includes
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <process.h>
 #pragma comment(lib, "ws2_32.lib")
 #else
 #include <unistd.h>
 #include <sys/wait.h>
 #endif
 
-using namespace kolosal::agents;
+// Enhanced includes
+#include "integration/unified_server.hpp"
+#include "api/agent_management_route.hpp"
+#include "services/agent_service.hpp"
+#include "yaml_config.hpp"
 
-// Global flags for graceful shutdown
+using namespace kolosal::integration;
+using namespace kolosal::api;
+using namespace kolosal::services;
+
+// Global state for graceful shutdown
 std::atomic<bool> keep_running{true};
-std::atomic<bool> server_started{false};
+std::unique_ptr<UnifiedKolosalServer> unified_server;
 
-// Server process information
-#ifdef _WIN32
-HANDLE server_process_handle = nullptr;
-DWORD server_process_id = 0;
-#else
-pid_t server_process_id = 0;
-#endif
-
-// Signal handler for graceful shutdown
+// Enhanced signal handler
 void signal_handler(int signal) {
-    std::cout << "\nReceived signal " << signal << ", shutting down gracefully..." << std::endl;
+    std::cout << "\n🛑 Received signal " << signal << ", initiating graceful shutdown..." << std::endl;
     keep_running = false;
-}
-
-// Function to find kolosal-server executable
-std::string find_server_executable() {
-    std::filesystem::path current_path = std::filesystem::current_path();
     
-    // List of possible server executable names
-    std::vector<std::string> server_names = {
-#ifdef _WIN32
-        "kolosal-server.exe",
-        "kolosal_server.exe"
-#else
-        "kolosal-server",
-        "kolosal_server"
-#endif
-    };
-    
-    // Search locations relative to the agent executable
-    std::vector<std::filesystem::path> search_paths = {
-        current_path,                                    // Same directory as agent
-        current_path / "kolosal-server",                // kolosal-server subdirectory
-        current_path / ".." / "kolosal-server",         // Parent's kolosal-server
-        current_path / "bin",                           // bin subdirectory
-        current_path / ".." / "bin",                    // Parent's bin
-    };
-    
-    for (const auto& search_path : search_paths) {
-        for (const auto& server_name : server_names) {
-            auto server_path = search_path / server_name;
-            if (std::filesystem::exists(server_path)) {
-                std::cout << "Found kolosal-server at: " << server_path << std::endl;
-                return server_path.string();
-            }
-        }
-    }
-    
-    return "";
-}
-
-// Function to start kolosal-server process
-bool start_server_process(const std::string& server_path, int port = 8080) {
-    if (server_path.empty()) {
-        std::cerr << "Server executable not found!" << std::endl;
-        return false;
-    }
-    
-    std::cout << "Starting kolosal-server process..." << std::endl;
-    
-#ifdef _WIN32
-    // Windows process creation
-    std::string command = "\"" + server_path + "\" --port " + std::to_string(port) + " --host 127.0.0.1";
-    
-    STARTUPINFOA si;
-    PROCESS_INFORMATION pi;
-    ZeroMemory(&si, sizeof(si));
-    si.cb = sizeof(si);
-    ZeroMemory(&pi, sizeof(pi));
-    
-    // Create the server process
-    if (CreateProcessA(
-        nullptr,                    // Application name
-        const_cast<char*>(command.c_str()),  // Command line
-        nullptr,                    // Process security attributes
-        nullptr,                    // Thread security attributes
-        FALSE,                      // Inherit handles
-        0,                          // Creation flags
-        nullptr,                    // Environment
-        nullptr,                    // Current directory
-        &si,                        // Startup info
-        &pi                         // Process info
-    )) {
-        server_process_handle = pi.hProcess;
-        server_process_id = pi.dwProcessId;
-        CloseHandle(pi.hThread);
-        server_started = true;
-        std::cout << "Server process started with PID: " << server_process_id << std::endl;
-        return true;
-    } else {
-        std::cerr << "Failed to start server process. Error: " << GetLastError() << std::endl;
-        return false;
-    }
-#else
-    // Unix/Linux process creation
-    server_process_id = fork();
-    if (server_process_id == 0) {
-        // Child process - execute the server
-        execlp(server_path.c_str(), server_path.c_str(), 
-               "--port", std::to_string(port).c_str(),
-               "--host", "127.0.0.1",
-               nullptr);
-        
-        // If we get here, execlp failed
-        std::cerr << "Failed to execute server: " << strerror(errno) << std::endl;
-        exit(1);
-    } else if (server_process_id > 0) {
-        // Parent process
-        server_started = true;
-        std::cout << "Server process started with PID: " << server_process_id << std::endl;
-        return true;
-    } else {
-        // Fork failed
-        std::cerr << "Failed to fork server process: " << strerror(errno) << std::endl;
-        return false;
-    }
-#endif
-}
-
-// Function to stop the server process
-void stop_server_process() {
-    if (!server_started) {
-        return;
-    }
-    
-    std::cout << "Stopping kolosal-server process..." << std::endl;
-    
-#ifdef _WIN32
-    if (server_process_handle && server_process_id) {
-        // Try to terminate gracefully first
-        if (TerminateProcess(server_process_handle, 0)) {
-            WaitForSingleObject(server_process_handle, 5000); // Wait up to 5 seconds
-            CloseHandle(server_process_handle);
-            std::cout << "Server process terminated." << std::endl;
-        } else {
-            std::cerr << "Failed to terminate server process." << std::endl;
-        }
-        server_process_handle = nullptr;
-        server_process_id = 0;
-    }
-#else
-    if (server_process_id > 0) {
-        // Send SIGTERM for graceful shutdown
-        if (kill(server_process_id, SIGTERM) == 0) {
-            // Wait for process to terminate
-            int status;
-            int wait_result = waitpid(server_process_id, &status, WNOHANG);
-            
-            // If process doesn't terminate within 5 seconds, force kill
-            for (int i = 0; i < 50 && wait_result == 0; ++i) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                wait_result = waitpid(server_process_id, &status, WNOHANG);
-            }
-            
-            if (wait_result == 0) {
-                // Force kill
-                std::cout << "Force killing server process..." << std::endl;
-                kill(server_process_id, SIGKILL);
-                waitpid(server_process_id, &status, 0);
-            }
-            
-            std::cout << "Server process stopped." << std::endl;
-        } else {
-            std::cerr << "Failed to send SIGTERM to server process." << std::endl;
-        }
-        server_process_id = 0;
-    }
-#endif
-    
-    server_started = false;
-}
-
-// Function to create a default agent configuration
-void create_default_config_if_missing(const std::string& config_path) {
-    if (!std::filesystem::exists(config_path)) {
-        std::cout << "Creating default agent configuration at: " << config_path << std::endl;
-        
-        std::ofstream config_file(config_path);
-        config_file << R"(# Kolosal Agent System Configuration
-system:
-  name: "Kolosal Multi-Agent System"
-  version: "1.0.0"
-  server:
-    host: "127.0.0.1"
-    port: 8080
-    timeout: 30
-  logging:
-    level: "INFO"
-    file: "agent_system.log"
-
-agents:
-  - name: "coordinator"
-    id: "coord-001"
-    type: "coordinator"
-    role: "COORDINATOR" 
-    specializations:
-      - "TASK_PLANNING"
-      - "RESOURCE_MANAGEMENT"
-    capabilities:
-      - "plan_execution"
-      - "task_delegation"
-      - "system_monitoring"
-    functions:
-      - "plan_tasks"
-      - "delegate_work"
-      - "monitor_progress"
-    config:
-      priority: 1
-      auto_start: true
-      max_concurrent_tasks: 5
-      
-  - name: "analyst"
-    id: "analyst-001" 
-    type: "specialist"
-    role: "ANALYST"
-    specializations:
-      - "DATA_ANALYSIS"
-      - "RESEARCH"
-    capabilities:
-      - "data_processing"
-      - "research_synthesis" 
-      - "report_generation"
-    functions:
-      - "analyze_data"
-      - "research_topic"
-      - "generate_report"
-    config:
-      priority: 2
-      auto_start: true
-      max_concurrent_tasks: 3
-
-  - name: "executor"
-    id: "exec-001"
-    type: "worker" 
-    role: "EXECUTOR"
-    specializations:
-      - "TASK_EXECUTION"
-      - "TOOL_USAGE"
-    capabilities:
-      - "execute_commands"
-      - "use_tools"
-      - "file_operations"
-    functions:
-      - "execute_task"
-      - "use_tool"
-      - "process_files"
-    config:
-      priority: 3
-      auto_start: true
-      max_concurrent_tasks: 10
-
-functions:
-  - name: "plan_tasks"
-    type: "builtin"
-    description: "Create execution plans for complex tasks"
-    parameters:
-      - name: "goal"
-        type: "string"
-        required: true
-      - name: "context"
-        type: "string"
-        required: false
-    
-  - name: "analyze_data"
-    type: "builtin" 
-    description: "Analyze structured and unstructured data"
-    parameters:
-      - name: "data_source"
-        type: "string"
-        required: true
-      - name: "analysis_type"
-        type: "string"
-        required: false
-        
-  - name: "execute_task"
-    type: "builtin"
-    description: "Execute specific tasks with given parameters"
-    parameters:
-      - name: "task_definition"
-        type: "object"
-        required: true
-      - name: "priority"
-        type: "integer"
-        required: false
-)";
-        config_file.close();
-        std::cout << "Default configuration created successfully." << std::endl;
+    if (unified_server) {
+        std::cout << "⏳ Stopping unified server..." << std::endl;
+        unified_server->stop();
     }
 }
 
-// Function to print usage information
-void print_usage(const char* program_name) {
-    std::cout << "Kolosal Agent System v1.0.0" << std::endl;
-    std::cout << "Usage: " << program_name << " [OPTIONS]" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Options:" << std::endl;
-    std::cout << "  -c, --config FILE     Use custom configuration file (default: config.yaml)" << std::endl;
-    std::cout << "  -p, --port PORT       Server port (default: 8080)" << std::endl;
-    std::cout << "  -s, --server PATH     Path to kolosal-server executable (auto-detect if not specified)" << std::endl;
-    std::cout << "  --no-server           Don't start server (assume it's already running)" << std::endl;
-    std::cout << "  --demo                Run system demonstration" << std::endl;
-    std::cout << "  -h, --help            Show this help message" << std::endl;
-    std::cout << "  -v, --version         Show version information" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Examples:" << std::endl;
-    std::cout << "  " << program_name << "                           # Use default configuration" << std::endl;
-    std::cout << "  " << program_name << " -c my_config.yaml        # Use custom configuration" << std::endl;
-    std::cout << "  " << program_name << " -p 9090                  # Use custom port" << std::endl;
-    std::cout << "  " << program_name << " --demo                   # Run demonstration" << std::endl;
-}
-
-int main(int argc, char* argv[]) {
-    // Parse command line arguments
+// Enhanced command line parsing
+struct CommandLineArgs {
     std::string config_file = "config.yaml";
-    std::string server_path = "";
     int server_port = 8080;
-    bool start_server = true;
-    bool run_demo = false;
+    std::string server_host = "127.0.0.1";
+    std::string server_path = "";
+    bool no_server = false;
+    bool demo_mode = false;
+    bool verbose = false;
+    bool development_mode = false;
+    bool production_mode = false;
+    std::string log_level = "INFO";
+    bool enable_metrics = true;
+    bool enable_health_monitoring = true;
+    bool show_help = false;
+    bool show_version = false;
+};
+
+CommandLineArgs parse_command_line(int argc, char* argv[]) {
+    CommandLineArgs args;
     
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         
         if (arg == "-h" || arg == "--help") {
-            print_usage(argv[0]);
-            return 0;
+            args.show_help = true;
         } else if (arg == "-v" || arg == "--version") {
-            std::cout << "Kolosal Agent System v1.0.0" << std::endl;
-            return 0;
+            args.show_version = true;
         } else if (arg == "-c" || arg == "--config") {
             if (i + 1 < argc) {
-                config_file = argv[++i];
+                args.config_file = argv[++i];
             } else {
-                std::cerr << "Error: --config requires a file path" << std::endl;
-                return 1;
+                throw std::runtime_error("--config requires a file path");
             }
         } else if (arg == "-p" || arg == "--port") {
             if (i + 1 < argc) {
-                try {
-                    server_port = std::stoi(argv[++i]);
-                    if (server_port < 1 || server_port > 65535) {
-                        std::cerr << "Error: Port must be between 1 and 65535" << std::endl;
-                        return 1;
-                    }
-                } catch (const std::exception&) {
-                    std::cerr << "Error: Invalid port number" << std::endl;
-                    return 1;
+                args.server_port = std::stoi(argv[++i]);
+                if (args.server_port < 1 || args.server_port > 65535) {
+                    throw std::runtime_error("Port must be between 1 and 65535");
                 }
             } else {
-                std::cerr << "Error: --port requires a port number" << std::endl;
-                return 1;
+                throw std::runtime_error("--port requires a port number");
+            }
+        } else if (arg == "--host") {
+            if (i + 1 < argc) {
+                args.server_host = argv[++i];
+            } else {
+                throw std::runtime_error("--host requires a hostname");
             }
         } else if (arg == "-s" || arg == "--server") {
             if (i + 1 < argc) {
-                server_path = argv[++i];
+                args.server_path = argv[++i];
             } else {
-                std::cerr << "Error: --server requires a file path" << std::endl;
-                return 1;
+                throw std::runtime_error("--server requires a file path");
             }
         } else if (arg == "--no-server") {
-            start_server = false;
+            args.no_server = true;
         } else if (arg == "--demo") {
-            run_demo = true;
+            args.demo_mode = true;
+        } else if (arg == "--verbose") {
+            args.verbose = true;
+        } else if (arg == "--dev" || arg == "--development") {
+            args.development_mode = true;
+        } else if (arg == "--prod" || arg == "--production") {
+            args.production_mode = true;
+        } else if (arg == "--log-level") {
+            if (i + 1 < argc) {
+                args.log_level = argv[++i];
+            } else {
+                throw std::runtime_error("--log-level requires a level (DEBUG, INFO, WARN, ERROR)");
+            }
+        } else if (arg == "--no-metrics") {
+            args.enable_metrics = false;
+        } else if (arg == "--no-health-monitoring") {
+            args.enable_health_monitoring = false;
         } else {
-            std::cerr << "Error: Unknown argument '" << arg << "'" << std::endl;
-            print_usage(argv[0]);
-            return 1;
+            throw std::runtime_error("Unknown argument: " + arg);
         }
     }
     
-    // Set up signal handlers
-    std::signal(SIGINT, signal_handler);
-    std::signal(SIGTERM, signal_handler);
+    return args;
+}
+
+void print_usage(const char* program_name) {
+    std::cout << R"(
+🤖 Kolosal Agent System v2.0.0 - Unified LLM & Multi-Agent Platform
+=====================================================================
+
+USAGE:
+    )" << program_name << R"( [OPTIONS]
+
+OPTIONS:
+    -c, --config FILE          Use custom configuration file (default: config.yaml)
+    -p, --port PORT           Server port (default: 8080)
+        --host HOST           Server host (default: 127.0.0.1)
+    -s, --server PATH         Path to kolosal-server executable (auto-detect if not specified)
+        --no-server           Don't start LLM server (assume it's already running)
+        --demo                Run system demonstration
+        --verbose             Enable verbose logging
+        --dev, --development  Run in development mode with enhanced debugging
+        --prod, --production  Run in production mode with optimizations
+        --log-level LEVEL     Set log level (DEBUG, INFO, WARN, ERROR)
+        --no-metrics          Disable metrics collection
+        --no-health-monitoring Disable health monitoring
+    -h, --help                Show this help message
+    -v, --version             Show version information
+
+EXAMPLES:
+    # Basic usage with default configuration
+    )" << program_name << R"(
+
+    # Custom configuration and port
+    )" << program_name << R"( -c my_config.yaml -p 9090
+
+    # Development mode with verbose output
+    )" << program_name << R"( --dev --verbose --log-level DEBUG
+
+    # Production mode
+    )" << program_name << R"( --prod -p 8080
+
+    # Run demonstration
+    )" << program_name << R"( --demo
+
+    # Connect to external LLM server
+    )" << program_name << R"( --no-server --host external-server.com -p 8080
+
+FEATURES:
+    🚀 High-performance LLM inference server
+    🤖 Multi-agent coordination and management
+    📊 Real-time metrics and monitoring
+    🔄 Automatic health checking and recovery
+    🌐 REST API for agent management
+    ⚙️  Hot configuration reloading
+    📈 Performance analytics and optimization
+
+API ENDPOINTS:
+    GET    /v1/agents                    - List all agents
+    POST   /v1/agents                    - Create new agent
+    GET    /v1/agents/{id}               - Get agent details
+    PUT    /v1/agents/{id}/start         - Start agent
+    PUT    /v1/agents/{id}/stop          - Stop agent
+    DELETE /v1/agents/{id}               - Delete agent
+    POST   /v1/agents/{id}/execute       - Execute function
+    GET    /v1/system/status             - System status
+    POST   /v1/system/reload             - Reload configuration
+
+For more information, visit: https://github.com/Evintkoo/kolosal-agent
+)";
+}
+
+void print_banner() {
+    std::cout << R"(
+╔══════════════════════════════════════════════════════════════════╗
+║                    🤖 Kolosal Agent System v2.0                  ║
+║            Unified LLM Inference & Multi-Agent Platform         ║
+╠══════════════════════════════════════════════════════════════════╣
+║  🚀 High-Performance    🤖 Multi-Agent    📊 Real-time Analytics ║
+║  🔄 Auto-Recovery      🌐 REST API        ⚙️  Hot-Reload Config  ║
+╚══════════════════════════════════════════════════════════════════╝
+)" << std::endl;
+}
+
+void create_default_config_if_missing(const std::string& config_path) {
+    if (std::filesystem::exists(config_path)) {
+        return;
+    }
+
+    std::cout << "📝 Creating default configuration at: " << config_path << std::endl;
+    
+    std::ofstream config_file(config_path);
+    config_file << R"DELIM(# Kolosal Agent System v2.0 Configuration
+# Enhanced configuration with modern features and better organization
+
+system:
+  name: "Kolosal Multi-Agent System v2.0"
+  version: "2.0.0"
+  environment: "development"  # development, production, testing
+  
+  server:
+    host: "127.0.0.1"
+    port: 8080
+    timeout: 30
+    enable_cors: true
+    allowed_origins: ["*"]
+    
+  logging:
+    level: "INFO"  # DEBUG, INFO, WARN, ERROR
+    file: "kolosal_agent_system.log"
+    enable_console: true
+    max_file_size_mb: 100
+    max_backup_files: 5
+    
+  monitoring:
+    enable_health_checks: true
+    health_check_interval_seconds: 30
+    enable_metrics: true
+    enable_performance_analytics: true
+    enable_auto_recovery: true
+    max_recovery_attempts: 3
+
+# Agent definitions with enhanced capabilities
+agents:
+  - name: "system_coordinator"
+    id: "coord-001"
+    type: "coordinator"
+    role: "COORDINATOR"
+    priority: 1
+    
+    specializations:
+      - "TASK_PLANNING"
+      - "RESOURCE_MANAGEMENT"
+      - "SYSTEM_MONITORING"
+      - "WORKFLOW_ORCHESTRATION"
+    
+    capabilities:
+      - "plan_execution"
+      - "task_delegation" 
+      - "system_monitoring"
+      - "resource_optimization"
+      - "error_recovery"
+    
+    functions:
+      - "plan_tasks"
+      - "delegate_work"
+      - "monitor_progress" 
+      - "optimize_resources"
+      - "handle_system_events"
+    
+    config:
+      auto_start: true
+      max_concurrent_tasks: 10
+      memory_limit_mb: 512
+      enable_persistence: true
+      heartbeat_interval_seconds: 10
+
+  - name: "data_analyst"
+    id: "analyst-001"
+    type: "specialist"
+    role: "ANALYST"
+    priority: 2
+    
+    specializations:
+      - "DATA_ANALYSIS"
+      - "RESEARCH"
+      - "PATTERN_RECOGNITION"
+      - "STATISTICAL_MODELING"
+    
+    capabilities:
+      - "data_processing"
+      - "research_synthesis"
+      - "report_generation"
+      - "trend_analysis"
+      - "visualization"
+    
+    functions:
+      - "analyze_data"
+      - "research_topic"
+      - "generate_report"
+      - "identify_patterns"
+      - "create_visualizations"
+    
+    config:
+      auto_start: true
+      max_concurrent_tasks: 5
+      memory_limit_mb: 1024
+      enable_persistence: true
+      specialized_tools: ["python", "pandas", "matplotlib"]
+
+  - name: "task_executor"
+    id: "exec-001"
+    type: "worker"
+    role: "EXECUTOR"
+    priority: 3
+    
+    specializations:
+      - "TASK_EXECUTION"
+      - "TOOL_USAGE"
+      - "FILE_OPERATIONS"
+      - "API_INTEGRATION"
+    
+    capabilities:
+      - "execute_commands"
+      - "use_tools"
+      - "file_operations"
+      - "api_calls"
+      - "batch_processing"
+    
+    functions:
+      - "execute_task"
+      - "use_tool"
+      - "process_files"
+      - "make_api_call"
+      - "batch_execute"
+    
+    config:
+      auto_start: true
+      max_concurrent_tasks: 20
+      memory_limit_mb: 256
+      enable_persistence: false
+      timeout_seconds: 300
+
+  - name: "knowledge_manager"
+    id: "knowledge-001"
+    type: "specialist"
+    role: "SPECIALIST"
+    priority: 2
+    
+    specializations:
+      - "KNOWLEDGE_MANAGEMENT"
+      - "MEMORY_OPERATIONS"
+      - "INFORMATION_RETRIEVAL"
+      - "CONTENT_CURATION"
+    
+    capabilities:
+      - "knowledge_storage"
+      - "information_retrieval"
+      - "content_summarization"
+      - "semantic_search"
+      - "knowledge_graph_operations"
+    
+    functions:
+      - "store_knowledge"
+      - "retrieve_information"
+      - "summarize_content"
+      - "semantic_search"
+      - "update_knowledge_graph"
+    
+    config:
+      auto_start: true
+      max_concurrent_tasks: 8
+      memory_limit_mb: 2048
+      enable_persistence: true
+      vector_db_enabled: true
+
+# Enhanced function definitions with better metadata
+functions:
+  - name: "plan_tasks"
+    type: "builtin"
+    category: "planning"
+    description: "Create comprehensive execution plans for complex tasks"
+    version: "2.0"
+    
+    parameters:
+      - name: "goal"
+        type: "string"
+        required: true
+        description: "The main objective to achieve"
+      - name: "context"
+        type: "string"
+        required: false
+        description: "Additional context and constraints"
+      - name: "priority"
+        type: "integer"
+        required: false
+        default: 5
+        min: 1
+        max: 10
+        description: "Task priority (1-10)"
+      - name: "deadline"
+        type: "datetime"
+        required: false
+        description: "Task deadline in ISO format"
+        
+    returns:
+      type: "object"
+      description: "Execution plan with steps and dependencies"
+
+  - name: "analyze_data"
+    type: "builtin"
+    category: "analysis"
+    description: "Perform comprehensive data analysis with statistical insights"
+    version: "2.0"
+    
+    parameters:
+      - name: "data_source"
+        type: "string"
+        required: true
+        description: "Path to data file or dataset identifier"
+      - name: "analysis_type"
+        type: "string"
+        required: false
+        default: "comprehensive"
+        enum: ["basic", "comprehensive", "statistical", "predictive"]
+        description: "Type of analysis to perform"
+      - name: "output_format"
+        type: "string"
+        required: false
+        default: "json"
+        enum: ["json", "csv", "report", "visualization"]
+        description: "Output format for results"
+        
+    returns:
+      type: "object" 
+      description: "Analysis results with insights and recommendations"
+
+  - name: "execute_task"
+    type: "builtin"
+    category: "execution"
+    description: "Execute specific tasks with comprehensive error handling"
+    version: "2.0"
+    
+    parameters:
+      - name: "task_definition"
+        type: "object"
+        required: true
+        description: "Complete task definition with steps and requirements"
+      - name: "execution_mode"
+        type: "string"
+        required: false
+        default: "safe"
+        enum: ["safe", "fast", "thorough"]
+        description: "Execution mode balancing speed and safety"
+      - name: "retry_policy"
+        type: "object"
+        required: false
+        description: "Retry configuration for failed operations"
+        
+    returns:
+      type: "object"
+      description: "Execution results with status and output data"
+
+# System-wide templates for quick agent creation
+templates:
+  basic_worker:
+    type: "worker"
+    role: "EXECUTOR"
+    specializations: ["TASK_EXECUTION"]
+    capabilities: ["execute_commands"]
+    functions: ["execute_task"]
+    config:
+      auto_start: false
+      max_concurrent_tasks: 5
+      
+  data_processor:
+    type: "specialist"
+    role: "ANALYST"
+    specializations: ["DATA_ANALYSIS"]
+    capabilities: ["data_processing", "report_generation"]
+    functions: ["analyze_data", "generate_report"]
+    config:
+      auto_start: false
+      max_concurrent_tasks: 3
+      memory_limit_mb: 512
+
+# Integration settings
+integration:
+  llm_server:
+    auto_start: true
+    startup_timeout_seconds: 60
+    health_check_endpoint: "/v1/health"
+    
+  external_apis:
+    enable_rate_limiting: true
+    default_timeout_seconds: 30
+    retry_attempts: 3
+    
+  database:
+    enable_persistence: true
+    connection_pool_size: 10
+    backup_interval_hours: 24
+)DELIM";
+
+    config_file.close();
+    std::cout << "✅ Default configuration created successfully!" << std::endl;
+}
+
+void setup_health_monitoring(UnifiedKolosalServer& server) {
+    server.setHealthCheckCallback([](const UnifiedKolosalServer::SystemStatus& status) {
+        static auto last_log_time = std::chrono::system_clock::now();
+        auto now = std::chrono::system_clock::now();
+        
+        // Log health status every 5 minutes
+        if (now - last_log_time >= std::chrono::minutes(5)) {
+            std::cout << "💓 Health Check - LLM: " << (status.llm_server_healthy ? "✅" : "❌")
+                      << ", Agents: " << status.running_agents << "/" << status.total_agents
+                      << ", Avg Response: " << std::fixed << std::setprecision(1) 
+                      << status.average_response_time_ms << "ms" << std::endl;
+            last_log_time = now;
+        }
+        
+        // Alert on errors
+        if (!status.llm_server_healthy || !status.agent_system_running) {
+            std::cout << "⚠️  System Health Alert: " << status.last_error << std::endl;
+        }
+    });
+}
+
+void run_demo_mode(UnifiedKolosalServer& server) {
+    std::cout << "\n🎬 Starting System Demonstration" << std::endl;
+    std::cout << "=================================" << std::endl;
+
+    auto agent_service = server.getAgentService();
+    
+    // Show system status
+    auto status = server.getSystemStatus();
+    std::cout << "\n📊 System Status:" << std::endl;
+    std::cout << "  LLM Server: " << (status.llm_server_healthy ? "✅ Healthy" : "❌ Unhealthy") << std::endl;
+    std::cout << "  Agents: " << status.running_agents << "/" << status.total_agents << " running" << std::endl;
+    
+    // List all agents
+    auto agents = agent_service->getAllAgentInfo();
+    std::cout << "\n🤖 Active Agents:" << std::endl;
+    for (const auto& agent : agents) {
+        std::cout << "  • " << agent.name << " (" << agent.id << ") - " 
+                  << (agent.running ? "✅ Running" : "⏸️  Stopped") << std::endl;
+    }
+    
+    // Get system metrics
+    auto metrics = server.getMetrics();
+    std::cout << "\n📈 System Metrics:" << std::endl;
+    std::cout << "  LLM Requests: " << metrics.total_llm_requests << " (Success: " 
+              << metrics.successful_llm_requests << ")" << std::endl;
+    std::cout << "  Agent Calls: " << metrics.total_agent_function_calls << " (Success: " 
+              << metrics.successful_agent_function_calls << ")" << std::endl;
+    
+    std::cout << "\n✨ Demonstration complete! System is ready for use." << std::endl;
+}
+
+int main(int argc, char* argv[]) {
+    try {
+        // Parse command line arguments
+        CommandLineArgs args = parse_command_line(argc, argv);
+        
+        if (args.show_help) {
+            print_usage(argv[0]);
+            return 0;
+        }
+        
+        if (args.show_version) {
+            std::cout << "Kolosal Agent System v2.0.0" << std::endl;
+            return 0;
+        }
+        
+        // Set up signal handlers
+        std::signal(SIGINT, signal_handler);
+        std::signal(SIGTERM, signal_handler);
 #ifdef _WIN32
-    std::signal(SIGBREAK, signal_handler);
+        std::signal(SIGBREAK, signal_handler);
 #endif
 
-    // Print startup banner
-    std::cout << "=== Kolosal Agent System v1.0.0 ===" << std::endl;
-    std::cout << "Configuration: " << config_file << std::endl;
-    std::cout << "Server Port: " << server_port << std::endl;
-    std::cout << "Start Server: " << (start_server ? "Yes" : "No") << std::endl;
-    std::cout << "====================================" << std::endl;
-    std::cout << std::endl;
-    
-    // Create default configuration if it doesn't exist
-    create_default_config_if_missing(config_file);
-    
-    // Start kolosal-server if requested
-    std::unique_ptr<KolosalServerClient> server_client;
-    if (start_server) {
-        if (server_path.empty()) {
-            server_path = find_server_executable();
+        print_banner();
+        
+        // Create default configuration if needed
+        create_default_config_if_missing(args.config_file);
+        
+        // Build server configuration
+        UnifiedKolosalServer::ServerConfig config;
+        
+        if (args.production_mode) {
+            config = UnifiedServerFactory::buildProductionConfig(args.server_port);
+        } else if (args.development_mode) {
+            config = UnifiedServerFactory::buildDevelopmentConfig(args.server_port);
+        } else {
+            config = UnifiedServerFactory::buildDefaultConfig();
         }
         
-        if (!start_server_process(server_path, server_port)) {
-            std::cerr << "Failed to start kolosal-server. Exiting." << std::endl;
+        // Apply command line overrides
+        config.server_host = args.server_host;
+        config.server_port = args.server_port;
+        config.server_executable_path = args.server_path;
+        config.auto_start_server = !args.no_server;
+        config.agent_config_file = args.config_file;
+        config.enable_health_monitoring = args.enable_health_monitoring;
+        config.enable_metrics_collection = args.enable_metrics;
+        
+        std::cout << "⚙️  Configuration:" << std::endl;
+        std::cout << "  • Config File: " << args.config_file << std::endl;
+        std::cout << "  • Server: " << config.server_host << ":" << config.server_port << std::endl;
+        std::cout << "  • Mode: " << (args.production_mode ? "Production" : 
+                                      args.development_mode ? "Development" : "Default") << std::endl;
+        std::cout << "  • Auto-start Server: " << (config.auto_start_server ? "Yes" : "No") << std::endl;
+        std::cout << std::endl;
+
+        // Create and configure unified server
+        unified_server = std::make_unique<UnifiedKolosalServer>(config);
+        
+        // Set up health monitoring
+        if (config.enable_health_monitoring) {
+            setup_health_monitoring(*unified_server);
+            unified_server->enableAutoRecovery(true);
+        }
+        
+        // Start the unified server
+        std::cout << "🚀 Starting Kolosal unified server..." << std::endl;
+        if (!unified_server->start()) {
+            std::cerr << "❌ Failed to start unified server!" << std::endl;
             return 1;
         }
         
-        // Wait a moment for server to initialize
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-    }
-    
-    // Initialize server client
-    std::string server_url = "http://127.0.0.1:" + std::to_string(server_port);
-    server_client = std::make_unique<KolosalServerClient>(server_url);
-    
-    // Wait for server to be ready
-    std::cout << "Waiting for kolosal-server to be ready..." << std::endl;
-    if (!server_client->waitForServerReady(30)) {
-        std::cerr << "Kolosal-server did not become ready in time. Exiting." << std::endl;
-        if (start_server) {
-            stop_server_process();
-        }
-        return 1;
-    }
-    std::cout << "Kolosal-server is ready!" << std::endl;
-    
-    // Initialize the multi-agent system
-    std::cout << "Initializing multi-agent system..." << std::endl;
-    YAMLConfigurableAgentManager agent_manager;
-    
-    // Load configuration
-    if (!agent_manager.load_configuration(config_file)) {
-        std::cerr << "Failed to load agent configuration from: " << config_file << std::endl;
-        if (start_server) {
-            stop_server_process();
-        }
-        return 1;
-    }
-    
-    // Start the agent system
-    try {
-        agent_manager.start();
-        std::cout << "Multi-agent system started successfully!" << std::endl;
-        std::cout << std::endl;
+        std::cout << "✅ Unified server started successfully!" << std::endl;
         
-        // Print system status
-        std::cout << agent_manager.get_system_status() << std::endl;
-        
-        // Run demonstration if requested
-        if (run_demo) {
-            std::cout << std::endl;
-            std::cout << "=== Running System Demonstration ===" << std::endl;
-            agent_manager.demonstrate_system();
-            std::cout << "=== Demonstration Complete ===" << std::endl;
-            std::cout << std::endl;
+        // Run demo if requested
+        if (args.demo_mode) {
+            std::this_thread::sleep_for(std::chrono::seconds(2)); // Let system stabilize
+            run_demo_mode(*unified_server);
         }
-        
-        std::cout << "System is running. Press Ctrl+C to stop..." << std::endl;
         
         // Main event loop
-        while (keep_running && agent_manager.is_running()) {
+        std::cout << "\n🎯 System is operational!" << std::endl;
+        std::cout << "   • LLM Server: http://" << config.server_host << ":" << config.server_port << std::endl;
+        std::cout << "   • Agent API: http://" << config.server_host << ":" << config.server_port << "/v1/agents" << std::endl;
+        std::cout << "   • System Status: http://" << config.server_host << ":" << config.server_port << "/v1/system/status" << std::endl;
+        std::cout << "\n💡 Press Ctrl+C to stop..." << std::endl;
+        
+        // Event loop with periodic status updates
+        auto last_status_update = std::chrono::system_clock::now();
+        
+        while (keep_running && unified_server->isRunning()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             
-            // Periodic health check
-            static int health_check_counter = 0;
-            if (++health_check_counter >= 100) { // Check every 10 seconds
-                if (!server_client->isServerHealthy()) {
-                    std::cout << "Warning: Kolosal-server health check failed!" << std::endl;
+            // Periodic status updates in verbose mode
+            if (args.verbose) {
+                auto now = std::chrono::system_clock::now();
+                if (now - last_status_update >= std::chrono::minutes(1)) {
+                    auto status = unified_server->getSystemStatus();
+                    std::cout << "📊 Status Update - Agents: " << status.running_agents << "/" 
+                              << status.total_agents << ", Response: " 
+                              << std::fixed << std::setprecision(1) 
+                              << status.average_response_time_ms << "ms" << std::endl;
+                    last_status_update = now;
                 }
-                health_check_counter = 0;
             }
         }
         
-    } catch (const std::exception& e) {
-        std::cerr << "Error running agent system: " << e.what() << std::endl;
-    }
-    
-    // Graceful shutdown
-    std::cout << std::endl;
-    std::cout << "Shutting down multi-agent system..." << std::endl;
-    agent_manager.stop();
-    
-    // Shutdown server if we started it
-    if (start_server) {
-        std::cout << "Shutting down kolosal-server..." << std::endl;
-        if (server_client) {
-            // Try graceful shutdown via API first
-            if (!server_client->shutdownServer()) {
-                std::cout << "API shutdown failed, terminating process..." << std::endl;
-            }
+        // Graceful shutdown
+        std::cout << "\n🛑 Initiating graceful shutdown..." << std::endl;
+        
+        if (unified_server) {
+            unified_server->stop();
+            unified_server.reset();
         }
-        stop_server_process();
+        
+        std::cout << "✅ Kolosal Agent System shutdown complete." << std::endl;
+        return 0;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "❌ Fatal Error: " << e.what() << std::endl;
+        
+        if (unified_server) {
+            unified_server->stop();
+            unified_server.reset();
+        }
+        
+        return 1;
     }
-    
-    std::cout << "Kolosal Agent System shutdown complete." << std::endl;
-    return 0;
 }

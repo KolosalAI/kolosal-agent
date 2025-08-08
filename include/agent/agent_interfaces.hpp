@@ -1,7 +1,7 @@
 // File: include/kolosal/agents/agent_interfaces.hpp
 #pragma once
 
-#include "export.hpp"
+#include "../export.hpp"
 #include "agent_data.hpp"
 #include <string>
 #include <vector>

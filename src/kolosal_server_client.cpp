@@ -1,5 +1,5 @@
 #include "kolosal_server_client.h"
-#include "http_client.hpp"
+#include "routes/http_client.hpp"
 #include "loading_animation.hpp"
 #include <iostream>
 #include <thread>
@@ -8,7 +8,7 @@
 #include <fstream>
 #include <filesystem>
 #include <vector>
-#include <nlohmann/json.hpp>
+#include <json.hpp>
 
 #ifdef _WIN32
 #include <windows.h>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "agent_interfaces.hpp"
+#include "agent/agent_interfaces.hpp"
 #include <json.hpp>
 #include <memory>
 #include <future>

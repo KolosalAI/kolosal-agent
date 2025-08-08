@@ -1,7 +1,7 @@
 // File: include/kolosal/agents/agent_roles.hpp
 #pragma once
 
-#include "export.hpp"
+#include "../export.hpp"
 #include <string>
 #include <vector>
 #include <unordered_map>

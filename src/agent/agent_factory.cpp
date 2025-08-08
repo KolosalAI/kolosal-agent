@@ -1,5 +1,5 @@
 // File: src/agents/agent_factory.cpp
-#include "agent_factory.hpp"
+#include "agent/agent_factory.hpp"
 #include "tool_registry.hpp"
 
 namespace kolosal::agents {

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "export.hpp"
-#include "agent_interfaces.hpp"
+#include "agent/agent_interfaces.hpp"
 #include <unordered_map>
 #include <memory>
 #include <mutex>

@@ -4,5 +4,14 @@
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "C_Cpp.intelliSenseEngine": "default",
     "C_Cpp.intelliSenseEngineFallback": "enabled",
-    "C_Cpp.errorSquiggles": "enabled"
+    "C_Cpp.errorSquiggles": "enabled",
+    "files.associations": {
+        "set": "cpp",
+        "memory": "cpp",
+        "chrono": "cpp",
+        "codecvt": "cpp",
+        "xlocale": "cpp",
+        "future": "cpp",
+        "system_error": "cpp"
+    }
 }

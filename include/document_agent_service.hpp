@@ -1,10 +1,10 @@
 #pragma once
 
-#include "agent_interfaces.hpp"
+#include "agent/agent_interfaces.hpp"
 #include "kolosal/retrieval/add_document_types.hpp"
 #include "kolosal/retrieval/retrieve_types.hpp"
 #include "kolosal/retrieval/document_service.hpp"
-#include <nlohmann/json.hpp>
+#include <json.hpp>
 #include <memory>
 #include <future>
 #include <vector>

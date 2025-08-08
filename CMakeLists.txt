@@ -1,300 +1,702 @@
 cmake_minimum_required(VERSION 3.14)
 
-# Set policies for compatibility with newer CMake versions
-if(POLICY CMP0074)
-    cmake_policy(SET CMP0074 NEW) # Use <PackageName>_ROOT variables
-endif()
-if(POLICY CMP0077)
-    cmake_policy(SET CMP0077 NEW) # option() honors normal variables
-endif()
-if(POLICY CMP0135)
-    cmake_policy(SET CMP0135 NEW) # FetchContent uses DOWNLOAD_EXTRACT_TIMESTAMP
-endif()
+# Project configuration
+project(KolosalAgent 
+    VERSION 2.0.0
+    LANGUAGES CXX C
+    DESCRIPTION "Advanced Multi-Agent AI System with Unified LLM Server Integration"
+)
 
-project(KolosalAgent VERSION 1.0.0 LANGUAGES C CXX)
-
-# Use C++17 for this project
+# C++ Standards and compiler requirements
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Enable position independent code
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
-# Platform-specific configurations
-if (MINGW)
-    add_compile_definitions(_WIN32_WINNT=0x602)
+# Build type configuration
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the type of build" FORCE)
 endif()
 
-if (WIN32)
-    add_compile_definitions(WIN32_LEAN_AND_MEAN)
-    add_compile_definitions(NOMINMAX)
-endif()
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
 
-# Options
-option(USE_CUDA   "Compile with CUDA support" OFF)
-option(USE_VULKAN "Compile with VULKAN support" OFF)
-option(USE_METAL  "Compile with Metal support (macOS only)" OFF)
-option(USE_MPI    "Compile with MPI support" OFF)
-option(DEBUG      "Compile with debugging information" OFF)
-option(USE_PODOFO "Compile with PoDoFo PDF support" OFF)
-option(BUILD_TESTS "Build test executables" OFF)
-
-# On Apple systems, enable Metal by default unless explicitly disabled
-if(APPLE)
-    message(STATUS "Apple system detected - enabling Metal acceleration by default")
-    set(USE_METAL ON CACHE BOOL "Enable Metal acceleration on Apple systems" FORCE)
-endif()
-
-# Define include directories for the agent project
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann)
-
-# Include directories for kolosal-server integration
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/nlohmann)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/yaml-cpp/include)
-
-# Add kolosal-server as subdirectory first so yaml-cpp is available
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/CMakeLists.txt")
-    message(STATUS "Adding kolosal-server subdirectory...")
-    
-    # Ensure our options are passed to the submodule
-    set(USE_PODOFO ${USE_PODOFO} CACHE BOOL "Compile with PoDoFo PDF support" FORCE)
-    set(USE_CUDA ${USE_CUDA} CACHE BOOL "Compile with CUDA support" FORCE)
-    set(USE_VULKAN ${USE_VULKAN} CACHE BOOL "Compile with VULKAN support" FORCE)
-    set(USE_METAL ${USE_METAL} CACHE BOOL "Compile with Metal support" FORCE)
-    set(USE_MPI ${USE_MPI} CACHE BOOL "Compile with MPI support" FORCE)
-    
-    add_subdirectory(kolosal-server)
-else()
-    message(FATAL_ERROR "kolosal-server not found. Please initialize the git submodule: git submodule update --init --recursive")
-endif()
-
-# Define agent source files
-set(AGENT_SOURCES
-    src/agent_core.cpp
-    src/agent_data.cpp
-    src/agent_interfaces.cpp
-    src/agent_orchestrator.cpp
-    src/agent_roles.cpp
-    src/agent_factory.cpp
-    src/agent_config_validator.cpp
-    src/builtin_functions.cpp
-    src/document_agent_service.cpp
-    src/document_service_manager.cpp
-    src/event_system.cpp
-    src/function_manager.cpp
-    src/http_client.cpp
-    src/job_manager.cpp
-    src/kolosal_server_client.cpp
-    src/loading_animation.cpp
-    src/memory_manager.cpp
-    src/message_router.cpp
-    src/multi_agent_system.cpp
-    src/planning_system.cpp
-    src/sequential_workflow.cpp
-    src/server_logger_adapter.cpp
-    src/tool_registry.cpp
-    src/workflow_agent_service.cpp
-    src/workflow_engine.cpp
-    src/yaml_config.cpp
-)
-
-# Create agent library
-add_library(kolosal_agent STATIC ${AGENT_SOURCES})
-
-# Ensure agent library has access to all necessary include directories
-target_include_directories(kolosal_agent PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/common
-    ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/ggml/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/nlohmann
-    ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/pugixml/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/yaml-cpp/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/external
-)
-
-# Link with yaml-cpp
-target_link_libraries(kolosal_agent PUBLIC yaml-cpp)
-
-# Link with kolosal-server
-target_link_libraries(kolosal_agent PUBLIC kolosal_server)
-
-# Add compile definitions to indicate we're building the agent library
-target_compile_definitions(kolosal_agent PUBLIC KOLOSAL_AGENT_BUILD KOLOSAL_AGENT_STATIC)
-
-# Platform-specific link libraries
-find_package(Threads REQUIRED)
-target_link_libraries(kolosal_agent PRIVATE Threads::Threads)
-
+# Platform detection
 if(WIN32)
-    target_link_libraries(kolosal_agent PRIVATE ws2_32 wbemuuid wininet)
+    set(PLATFORM_NAME "Windows")
+    add_definitions(-DPLATFORM_WINDOWS)
 elseif(APPLE)
-    target_link_libraries(kolosal_agent PRIVATE dl pthread)
+    set(PLATFORM_NAME "macOS")
+    add_definitions(-DPLATFORM_MACOS)
+else()
+    set(PLATFORM_NAME "Linux")
+    add_definitions(-DPLATFORM_LINUX)
+endif()
+
+# Feature options
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
+option(BUILD_TESTS "Build unit tests" OFF)
+option(BUILD_EXAMPLES "Build example applications" OFF)
+option(BUILD_DOCS "Build documentation" OFF)
+option(ENABLE_LOGGING "Enable logging support" ON)
+option(ENABLE_METRICS "Enable metrics collection" ON)
+option(ENABLE_HEALTH_MONITORING "Enable health monitoring" ON)
+option(USE_SYSTEM_LIBS "Use system-installed libraries when possible" OFF)
+option(ENABLE_HTTP_CLIENT "Enable HTTP client functionality (requires CURL)" ON)
+
+# Advanced build options
+option(USE_PODOFO "Enable PDF processing with PoDoFo" OFF)
+option(ENABLE_CUDA "Enable CUDA support for GPU acceleration" OFF)
+option(ENABLE_VULKAN "Enable Vulkan support" OFF)
+option(ENABLE_METAL "Enable Metal support (macOS)" OFF)
+option(ENABLE_NATIVE_OPTS "Enable native CPU optimizations" OFF)
+
+# Development options
+option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
+option(ENABLE_TSAN "Enable ThreadSanitizer" OFF)
+option(ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
+
+# Build configuration options
+option(CLEAN_BUILD "Perform clean build" OFF)
+option(INSTALL_AFTER_BUILD "Install after build" OFF)
+option(PACKAGE_AFTER_BUILD "Create packages after build" OFF)
+option(RUN_TESTS_AFTER_BUILD "Run tests after build" OFF)
+option(VERBOSE_BUILD "Verbose build output" OFF)
+
+# Print configuration
+message(STATUS "========================================")
+message(STATUS "Kolosal Agent System v${PROJECT_VERSION}")
+message(STATUS "Platform: ${PLATFORM_NAME}")
+message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
+message(STATUS "Shared Libraries: ${BUILD_SHARED_LIBS}")
+message(STATUS "========================================")
+
+# Compiler-specific settings
+if(MSVC)
+    # Visual Studio specific settings
+    add_compile_options(/W4 /WX- /utf-8)
+    add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+    add_compile_definitions(NOMINMAX)
+    add_compile_definitions(WIN32_LEAN_AND_MEAN)
+    add_compile_definitions(_WINSOCK_DEPRECATED_NO_WARNINGS)
     
-    # Add required macOS frameworks
-    find_library(COREFOUNDATION_FRAMEWORK CoreFoundation)
-    if(COREFOUNDATION_FRAMEWORK)
-        target_link_libraries(kolosal_agent PRIVATE ${COREFOUNDATION_FRAMEWORK})
+    # Enable C++17 features explicitly
+    add_compile_options(/std:c++17)
+    
+    # Enable parallel compilation
+    add_compile_options(/MP)
+    
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        add_compile_options(/MDd /Od /Zi)
+    else()
+        add_compile_options(/MD /O2)
     endif()
 else()
-    target_link_libraries(kolosal_agent PRIVATE dl rt pthread)
-endif()
-
-# Set optimization flags for release builds
-if(CMAKE_BUILD_TYPE STREQUAL "Release" OR NOT CMAKE_BUILD_TYPE)
-    if(MSVC)
-        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /Ob2 /DNDEBUG")
-        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /O2 /Ob2 /DNDEBUG")
+    # GCC/Clang settings
+    add_compile_options(-Wall -Wextra -Wpedantic)
+    
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        add_compile_options(-g -O0)
     else()
-        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
-        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -DNDEBUG")
+        add_compile_options(-O3 -DNDEBUG)
         
-        option(ENABLE_NATIVE_OPTIMIZATION "Enable native CPU optimization (-march=native)" OFF)
-        if(ENABLE_NATIVE_OPTIMIZATION)
-            set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native -mtune=native")
-            set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native -mtune=native")
-            message(STATUS "Native CPU optimization enabled")
+        if(ENABLE_NATIVE_OPTS)
+            add_compile_options(-march=native -mtune=native)
         endif()
     endif()
 endif()
 
-# Create the main executable
-add_executable(kolosal_agent_exe src/main.cpp)
-target_link_libraries(kolosal_agent_exe PRIVATE kolosal_agent)
-
-# For static builds, we need to explicitly link with the inference engine
-# since the CompletionParameters::isValid() method is in the DLL
-if(USE_CUDA)
-    target_link_libraries(kolosal_agent_exe PRIVATE llama-cuda)
-elseif(USE_VULKAN)
-    target_link_libraries(kolosal_agent_exe PRIVATE llama-vulkan) 
-elseif(USE_METAL)
-    target_link_libraries(kolosal_agent_exe PRIVATE llama-metal)
-else()
-    target_link_libraries(kolosal_agent_exe PRIVATE llama-cpu)
+# Sanitizer support
+if(ENABLE_ASAN AND NOT MSVC)
+    add_compile_options(-fsanitize=address)
+    add_link_options(-fsanitize=address)
 endif()
 
-set_target_properties(kolosal_agent_exe PROPERTIES OUTPUT_NAME "kolosal-agent")
+if(ENABLE_TSAN AND NOT MSVC)
+    add_compile_options(-fsanitize=thread)
+    add_link_options(-fsanitize=thread)
+endif()
 
-# Ensure the executable can find headers
-target_include_directories(kolosal_agent_exe PRIVATE 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/common
-    ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/ggml/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/nlohmann
-    ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/pugixml/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/yaml-cpp/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/external
+if(ENABLE_UBSAN AND NOT MSVC)
+    add_compile_options(-fsanitize=undefined)
+    add_link_options(-fsanitize=undefined)
+endif()
+
+# Include directories
+include_directories(include)
+include_directories(kolosal-server/include)
+
+# Find required packages
+find_package(Threads REQUIRED)
+
+# External dependencies
+set(EXTERNAL_DIR "${CMAKE_SOURCE_DIR}/external")
+
+# nlohmann/json
+if(USE_SYSTEM_LIBS)
+    find_package(nlohmann_json QUIET)
+endif()
+
+if(NOT nlohmann_json_FOUND)
+    include_directories(${EXTERNAL_DIR}/nlohmann)
+endif()
+
+# yaml-cpp (prioritize main external over subdirectory)
+if(USE_SYSTEM_LIBS)
+    find_package(yaml-cpp QUIET)
+endif()
+
+if(NOT yaml-cpp_FOUND)
+    # Build yaml-cpp from main external directory first
+    if(EXISTS "${EXTERNAL_DIR}/yaml-cpp/CMakeLists.txt")
+        message(STATUS "Using yaml-cpp from main external directory")
+        set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "disable yaml tests")
+        set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "disable yaml tools")
+        set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "disable yaml contrib")
+        set(YAML_CPP_INSTALL OFF CACHE BOOL "disable yaml install")
+        add_subdirectory(${EXTERNAL_DIR}/yaml-cpp EXCLUDE_FROM_ALL)
+        set(YAML_CPP_LIBRARIES yaml-cpp)
+        set(YAML_CPP_AVAILABLE TRUE)
+    else()
+        message(WARNING "yaml-cpp not found in external directory")
+        set(YAML_CPP_AVAILABLE FALSE)
+    endif()
+else()
+    set(YAML_CPP_LIBRARIES yaml-cpp)
+    set(YAML_CPP_AVAILABLE TRUE)
+endif()
+
+# cURL for HTTP client functionality
+if(ENABLE_HTTP_CLIENT)
+    find_package(CURL QUIET)
+
+    if(NOT CURL_FOUND)
+        message(WARNING "CURL not found. Trying alternative approaches...")
+        
+        if(WIN32)
+            # On Windows, try to use the bundled CURL if available
+            if(EXISTS "${EXTERNAL_DIR}/curl")
+                message(STATUS "Using bundled CURL from external/curl")
+                set(CURL_FOUND TRUE)
+                set(CURL_INCLUDE_DIRS "${EXTERNAL_DIR}/curl/include")
+                set(CURL_LIBRARIES "${EXTERNAL_DIR}/curl/lib/libcurl.lib")
+                
+                # Verify the bundled files exist
+                if(NOT EXISTS "${CURL_INCLUDE_DIRS}/curl/curl.h")
+                    message(WARNING "Bundled CURL headers not found at ${CURL_INCLUDE_DIRS}")
+                    set(CURL_FOUND FALSE)
+                endif()
+                
+                if(NOT EXISTS "${CURL_LIBRARIES}")
+                    # Try alternative library names
+                    if(EXISTS "${EXTERNAL_DIR}/curl/lib/curl.lib")
+                        set(CURL_LIBRARIES "${EXTERNAL_DIR}/curl/lib/curl.lib")
+                    elseif(EXISTS "${EXTERNAL_DIR}/curl/lib/libcurl_a.lib")
+                        set(CURL_LIBRARIES "${EXTERNAL_DIR}/curl/lib/libcurl_a.lib")
+                    else()
+                        message(WARNING "Bundled CURL library not found")
+                        set(CURL_FOUND FALSE)
+                    endif()
+                endif()
+            endif()
+            
+            # If bundled CURL not available, disable HTTP features
+            if(NOT CURL_FOUND)
+                message(WARNING "CURL not available. HTTP client functionality will be disabled.")
+                message(STATUS "To enable HTTP functionality, please install CURL:")
+                message(STATUS "  - Using vcpkg: vcpkg install curl")
+                message(STATUS "  - Or download pre-built binaries to external/curl/")
+                set(CURL_LIBRARIES "")
+                set(CURL_INCLUDE_DIRS "")
+                add_definitions(-DNO_CURL_SUPPORT)
+            endif()
+        else()
+            # On Unix-like systems
+            find_package(PkgConfig QUIET)
+            if(PkgConfig_FOUND)
+                pkg_check_modules(CURL libcurl)
+            endif()
+            
+            if(NOT CURL_FOUND)
+                message(WARNING "CURL not found. HTTP client functionality will be disabled.")
+                message(STATUS "To enable HTTP functionality, please install libcurl-dev:")
+                message(STATUS "  - Ubuntu/Debian: sudo apt install libcurl4-openssl-dev")
+                message(STATUS "  - CentOS/RHEL: sudo yum install libcurl-devel")
+                message(STATUS "  - macOS: brew install curl")
+                set(CURL_LIBRARIES "")
+                set(CURL_INCLUDE_DIRS "")
+                add_definitions(-DNO_CURL_SUPPORT)
+            endif()
+        endif()
+    else()
+        message(STATUS "CURL found: ${CURL_LIBRARIES}")
+    endif()
+else()
+    message(STATUS "HTTP client functionality disabled by configuration")
+    add_definitions(-DNO_CURL_SUPPORT)
+    set(CURL_FOUND FALSE)
+    set(CURL_LIBRARIES "")
+    set(CURL_INCLUDE_DIRS "")
+endif()
+
+# PoDoFo for PDF support (optional)
+if(USE_PODOFO)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(PODOFO libpodofo)
+        if(PODOFO_FOUND)
+            add_definitions(-DUSE_PODOFO)
+            message(STATUS "PoDoFo support enabled")
+        else()
+            message(WARNING "PoDoFo requested but not found. PDF support disabled.")
+        endif()
+    else()
+        message(WARNING "PkgConfig not found. Cannot detect PoDoFo. PDF support disabled.")
+    endif()
+else()
+    message(STATUS "PoDoFo support disabled")
+endif()
+
+# GPU acceleration support
+if(ENABLE_CUDA)
+    find_package(CUDA QUIET)
+    if(CUDA_FOUND)
+        enable_language(CUDA)
+        add_definitions(-DUSE_CUDA)
+        message(STATUS "CUDA support enabled")
+    else()
+        message(WARNING "CUDA requested but not found")
+    endif()
+endif()
+
+if(ENABLE_VULKAN)
+    find_package(Vulkan QUIET)
+    if(Vulkan_FOUND)
+        add_definitions(-DUSE_VULKAN)
+        message(STATUS "Vulkan support enabled")
+    else()
+        message(WARNING "Vulkan requested but not found")
+    endif()
+endif()
+
+if(ENABLE_METAL AND APPLE)
+    add_definitions(-DUSE_METAL)
+    message(STATUS "Metal support enabled")
+endif()
+
+# Source files organization
+set(AGENT_CORE_SOURCES
+    src/agent/agent_core.cpp
+    src/agent/multi_agent_system.cpp
+    src/agent/agent_interfaces.cpp
+    src/agent/agent_roles.cpp
+    src/agent/agent_data.cpp
+    src/agent/agent_config_validator.cpp
+    src/agent/agent_factory.cpp
+    src/agent/agent_orchestrator.cpp
 )
 
-# Add compile definitions for the executable  
-target_compile_definitions(kolosal_agent_exe PRIVATE KOLOSAL_AGENT_EXE KOLOSAL_AGENT_STATIC)
+set(ROUTES_SOURCES
+    src/routes/message_router.cpp
+    src/routes/http_client.cpp
+)
 
-# Create the legacy launcher executable (still present for backward compatibility)
-add_executable(kolosal_launcher_exe src/kolosal_launcher.c)
-set_target_properties(kolosal_launcher_exe PROPERTIES OUTPUT_NAME "kolosal-launcher")
+set(API_SOURCES
+    src/api/agent_management_route.cpp
+)
 
-# Platform-specific RPATH settings
-if(UNIX AND NOT APPLE)
-    # Linux-specific RPATH settings
-    set_target_properties(kolosal_agent_exe PROPERTIES
-        INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib:/usr/lib"
-        BUILD_WITH_INSTALL_RPATH TRUE
-        INSTALL_RPATH_USE_LINK_PATH TRUE
+set(SERVICES_SOURCES
+    src/services/agent_service.cpp
+)
+
+set(INTEGRATION_SOURCES
+    src/integration/unified_server.cpp
+)
+
+set(CORE_SOURCES
+    src/yaml_config.cpp
+    src/function_manager.cpp
+    src/job_manager.cpp
+    src/event_system.cpp
+    src/tool_registry.cpp
+    src/memory_manager.cpp
+    src/planning_system.cpp
+    src/server_logger_adapter.cpp
+    src/loading_animation.cpp
+    src/kolosal_server_client.cpp
+    src/builtin_functions.cpp
+    src/document_agent_service.cpp
+    src/document_service_manager.cpp
+    src/workflow_agent_service.cpp
+)
+
+set(SEQUENTIAL_SOURCES
+    src/sequential/sequential_workflow.cpp
+    src/sequential/workflow_engine.cpp
+)
+
+# Combine all sources
+set(ALL_SOURCES
+    ${AGENT_CORE_SOURCES}
+    ${ROUTES_SOURCES}
+    ${API_SOURCES}
+    ${SERVICES_SOURCES}
+    ${INTEGRATION_SOURCES}
+    ${CORE_SOURCES}
+    ${SEQUENTIAL_SOURCES}
+)
+
+# Create the main library
+add_library(kolosal_agent ${ALL_SOURCES})
+
+# Library properties
+set_target_properties(kolosal_agent PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+    CXX_STANDARD ${CMAKE_CXX_STANDARD}
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    POSITION_INDEPENDENT_CODE ON
+)
+
+# Include directories for the kolosal_agent target
+target_include_directories(kolosal_agent 
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/ggml/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/common
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/pugixml/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/nlohmann
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/yaml-cpp/include
+)
+
+# Preprocessor definitions
+target_compile_definitions(kolosal_agent 
+    PRIVATE
+        KOLOSAL_AGENT_VERSION="${PROJECT_VERSION}"
+        KOLOSAL_AGENT_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
+        KOLOSAL_AGENT_BUILD  # Define that we're building the library
+)
+
+# Handle static vs shared library definitions
+if(BUILD_SHARED_LIBS)
+    target_compile_definitions(kolosal_agent 
+        PUBLIC KOLOSAL_AGENT_SHARED
     )
-elseif(APPLE)
-    # macOS-specific RPATH settings
-    set_target_properties(kolosal_agent_exe PROPERTIES
-        INSTALL_RPATH "@executable_path"
-        BUILD_WITH_INSTALL_RPATH TRUE
-        INSTALL_RPATH_USE_LINK_PATH TRUE
-        MACOSX_RPATH TRUE
+else()
+    target_compile_definitions(kolosal_agent 
+        PUBLIC KOLOSAL_AGENT_STATIC
     )
-    
-    # Additional RPATH entries for macOS
-    set_property(TARGET kolosal_agent_exe APPEND PROPERTY INSTALL_RPATH "@executable_path/../lib")
-    set_property(TARGET kolosal_agent_exe APPEND PROPERTY INSTALL_RPATH "/usr/local/lib")
-    set_property(TARGET kolosal_agent_exe APPEND PROPERTY INSTALL_RPATH "/opt/homebrew/lib")
 endif()
 
-# Copy server executable and libraries to agent build directory for easy deployment
+if(ENABLE_LOGGING)
+    target_compile_definitions(kolosal_agent PRIVATE ENABLE_LOGGING)
+endif()
+
+if(ENABLE_METRICS)
+    target_compile_definitions(kolosal_agent PRIVATE ENABLE_METRICS)
+endif()
+
+if(ENABLE_HEALTH_MONITORING)
+    target_compile_definitions(kolosal_agent PRIVATE ENABLE_HEALTH_MONITORING)
+endif()
+
+# Link libraries
+target_link_libraries(kolosal_agent
+    PUBLIC
+        Threads::Threads
+        ${YAML_CPP_LIBRARIES}
+    PRIVATE
+        kolosal_server
+)
+
+# CURL linking (optional)
+if(CURL_FOUND AND CURL_LIBRARIES)
+    target_link_libraries(kolosal_agent PRIVATE ${CURL_LIBRARIES})
+    target_include_directories(kolosal_agent PRIVATE ${CURL_INCLUDE_DIRS})
+    message(STATUS "HTTP client functionality enabled with CURL")
+else()
+    message(STATUS "HTTP client functionality disabled (CURL not available)")
+endif()
+
+# PoDoFo linking
+if(PODOFO_FOUND)
+    target_link_libraries(kolosal_agent PRIVATE ${PODOFO_LIBRARIES})
+    target_include_directories(kolosal_agent PRIVATE ${PODOFO_INCLUDE_DIRS})
+endif()
+
+# CUDA linking
+if(CUDA_FOUND)
+    target_link_libraries(kolosal_agent PRIVATE ${CUDA_LIBRARIES})
+    target_include_directories(kolosal_agent PRIVATE ${CUDA_INCLUDE_DIRS})
+endif()
+
+# Vulkan linking  
+if(Vulkan_FOUND)
+    target_link_libraries(kolosal_agent PRIVATE Vulkan::Vulkan)
+endif()
+
+# Platform-specific libraries
 if(WIN32)
-    # Copy server executable and required DLLs
-    add_custom_command(TARGET kolosal_agent_exe POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:kolosal_server_exe>"
-        "$<TARGET_FILE_DIR:kolosal_agent_exe>/"
-        COMMENT "Copying kolosal-server.exe to agent directory"
-    )
-    
-    # Copy kolosal server DLL
-    add_custom_command(TARGET kolosal_agent_exe POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:kolosal_server>"
-        "$<TARGET_FILE_DIR:kolosal_agent_exe>/"
-        COMMENT "Copying kolosal_server.dll to agent directory"
-    )
-    
-elseif(APPLE OR UNIX)
-    # Copy server executable and shared libraries
-    add_custom_command(TARGET kolosal_agent_exe POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:kolosal_server_exe>"
-        "$<TARGET_FILE_DIR:kolosal_agent_exe>/"
-        COMMENT "Copying kolosal-server to agent directory"
-    )
-    
-    # Copy kolosal server shared library
-    add_custom_command(TARGET kolosal_agent_exe POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:kolosal_server>"
-        "$<TARGET_FILE_DIR:kolosal_agent_exe>/"
-        COMMENT "Copying kolosal_server shared library to agent directory"
+    target_link_libraries(kolosal_agent PRIVATE ws2_32 winmm)
+elseif(APPLE)
+    target_link_libraries(kolosal_agent PRIVATE "-framework Foundation" "-framework CoreFoundation")
+    if(ENABLE_METAL)
+        target_link_libraries(kolosal_agent PRIVATE "-framework Metal" "-framework MetalKit")
+    endif()
+else()
+    target_link_libraries(kolosal_agent PRIVATE dl rt)
+endif()
+
+# Build kolosal-server subdirectory (after main library to avoid conflicts)
+# Configure kolosal-server to use our yaml-cpp
+set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "disable yaml tests in kolosal-server")
+set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "disable yaml tools in kolosal-server") 
+set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "disable yaml contrib in kolosal-server")
+set(YAML_CPP_INSTALL OFF CACHE BOOL "disable yaml install in kolosal-server")
+add_subdirectory(kolosal-server)
+
+# Add dependency to ensure kolosal_server is built before kolosal_agent
+add_dependencies(kolosal_agent kolosal_server)
+
+# Main executable (unified v2.0)
+add_executable(kolosal-agent src/main.cpp)
+target_link_libraries(kolosal-agent kolosal_agent)
+set_target_properties(kolosal-agent PROPERTIES
+    CXX_STANDARD ${CMAKE_CXX_STANDARD}
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    OUTPUT_NAME "kolosal-agent-unified"
+)
+
+# Launcher executable
+add_executable(kolosal-launcher src/kolosal_launcher.c)
+if(WIN32)
+    target_link_libraries(kolosal-launcher kernel32 user32)
+endif()
+
+# Installation configuration
+include(GNUInstallDirs)
+
+# Install binaries
+install(TARGETS kolosal-agent kolosal-launcher kolosal_agent
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+# Install headers
+install(DIRECTORY include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/kolosal-agent
+    FILES_MATCHING PATTERN "*.hpp" PATTERN "*.h"
+)
+
+# Install configuration files
+install(FILES config.example.yaml
+    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/kolosal-agent
+    RENAME config.yaml
+)
+
+# Install documentation
+if(EXISTS "${CMAKE_SOURCE_DIR}/README.md")
+    install(FILES README.md
+        DESTINATION ${CMAKE_INSTALL_DOCDIR}
     )
 endif()
 
-# Install rules (optional, for packaging)
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    install(TARGETS kolosal_agent_exe
-        RUNTIME DESTINATION bin
-        COMPONENT Runtime
-    )
-    
-    install(TARGETS kolosal_launcher_exe
-        RUNTIME DESTINATION bin
-        COMPONENT Runtime
-    )
-    
-    # Install server executable too for complete package
-    install(TARGETS kolosal_server_exe
-        RUNTIME DESTINATION bin
-        COMPONENT Runtime
-    )
-endif()
-
-# Build tests if enabled
+# Tests configuration
 if(BUILD_TESTS)
     enable_testing()
-    add_subdirectory(tests EXCLUDE_FROM_ALL)
+    
+    # Find test framework
+    find_package(GTest QUIET)
+    if(GTest_FOUND)
+        add_subdirectory(tests)
+        message(STATUS "Tests enabled with Google Test")
+    else()
+        message(WARNING "Tests requested but Google Test not found")
+    endif()
 endif()
 
-# Print configuration summary
+# Examples
+if(BUILD_EXAMPLES)
+    add_subdirectory(examples)
+    message(STATUS "Examples enabled")
+endif()
+
+# Documentation
+if(BUILD_DOCS)
+    find_package(Doxygen QUIET)
+    if(Doxygen_FOUND)
+        configure_file(${CMAKE_SOURCE_DIR}/docs/Doxyfile.in ${CMAKE_BINARY_DIR}/Doxyfile @ONLY)
+        add_custom_target(docs
+            ${DOXYGEN_EXECUTABLE} ${CMAKE_BINARY_DIR}/Doxyfile
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            COMMENT "Generating API documentation with Doxygen"
+        )
+        message(STATUS "Documentation enabled")
+    else()
+        message(WARNING "Documentation requested but Doxygen not found")
+    endif()
+endif()
+
+# CPack configuration for packaging
+set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
+set(CPACK_PACKAGE_VENDOR "Kolosal AI")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_DESCRIPTION}")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
+set(CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
+
+if(WIN32)
+    set(CPACK_GENERATOR "ZIP;NSIS")
+    set(CPACK_NSIS_DISPLAY_NAME "Kolosal Agent System")
+    set(CPACK_NSIS_PACKAGE_NAME "Kolosal Agent System")
+    set(CPACK_NSIS_HELP_LINK "https://github.com/Evintkoo/kolosal-agent")
+    set(CPACK_NSIS_URL_INFO_ABOUT "https://github.com/Evintkoo/kolosal-agent")
+    set(CPACK_NSIS_CONTACT "support@kolosal.ai")
+elseif(APPLE)
+    set(CPACK_GENERATOR "TGZ;DragNDrop")
+else()
+    set(CPACK_GENERATOR "TGZ;DEB;RPM")
+    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Kolosal AI <support@kolosal.ai>")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6, libstdc++6, libcurl4, libyaml-cpp0.6")
+    set(CPACK_RPM_PACKAGE_REQUIRES "glibc, libstdc++, libcurl, yaml-cpp")
+endif()
+
+include(CPack)
+
+# Custom targets to replace build script functionality
+
+# Clean all target
+add_custom_target(clean-all
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_SOURCE_DIR}/CMakeFiles
+    COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_SOURCE_DIR}/CMakeCache.txt
+    COMMENT "Cleaning all build artifacts and CMake cache"
+)
+
+# System info target
+add_custom_target(info
+    COMMAND ${CMAKE_COMMAND} -E echo "========================================="
+    COMMAND ${CMAKE_COMMAND} -E echo "Kolosal Agent System v${PROJECT_VERSION}"
+    COMMAND ${CMAKE_COMMAND} -E echo "Platform: ${PLATFORM_NAME}"
+    COMMAND ${CMAKE_COMMAND} -E echo "Build Type: ${CMAKE_BUILD_TYPE}"
+    COMMAND ${CMAKE_COMMAND} -E echo "C++ Standard: ${CMAKE_CXX_STANDARD}"
+    COMMAND ${CMAKE_COMMAND} -E echo "CMake Version: ${CMAKE_VERSION}"
+    COMMAND ${CMAKE_COMMAND} -E echo "Generator: ${CMAKE_GENERATOR}"
+    COMMAND ${CMAKE_COMMAND} -E echo "Source Dir: ${CMAKE_SOURCE_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E echo "Binary Dir: ${CMAKE_BINARY_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E echo "========================================="
+    COMMENT "Displaying system and build information"
+)
+
+# Post-build actions
+if(INSTALL_AFTER_BUILD)
+    add_custom_command(TARGET kolosal-agent POST_BUILD
+        COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR}
+        COMMENT "Installing after build"
+    )
+endif()
+
+if(PACKAGE_AFTER_BUILD)
+    add_custom_command(TARGET kolosal-agent POST_BUILD
+        COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target package
+        COMMENT "Creating packages after build"
+    )
+endif()
+
+# Run tests after build
+if(RUN_TESTS_AFTER_BUILD AND BUILD_TESTS)
+    add_custom_command(TARGET kolosal-agent POST_BUILD
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        COMMENT "Running tests after build"
+    )
+endif()
+
+# Git submodule initialization target
+find_package(Git QUIET)
+if(Git_FOUND)
+    add_custom_target(init-submodules
+        COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Initializing git submodules"
+    )
+    
+    # Make main targets depend on submodule initialization
+    add_dependencies(kolosal_agent init-submodules)
+endif()
+
+# Verbose build configuration
+if(VERBOSE_BUILD)
+    set(CMAKE_VERBOSE_MAKEFILE ON)
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+endif()
+
+# Summary
+message(STATUS "========================================")
+message(STATUS "Configuration Summary:")
+message(STATUS "  Version: ${PROJECT_VERSION}")
+message(STATUS "  Platform: ${PLATFORM_NAME}")
+message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "  Shared Libraries: ${BUILD_SHARED_LIBS}")
+message(STATUS "  Tests: ${BUILD_TESTS}")
+message(STATUS "  Examples: ${BUILD_EXAMPLES}")
+message(STATUS "  Documentation: ${BUILD_DOCS}")
+message(STATUS "  Features:")
+message(STATUS "    - Logging: ${ENABLE_LOGGING}")
+message(STATUS "    - Metrics: ${ENABLE_METRICS}")
+message(STATUS "    - Health Monitoring: ${ENABLE_HEALTH_MONITORING}")
+message(STATUS "    - HTTP Client: ${CURL_FOUND}")
+message(STATUS "    - PoDoFo PDF: ${USE_PODOFO}")
+message(STATUS "    - CUDA: ${ENABLE_CUDA}")
+message(STATUS "    - Vulkan: ${ENABLE_VULKAN}")
+message(STATUS "    - Metal: ${ENABLE_METAL}")
+message(STATUS "========================================")
 message(STATUS "")
-message(STATUS "=== Kolosal Agent Configuration Summary ===")
-message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
-message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
-message(STATUS "CUDA Support: ${USE_CUDA}")
-message(STATUS "Vulkan Support: ${USE_VULKAN}")
-message(STATUS "Metal Support: ${USE_METAL}")
-message(STATUS "MPI Support: ${USE_MPI}")
-message(STATUS "PoDoFo PDF Support: ${USE_PODOFO}")
-message(STATUS "Build Tests: ${BUILD_TESTS}")
-message(STATUS "===========================================")
+message(STATUS "🔧 Build Instructions:")
+message(STATUS "  Configure with Debug build:")
+message(STATUS "    cmake .. -DCMAKE_BUILD_TYPE=Debug")
+message(STATUS "  ")
+message(STATUS "  Build with Debug configuration:")
+message(STATUS "    cmake --build . --config Debug")
+message(STATUS "  ")
+message(STATUS "  Additional options:")
+message(STATUS "    cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON")
+message(STATUS "    cmake --build . --config Debug --parallel")
+message(STATUS "  ")
+if(NOT CURL_FOUND)
+message(STATUS "  💡 To enable HTTP client functionality:")
+message(STATUS "    Install CURL and reconfigure:")
+if(WIN32)
+message(STATUS "      vcpkg install curl")
+message(STATUS "      cmake .. -DCURL_ROOT=path/to/curl")
+else()
+message(STATUS "      sudo apt install libcurl4-openssl-dev  # Ubuntu/Debian")
+message(STATUS "      sudo yum install libcurl-devel         # CentOS/RHEL")  
+message(STATUS "      brew install curl                      # macOS")
+endif()
+message(STATUS "  ")
+endif()
+message(STATUS "  Run tests:")
+message(STATUS "    ctest --output-on-failure")
+message(STATUS "  ")
+message(STATUS "  Install:")
+message(STATUS "    cmake --install . --config Debug")
+message(STATUS "  ")
+message(STATUS "  Create packages:")
+message(STATUS "    cpack")
+message(STATUS "  ")
+message(STATUS "  Clean all:")
+message(STATUS "    cmake --build . --target clean-all")
+message(STATUS "  ")
+message(STATUS "  System info:")
+message(STATUS "    cmake --build . --target info")
+message(STATUS "========================================")
 message(STATUS "")

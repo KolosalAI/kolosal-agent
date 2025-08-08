@@ -1,6 +1,6 @@
 // File: src/agents/agent_interfaces.cpp
-#include "agent_interfaces.hpp"
-#include "agent_data.hpp"
+#include "agent/agent_interfaces.hpp"
+#include "agent/agent_data.hpp"
 
 namespace kolosal::agents {
 

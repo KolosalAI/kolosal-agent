@@ -2,7 +2,7 @@
 #pragma once
 
 #include "export.hpp"
-#include "agent_data.hpp"
+#include "agent/agent_data.hpp"
 #include <string>
 #include <vector>
 #include <memory>

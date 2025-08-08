@@ -1,4 +1,4 @@
-#include "workflow_engine.hpp"
+#include "sequential/workflow_engine.hpp"
 #include "kolosal/logger.hpp"
 #include <algorithm>
 #include <random>

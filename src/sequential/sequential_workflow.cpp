@@ -1,4 +1,4 @@
-#include "sequential_workflow.hpp"
+#include "sequential/sequential_workflow.hpp"
 #include "server_logger_adapter.hpp"
 #include "kolosal/logger.hpp"
 #include <algorithm>

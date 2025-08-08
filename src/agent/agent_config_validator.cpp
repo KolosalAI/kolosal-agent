@@ -1,4 +1,4 @@
-#include "agent_config_validator.hpp"
+#include "agent/agent_config_validator.hpp"
 #include "kolosal/server_api.hpp"
 #include "kolosal/node_manager.h"
 #include "kolosal/logger.hpp"

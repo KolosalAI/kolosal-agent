@@ -2,8 +2,8 @@
 #pragma once
 
 #include "export.hpp"
-#include "agent_interfaces.hpp"
-#include "agent_data.hpp"
+#include "agent/agent_interfaces.hpp"
+#include "agent/agent_data.hpp"
 #include <string>
 #include <vector>
 #include <unordered_map>

@@ -1,11 +1,11 @@
 // File: src/agents/multi_agent_system.cpp
-#include "multi_agent_system.hpp"
+#include "agent/multi_agent_system.hpp"
 #include "builtin_functions.hpp"
 #include "server_logger_adapter.hpp"
-#include "agent_core.hpp"
-#include "message_router.hpp"
+#include "agent/agent_core.hpp"
+#include "routes/message_router.hpp"
 #include "yaml_config.hpp"
-#include "agent_config_validator.hpp"
+#include "agent/agent_config_validator.hpp"
 #include <mutex>
 #include <chrono>
 #include <thread>

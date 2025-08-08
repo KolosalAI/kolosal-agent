@@ -1,6 +1,6 @@
 #pragma once
 
-#include "export.hpp"
+#include "../export.hpp"
 #include "multi_agent_system.hpp"
 #include "agent_interfaces.hpp"
 #include <memory>

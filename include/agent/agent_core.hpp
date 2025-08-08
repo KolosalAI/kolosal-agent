@@ -1,16 +1,16 @@
 // File: include/kolosal/agents/agent_core.hpp
 #pragma once
 
-#include "export.hpp"
+#include "../export.hpp"
 #include "agent_interfaces.hpp"
 #include "agent_roles.hpp"
-#include "function_manager.hpp"
-#include "job_manager.hpp"
-#include "event_system.hpp"
-#include "message_router.hpp"
-#include "tool_registry.hpp"
-#include "memory_manager.hpp"
-#include "planning_system.hpp"
+#include "../function_manager.hpp"
+#include "../job_manager.hpp"
+#include "../event_system.hpp"
+#include "../routes/message_router.hpp"
+#include "../tool_registry.hpp"
+#include "../memory_manager.hpp"
+#include "../planning_system.hpp"
 #include <memory>
 #include <atomic>
 #include <vector>

@@ -6,9 +6,14 @@
         // Static library - no exports/imports needed
         #define KOLOSAL_AGENT_API
     #elif defined(KOLOSAL_AGENT_BUILD)
+        // Building the library - export symbols
         #define KOLOSAL_AGENT_API __declspec(dllexport)
-    #else
+    #elif defined(KOLOSAL_AGENT_SHARED)
+        // Using shared library - import symbols
         #define KOLOSAL_AGENT_API __declspec(dllimport)
+    #else
+        // Default to static for executables linking against the library
+        #define KOLOSAL_AGENT_API
     #endif
 #else
     // For Unix-based systems

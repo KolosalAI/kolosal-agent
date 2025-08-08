@@ -1,5 +1,5 @@
 // File: src/agents/agent_roles.cpp
-#include "agent_roles.hpp"
+#include "agent/agent_roles.hpp"
 #include <stdexcept>
 
 namespace kolosal::agents {

@@ -1,7 +1,7 @@
 // File: include/kolosal/agents/agent_factory.hpp
 #pragma once
 
-#include "export.hpp"
+#include "../export.hpp"
 #include "agent_core.hpp"
 #include "agent_roles.hpp"
 #include <memory>

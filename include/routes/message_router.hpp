@@ -1,8 +1,8 @@
 // File: include/kolosal/agents/message_router.hpp
 #pragma once
 
-#include "export.hpp"
-#include "agent_interfaces.hpp"
+#include "../export.hpp"
+#include "../agent/agent_interfaces.hpp"
 #include <queue>
 #include <unordered_map>
 #include <functional>

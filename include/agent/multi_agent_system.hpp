@@ -1,10 +1,10 @@
 // File: include/kolosal/agents/multi_agent_system.hpp
 #pragma once
 
-#include "export.hpp"
-#include "yaml_config.hpp"
+#include "../export.hpp"
+#include "../yaml_config.hpp"
 #include "agent_core.hpp"
-#include "message_router.hpp"
+#include "../routes/message_router.hpp"
 #include <memory>
 #include <map>
 #include <atomic>

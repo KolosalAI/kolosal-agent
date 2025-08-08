@@ -1,8 +1,8 @@
 #pragma once
 
-#include "export.hpp"
-#include "agent_interfaces.hpp"
-#include "multi_agent_system.hpp"
+#include "../export.hpp"
+#include "../agent/agent_interfaces.hpp"
+#include "../agent/multi_agent_system.hpp"
 #include <memory>
 #include <vector>
 #include <map>

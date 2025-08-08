@@ -1,8 +1,12 @@
-// File: src/agent_core.cpp
-#include "agent_core.hpp"
+// File: src/agent/agent_core.cpp
+#include "agent/agent_core.hpp"
+#include "agent/agent_data.hpp"
 #include "builtin_functions.hpp"
 #include "server_logger_adapter.hpp"
 #include <mutex>
+#include <chrono>
+#include <ctime>
+#include <algorithm>
 
 namespace kolosal::agents {
 
@@ -304,6 +308,18 @@ void AgentCore::send_message(const std::string& to_agent, const std::string& mes
         msg.payload = payload;
         msg.timestamp = std::chrono::system_clock::now();
         message_router->route_message(msg);
+    } else if (logger) {
+        logger->warn("No message router set for agent: " + agent_name);
+    }
+}
+
+void AgentCore::broadcast_message(const std::string& message_type, const AgentData& payload) {
+    if (message_router) {
+        AgentMessage msg(agent_id, "", message_type); // Empty to_agent indicates broadcast
+        msg.id = UUIDGenerator::generate();
+        msg.payload = payload;
+        msg.timestamp = std::chrono::system_clock::now();
+        message_router->broadcast_message(msg);
     } else if (logger) {
         logger->warn("No message router set for agent: " + agent_name);
     }
