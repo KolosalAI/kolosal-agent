@@ -1,4 +1,14 @@
-// File: src/agents/agent_data.cpp
+/**
+ * @file agent_data.cpp
+ * @brief Core functionality for agent data
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Implementation file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #include "agent/agent_data.hpp"
 #include <random>
 #include <sstream>
@@ -26,7 +36,7 @@ AgentDataValue::AgentDataValue(const AgentDataValue& other) : type(other.type) {
 }
 
 AgentDataValue::AgentDataValue(const AgentData& val) : type(OBJECT_DATA) {
-    obj_val = std::make_unique<std::map<std::string, AgentDataValue>>(val.get_data());
+    obj_val = std::make_unique<std::map<std::string, AgentDataValue>>(val.get__data());
 }
 
 AgentDataValue& AgentDataValue::operator=(const AgentDataValue& other) {
@@ -53,7 +63,7 @@ AgentDataValue& AgentDataValue::operator=(const AgentDataValue& other) {
     return *this;
 }
 
-// AgentDataValue missing constructors
+// AgentDataValue constructors
 AgentDataValue::AgentDataValue(const std::string& val) : type(STRING), s_val(val) {}
 AgentDataValue::AgentDataValue(int val) : type(INT), i_val(val) {}
 AgentDataValue::AgentDataValue(double val) : type(DOUBLE), d_val(val) {}
@@ -61,15 +71,15 @@ AgentDataValue::AgentDataValue(bool val) : type(BOOL), b_val(val) {}
 AgentDataValue::AgentDataValue(const std::vector<std::string>& val) : type(ARRAY_STRING), arr_s_val(val) {}
 
 // AgentData implementation
-std::string AgentData::get_string(const std::string& key, const std::string& default_val) const {
-    auto it = data.find(key);
+std::string AgentData::get__string(const std::string& key, const std::string& default_val) const {
+    const auto it = data.find(key);
     if (it != data.end() && it->second.type == AgentDataValue::STRING) {
         return it->second.s_val;
     }
     return default_val;
 }
 
-int AgentData::get_int(const std::string& key, int default_val) const {
+int AgentData::get__int(const std::string& key, int default_val) const {
     auto it = data.find(key);
     if (it != data.end() && it->second.type == AgentDataValue::INT) {
         return it->second.i_val;
@@ -77,7 +87,7 @@ int AgentData::get_int(const std::string& key, int default_val) const {
     return default_val;
 }
 
-double AgentData::get_double(const std::string& key, double default_val) const {
+double AgentData::get__double(const std::string& key, double default_val) const {
     auto it = data.find(key);
     if (it != data.end() && it->second.type == AgentDataValue::DOUBLE) {
         return it->second.d_val;
@@ -85,7 +95,7 @@ double AgentData::get_double(const std::string& key, double default_val) const {
     return default_val;
 }
 
-bool AgentData::get_bool(const std::string& key, bool default_val) const {
+bool AgentData::get__bool(const std::string& key, bool default_val) const {
     auto it = data.find(key);
     if (it != data.end() && it->second.type == AgentDataValue::BOOL) {
         return it->second.b_val;
@@ -93,7 +103,7 @@ bool AgentData::get_bool(const std::string& key, bool default_val) const {
     return default_val;
 }
 
-std::vector<std::string> AgentData::get_array_string(const std::string& key) const {
+std::vector<std::string> AgentData::get__array_string(const std::string& key) const {
     auto it = data.find(key);
     if (it != data.end() && it->second.type == AgentDataValue::ARRAY_STRING) {
         return it->second.arr_s_val;
@@ -101,7 +111,7 @@ std::vector<std::string> AgentData::get_array_string(const std::string& key) con
     return {};
 }
 
-bool AgentData::has_key(const std::string& key) const {
+bool AgentData::has__key(const std::string& key) const {
     return data.count(key) > 0;
 }
 
@@ -109,7 +119,7 @@ void AgentData::clear() {
     data.clear();
 }
 
-std::vector<std::string> AgentData::get_all_keys() const {
+std::vector<std::string> AgentData::get__all_keys() const {
     std::vector<std::string> keys;
     for (const auto& pair : data) {
         keys.push_back(pair.first);
@@ -197,28 +207,28 @@ void AgentData::from_json(const nlohmann::json& json_data) {
 
 // UUIDGenerator implementation - static members defined here
 namespace {
-    std::mutex& get_uuid_mutex() {
+    std::mutex& get__uuid_mutex() {
         static std::mutex uuid_mutex;
         return uuid_mutex;
     }
     
-    std::mt19937& get_uuid_generator() {
+    std::mt19937& get__uuid_generator() {
         static std::random_device rd;
         static std::mt19937 gen(rd());
         return gen;
     }
     
-    std::uniform_int_distribution<>& get_uuid_distribution() {
+    std::uniform_int_distribution<>& get__uuid_distribution() {
         static std::uniform_int_distribution<> dis(0, 15);
         return dis;
     }
 }
 
 std::string UUIDGenerator::generate() {
-    std::lock_guard<std::mutex> lock(get_uuid_mutex());
+    std::lock_guard<std::mutex> lock(get__uuid_mutex());
     
-    auto& gen = get_uuid_generator();
-    auto& dis = get_uuid_distribution();
+    auto& gen = get__uuid_generator();
+    auto& dis = get__uuid_distribution();
     
     std::ostringstream oss;
     oss << std::hex;

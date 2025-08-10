@@ -1,10 +1,23 @@
-// File: include/kolosal/agents/multi_agent_system.hpp
+/**
+ * @file multi_agent_system.hpp
+ * @brief Multi-agent coordination and orchestration
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Header file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #pragma once
 
+#ifndef KOLOSAL_AGENT_INCLUDE_AGENT_MULTI_AGENT_SYSTEM_HPP_INCLUDED
+#define KOLOSAL_AGENT_INCLUDE_AGENT_MULTI_AGENT_SYSTEM_HPP_INCLUDED
+
 #include "../export.hpp"
-#include "../yaml_config.hpp"
+#include "../yaml_configuration_parser.hpp"
 #include "agent_core.hpp"
-#include "../routes/message_router.hpp"
+#include "../routing/message_router.hpp"
 #include <memory>
 #include <map>
 #include <atomic>
@@ -13,13 +26,19 @@
 namespace kolosal::agents {
 
 // Forward declaration
+/**
+ * @brief Represents logger functionality
+ */
 class Logger;
+/**
+ * @brief Represents configurable agent factory functionality
+ */
 class ConfigurableAgentFactory;
 
 /**
  * @brief Main multi-agent system manager
  */
-class KOLOSAL_AGENT_API YAMLConfigurableAgentManager {
+class KOLOSAL_SERVER_API YAMLConfigurableAgentManager {
 private:
     std::shared_ptr<Logger> logger;
     std::shared_ptr<MessageRouter> message_router;
@@ -27,7 +46,7 @@ private:
     
     SystemConfig system_config;
     std::map<std::string, std::shared_ptr<AgentCore>> active_agents;
-    std::atomic<bool> running{false};
+    std::atomic<bool> running {false};
     mutable std::mutex agents_mutex;  // For thread-safe agent access
 
     // Prevent copy/move
@@ -76,14 +95,14 @@ public:
      * @brief Check if the system is running
      * @return true if running
      */
-    [[nodiscard]] bool is_running() const noexcept { return running.load(); }
+    [[nodiscard]] bool is__running() const noexcept { return running.load(); }
 
     /**
      * @brief Create an agent from config
      * @param config Agent configuration
      * @return Agent ID string (empty if failed)
      */
-    [[nodiscard]] std::string create_agent_from_config(const AgentConfig& config);
+    [[nodiscard]] std::string create__agent_from_config(const AgentConfig& config);
     /**
      * @brief Start an agent by ID
      * @param agent_id Agent ID
@@ -112,15 +131,17 @@ public:
     /**
      * @brief Get agent by ID
      * @param agent_id Agent ID
-     * @return Shared pointer to AgentCore (nullptr if not found)
+     * @return Shared pointer to Agent_Core(nullptr if not found)
      */
-    [[nodiscard]] std::shared_ptr<AgentCore> get_agent(const std::string& agent_id);
+    [[nodiscard]] std::shared_ptr<AgentCore> get__agent(const std::string& agent_id);
+    // Compatibility wrapper used by some modules
+    [[nodiscard]] std::shared_ptr<AgentCore> get_agent(const std::string& agent_id) { return get__agent(agent_id); }
     
     /**
      * @brief Get system status as a string
      * @return Status string
      */
-    [[nodiscard]] std::string get_system_status() const;
+    [[nodiscard]] std::string get__system_status() const;
     
     /**
      * @brief Demonstrate the system (for testing/demo)
@@ -131,7 +152,7 @@ public:
 /**
  * @brief Factory for creating agents from configuration
  */
-class KOLOSAL_AGENT_API ConfigurableAgentFactory {
+class KOLOSAL_SERVER_API ConfigurableAgentFactory {
 private:
     std::shared_ptr<Logger> logger;
     std::map<std::string, FunctionConfig> function_configs;
@@ -157,12 +178,14 @@ public:
     /**
      * @brief Create a function by name
      * @param function_name Name of the function
-     * @return Unique pointer to AgentFunction (nullptr if not found)
+     * @return Unique pointer to Agent_Function(nullptr if not found)
      */
-    [[nodiscard]] std::unique_ptr<AgentFunction> create_function(const std::string& function_name);
+    [[nodiscard]] std::unique_ptr<AgentFunction> create__function(const std::string& function_name);
 
 private:
-    std::unique_ptr<AgentFunction> create_builtin_function(const FunctionConfig& config);
+    std::unique_ptr<AgentFunction> create__builtin_function(const FunctionConfig& config);
 };
 
 } // namespace kolosal::agents
+
+#endif // KOLOSAL_AGENT_INCLUDE_AGENT_MULTI_AGENT_SYSTEM_HPP_INCLUDED

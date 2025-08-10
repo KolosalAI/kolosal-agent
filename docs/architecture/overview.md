@@ -1,0 +1,530 @@
+# Kolosal Agent System Architecture
+
+Comprehensive overview of the system architecture.
+
+Generated on 2025-08-08 14:06:25
+
+## System Components
+
+### Core System
+
+- **ChunkData** (`naming_backup\kolosal-server\include\kolosal\models\chunking_response_model.hpp`): /** * @brief Model for a single chunk in the response */...
+- **ChunkingRequest** (`naming_backup\kolosal-server\include\kolosal\models\chunking_request_model.hpp`): /** * @brief Model for chunking request * * This model represents the request body for the /chunking...
+- **ChunkingResponse** (`naming_backup\kolosal-server\include\kolosal\models\chunking_response_model.hpp`): /** * @brief Model for chunking response * * This model represents the response body for the /chunki...
+- **ChunkingService** (`naming_backup\kolosal-server\include\kolosal\retrieval\chunking_types.hpp`): /** * @brief Service for text chunking operations * * This service provides both regular and semanti...
+- **DOCXParser** (`naming_backup\kolosal-server\include\kolosal\retrieval\parse_docx.hpp`): /** * @brief Represents d o c x parser functionality */...
+- **DocumentParser** (`naming_backup\kolosal-server\include\kolosal\retrieval\parse_pdf.hpp`): /** * @brief Represents document parser functionality */...
+- **EmbeddingErrorResponse** (`naming_backup\kolosal-server\include\kolosal\models\embedding_response_model.hpp`): /** * @brief Error response for embedding requests */...
+- **EmbeddingInferenceService** (`naming_backup\kolosal-server\inference\src\inference.cpp`): EmbeddingInferenceService (Optimized for Embedding Models)...
+- **EmbeddingRequest** (`naming_backup\kolosal-server\include\kolosal\models\embedding_request_model.hpp`): /** * @brief Model for embedding request * * This model represents the request body for the /v1/embe...
+- **EmbeddingResponse** (`naming_backup\kolosal-server\include\kolosal\models\embedding_response_model.hpp`): /** * @brief Model for embedding response * * This model represents the response for the /v1/embeddi...
+- **InferenceLoader** (`naming_backup\kolosal-server\include\kolosal\inference_loader.hpp`): * at runtime. It provides functionality to: * - Configure available inference engines from configura...
+- **InferenceService** (`naming_backup\kolosal-server\inference\src\inference.cpp`): InferenceService Interface (Internal Use Only)...
+- **JobStatus** (`naming_backup\include\task_job_manager.hpp`)
+- **KolosalServerClient** (`naming_backup\include\server_client_interface.h`): /** * @brief Client for communicating with Kolosal Server */...
+- **LlamaInferenceService** (`naming_backup\kolosal-server\inference\src\inference.cpp`): LlamaInferenceService (CPU Implementation)...
+- **ModelType** (`naming_backup\kolosal-server\include\kolosal\node_manager.h`): /** * @brief Removes a model configuration from the config file * * @param engineId The engine ID to...
+- **PDFParseMethod** (`naming_backup\kolosal-server\include\kolosal\retrieval\parse_pdf.hpp`): /** * @brief Represents pdf mem document functionality */...
+- **Solution** (`src\builtin_function_registry.cpp`)
+- **StepStatus** (`naming_backup\include\sequential\workflow_engine.hpp`): /** * @brief Workflow step execution status */...
+- **ThreadPool** (`naming_backup\kolosal-server\inference\src\inference.cpp`)
+- **Tokenizer** (`naming_backup\kolosal-server\inference\src\inference.cpp`)
+- **WorkflowStatus** (`naming_backup\include\sequential\workflow_engine.hpp`): /** * @brief Workflow execution status */...
+- **WorkflowType** (`naming_backup\include\sequential\workflow_engine.hpp`): /** * @brief Workflow execution type */...
+
+### Agent Management
+
+- **Agent** (`naming_backup\include\agent\agent_data.hpp`): /** * @brief Represents agent functionality */...
+- **AgentData** (`naming_backup\include\agent\agent_data.hpp`): /** * @brief Represents agent data functionality */...
+- **CollaborationPattern** (`naming_backup\include\agent\agent_orchestrator.hpp`): Agent collaboration pattern...
+- **DocumentAgentService** (`naming_backup\include\document_agent_service.hpp`): /** * @brief Provides document agent services */...
+- **UUIDGenerator** (`naming_backup\include\agent\agent_data.hpp`): /** * @brief Represents u u i d generator functionality */...
+- **WorkflowAgentService** (`naming_backup\include\workflow_agent_service.hpp`): /** * @brief Provides workflow agent services */...
+
+### API Layer
+
+- **DocumentType** (`naming_backup\kolosal-server\include\kolosal\routes\retrieval\parse_document_route.hpp`): * @brief Represents parse document route functionality */...
+- **DownloadsRoute** (`naming_backup\kolosal-server\include\kolosal\routes\downloads_route.hpp`): /** * @brief Represents downloads route functionality */...
+- **EnginesRoute** (`naming_backup\kolosal-server\include\kolosal\routes\engines_route.hpp`): * * Supported endpoints: * - GET /engines or /v1/engines - List available engines with default engin...
+- **HealthStatusRoute** (`naming_backup\kolosal-server\include\kolosal\routes\health_status_route.hpp`): /** * @brief Represents health status route functionality */...
+- **HttpClient** (`naming_backup\include\routes\http_client.hpp`): /** * @brief Simple HTTP client stub for making requests */...
+- **InternetSearchRoute** (`naming_backup\kolosal-server\include\kolosal\routes\retrieval\internet_search_route.hpp`): /** * @brief Represents internet search route functionality */...
+- **ParseDocumentRoute** (`naming_backup\kolosal-server\include\kolosal\routes\retrieval\parse_document_route.hpp`): /** * @brief Represents parse document route functionality */...
+
+### Services
+
+- **DocumentServiceManager** (`naming_backup\include\document_service_manager.hpp`): /** * @brief Manager for DocumentService instances in the agent context */...
+
+### Utilities
+
+- **ComponentLogger** (`naming_backup\include\logging_utilities.hpp`): /** * @brief Component-based logger wrapper for easier usage */...
+- **ConsoleAppender** (`naming_backup\include\logger_system.hpp`): /** * @brief Console appender for logging to stdout/stderr */...
+- **DefaultLogFormatter** (`naming_backup\include\logger_system.hpp`): /** * @brief Default log formatter with customizable formatting */...
+- **FileAppender** (`naming_backup\include\logger_system.hpp`): /** * @brief File appender for logging to files with rotation support */...
+- **LoadingAnimation** (`naming_backup\include\loading_animation_utils.hpp`): /** * @brief Simple loading animation stub for console output */...
+- **LogAppender** (`naming_backup\include\logger_system.hpp`): /** * @brief Log appender interface for different output destinations */...
+- **LogFormatter** (`naming_backup\include\logger_system.hpp`): /** * @brief Log formatter interface */...
+- **LogLevel** (`naming_backup\kolosal-server\include\kolosal\logger.hpp`)
+- **Logger** (`naming_backup\include\server_logger_integration.hpp`): /** * @brief Logger interface for agent system (moved from removed logger.hpp) */...
+- **LoggingConfig** (`naming_backup\include\logging_utilities.hpp`): /** * @brief Utility functions for setting up logging */...
+- **LoggingScope** (`naming_backup\include\logging_utilities.hpp`): /** * @brief RAII-based logging scope */...
+- **PerformanceLogger** (`naming_backup\include\logging_utilities.hpp`): /** * @brief Performance logging utility */...
+
+## Namespaces
+
+### PoDoFo
+
+Used in 4 files:
+- `complete_backup\kolosal-server\include\kolosal\retrieval\parse_pdf.hpp`
+- `kolosal-server\include\kolosal\retrieval\parse_pdf.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\retrieval\parse_pdf.hpp`
+- `naming_backup\kolosal-server\include\kolosal\retrieval\parse_pdf.hpp`
+
+### agents
+
+Used in 12 files:
+- `complete_backup\include\agent\agent_data.hpp`
+- `complete_backup\include\document_service_manager.hpp`
+- `complete_backup\src\document_service_manager.cpp`
+- `include\agent\agent_data.hpp`
+- `include\document_service_manager.hpp`
+- `naming_backup\complete_backup\include\agent\agent_data.hpp`
+- `naming_backup\complete_backup\include\document_service_manager.hpp`
+- `naming_backup\complete_backup\src\document_service_manager.cpp`
+- `naming_backup\include\agent\agent_data.hpp`
+- `naming_backup\include\document_service_manager.hpp`
+- `naming_backup\src\document_service_manager.cpp`
+- `src\document_service_manager.cpp`
+
+### auth
+
+Used in 32 files:
+- `complete_backup\kolosal-server\include\kolosal\auth.hpp`
+- `complete_backup\kolosal-server\include\kolosal\auth\auth_middleware.hpp`
+- `complete_backup\kolosal-server\include\kolosal\auth\cors_handler.hpp`
+- `complete_backup\kolosal-server\include\kolosal\auth\rate_limiter.hpp`
+- `complete_backup\kolosal-server\include\kolosal\server_api.hpp`
+- `complete_backup\kolosal-server\src\auth\auth_middleware.cpp`
+- `complete_backup\kolosal-server\src\auth\cors_handler.cpp`
+- `complete_backup\kolosal-server\src\auth\rate_limiter.cpp`
+- `kolosal-server\include\kolosal\auth.hpp`
+- `kolosal-server\include\kolosal\auth\auth_middleware.hpp`
+- `kolosal-server\include\kolosal\auth\cors_handler.hpp`
+- `kolosal-server\include\kolosal\auth\rate_limiter.hpp`
+- `kolosal-server\include\kolosal\server_api.hpp`
+- `kolosal-server\src\auth\auth_middleware.cpp`
+- `kolosal-server\src\auth\cors_handler.cpp`
+- `kolosal-server\src\auth\rate_limiter.cpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\auth.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\auth\auth_middleware.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\auth\cors_handler.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\auth\rate_limiter.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\server_api.hpp`
+- `naming_backup\complete_backup\kolosal-server\src\auth\auth_middleware.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\auth\cors_handler.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\auth\rate_limiter.cpp`
+- `naming_backup\kolosal-server\include\kolosal\auth.hpp`
+- `naming_backup\kolosal-server\include\kolosal\auth\auth_middleware.hpp`
+- `naming_backup\kolosal-server\include\kolosal\auth\cors_handler.hpp`
+- `naming_backup\kolosal-server\include\kolosal\auth\rate_limiter.hpp`
+- `naming_backup\kolosal-server\include\kolosal\server_api.hpp`
+- `naming_backup\kolosal-server\src\auth\auth_middleware.cpp`
+- `naming_backup\kolosal-server\src\auth\cors_handler.cpp`
+- `naming_backup\kolosal-server\src\auth\rate_limiter.cpp`
+
+### grammars
+
+Used in 4 files:
+- `complete_backup\kolosal-server\inference\examples\grammar_example.cpp`
+- `kolosal-server\inference\examples\grammar_example.cpp`
+- `naming_backup\complete_backup\kolosal-server\inference\examples\grammar_example.cpp`
+- `naming_backup\kolosal-server\inference\examples\grammar_example.cpp`
+
+### kolosal
+
+Used in 308 files:
+- `complete_backup\include\agent\agent_data.hpp`
+- `complete_backup\include\document_service_manager.hpp`
+- `complete_backup\include\logger_system.hpp`
+- `complete_backup\kolosal-server\include\kolosal\auth.hpp`
+- `complete_backup\kolosal-server\include\kolosal\auth\auth_middleware.hpp`
+- `complete_backup\kolosal-server\include\kolosal\auth\cors_handler.hpp`
+- `complete_backup\kolosal-server\include\kolosal\auth\rate_limiter.hpp`
+- `complete_backup\kolosal-server\include\kolosal\download_manager.hpp`
+- `complete_backup\kolosal-server\include\kolosal\download_utils.hpp`
+- `complete_backup\kolosal-server\include\kolosal\gpu_detection.hpp`
+- `complete_backup\kolosal-server\include\kolosal\inference_loader.hpp`
+- `complete_backup\kolosal-server\include\kolosal\models\chunking_request_model.hpp`
+- `complete_backup\kolosal-server\include\kolosal\models\chunking_response_model.hpp`
+- `complete_backup\kolosal-server\include\kolosal\models\embedding_request_model.hpp`
+- `complete_backup\kolosal-server\include\kolosal\models\embedding_response_model.hpp`
+- `complete_backup\kolosal-server\include\kolosal\node_manager.h`
+- `complete_backup\kolosal-server\include\kolosal\qdrant_client.hpp`
+- `complete_backup\kolosal-server\include\kolosal\retrieval\add_document_types.hpp`
+- `complete_backup\kolosal-server\include\kolosal\retrieval\chunking_types.hpp`
+- `complete_backup\kolosal-server\include\kolosal\retrieval\document_list_types.hpp`
+- `complete_backup\kolosal-server\include\kolosal\retrieval\document_service.hpp`
+- `complete_backup\kolosal-server\include\kolosal\retrieval\remove_document_types.hpp`
+- `complete_backup\kolosal-server\include\kolosal\retrieval\retrieve_types.hpp`
+- `complete_backup\kolosal-server\include\kolosal\routes\config\auth_config_route.hpp`
+- `complete_backup\kolosal-server\include\kolosal\routes\downloads_route.hpp`
+- `complete_backup\kolosal-server\include\kolosal\routes\engines_route.hpp`
+- `complete_backup\kolosal-server\include\kolosal\routes\health_status_route.hpp`
+- `complete_backup\kolosal-server\include\kolosal\routes\llm\completion_route.hpp`
+- `complete_backup\kolosal-server\include\kolosal\routes\llm\oai_completions_route.hpp`
+- `complete_backup\kolosal-server\include\kolosal\routes\models_route.hpp`
+- `complete_backup\kolosal-server\include\kolosal\routes\retrieval\chunking_route.hpp`
+- `complete_backup\kolosal-server\include\kolosal\routes\retrieval\documents_route.hpp`
+- `complete_backup\kolosal-server\include\kolosal\routes\retrieval\embedding_route.hpp`
+- `complete_backup\kolosal-server\include\kolosal\routes\retrieval\internet_search_route.hpp`
+- `complete_backup\kolosal-server\include\kolosal\routes\retrieval\parse_document_route.hpp`
+- `complete_backup\kolosal-server\include\kolosal\routes\server_logs_route.hpp`
+- `complete_backup\kolosal-server\include\kolosal\server.hpp`
+- `complete_backup\kolosal-server\include\kolosal\server_api.hpp`
+- `complete_backup\kolosal-server\include\kolosal\server_config.hpp`
+- `complete_backup\kolosal-server\src\auth\auth_middleware.cpp`
+- `complete_backup\kolosal-server\src\auth\cors_handler.cpp`
+- `complete_backup\kolosal-server\src\auth\rate_limiter.cpp`
+- `complete_backup\kolosal-server\src\download_manager.cpp`
+- `complete_backup\kolosal-server\src\download_utils.cpp`
+- `complete_backup\kolosal-server\src\gpu_detection.cpp`
+- `complete_backup\kolosal-server\src\inference_loader.cpp`
+- `complete_backup\kolosal-server\src\models\chunking_request_model.cpp`
+- `complete_backup\kolosal-server\src\models\chunking_response_model.cpp`
+- `complete_backup\kolosal-server\src\models\embedding_request_model.cpp`
+- `complete_backup\kolosal-server\src\models\embedding_response_model.cpp`
+- `complete_backup\kolosal-server\src\node_manager.cpp`
+- `complete_backup\kolosal-server\src\qdrant_client.cpp`
+- `complete_backup\kolosal-server\src\retrieval\add_document_types.cpp`
+- `complete_backup\kolosal-server\src\retrieval\chunking_types.cpp`
+- `complete_backup\kolosal-server\src\retrieval\document_list_types.cpp`
+- `complete_backup\kolosal-server\src\retrieval\document_service.cpp`
+- `complete_backup\kolosal-server\src\retrieval\remove_document_types.cpp`
+- `complete_backup\kolosal-server\src\retrieval\retrieve_types.cpp`
+- `complete_backup\kolosal-server\src\routes\config\auth_config_route.cpp`
+- `complete_backup\kolosal-server\src\routes\downloads_route.cpp`
+- `complete_backup\kolosal-server\src\routes\engines_route.cpp`
+- `complete_backup\kolosal-server\src\routes\health_status_route.cpp`
+- `complete_backup\kolosal-server\src\routes\llm\completion_route.cpp`
+- `complete_backup\kolosal-server\src\routes\llm\oai_completions_route.cpp`
+- `complete_backup\kolosal-server\src\routes\models_route.cpp`
+- `complete_backup\kolosal-server\src\routes\retrieval\chunking_route.cpp`
+- `complete_backup\kolosal-server\src\routes\retrieval\documents_route.cpp`
+- `complete_backup\kolosal-server\src\routes\retrieval\embedding_route.cpp`
+- `complete_backup\kolosal-server\src\routes\retrieval\internet_search_route.cpp`
+- `complete_backup\kolosal-server\src\routes\retrieval\parse_document_route.cpp`
+- `complete_backup\kolosal-server\src\routes\server_logs_route.cpp`
+- `complete_backup\kolosal-server\src\server.cpp`
+- `complete_backup\kolosal-server\src\server_api.cpp`
+- `complete_backup\kolosal-server\src\server_config.cpp`
+- `complete_backup\src\document_service_manager.cpp`
+- `complete_backup\src\logger_system.cpp`
+- `include\agent\agent_data.hpp`
+- `include\document_service_manager.hpp`
+- `include\logger_system.hpp`
+- `kolosal-server\include\kolosal\auth.hpp`
+- `kolosal-server\include\kolosal\auth\auth_middleware.hpp`
+- `kolosal-server\include\kolosal\auth\cors_handler.hpp`
+- `kolosal-server\include\kolosal\auth\rate_limiter.hpp`
+- `kolosal-server\include\kolosal\download_manager.hpp`
+- `kolosal-server\include\kolosal\download_utils.hpp`
+- `kolosal-server\include\kolosal\gpu_detection.hpp`
+- `kolosal-server\include\kolosal\inference_loader.hpp`
+- `kolosal-server\include\kolosal\models\chunking_request_model.hpp`
+- `kolosal-server\include\kolosal\models\chunking_response_model.hpp`
+- `kolosal-server\include\kolosal\models\embedding_request_model.hpp`
+- `kolosal-server\include\kolosal\models\embedding_response_model.hpp`
+- `kolosal-server\include\kolosal\node_manager.h`
+- `kolosal-server\include\kolosal\qdrant_client.hpp`
+- `kolosal-server\include\kolosal\retrieval\add_document_types.hpp`
+- `kolosal-server\include\kolosal\retrieval\chunking_types.hpp`
+- `kolosal-server\include\kolosal\retrieval\document_list_types.hpp`
+- `kolosal-server\include\kolosal\retrieval\document_service.hpp`
+- `kolosal-server\include\kolosal\retrieval\remove_document_types.hpp`
+- `kolosal-server\include\kolosal\retrieval\retrieve_types.hpp`
+- `kolosal-server\include\kolosal\routes\config\auth_config_route.hpp`
+- `kolosal-server\include\kolosal\routes\downloads_route.hpp`
+- `kolosal-server\include\kolosal\routes\engines_route.hpp`
+- `kolosal-server\include\kolosal\routes\health_status_route.hpp`
+- `kolosal-server\include\kolosal\routes\llm\completion_route.hpp`
+- `kolosal-server\include\kolosal\routes\llm\oai_completions_route.hpp`
+- `kolosal-server\include\kolosal\routes\models_route.hpp`
+- `kolosal-server\include\kolosal\routes\retrieval\chunking_route.hpp`
+- `kolosal-server\include\kolosal\routes\retrieval\documents_route.hpp`
+- `kolosal-server\include\kolosal\routes\retrieval\embedding_route.hpp`
+- `kolosal-server\include\kolosal\routes\retrieval\internet_search_route.hpp`
+- `kolosal-server\include\kolosal\routes\retrieval\parse_document_route.hpp`
+- `kolosal-server\include\kolosal\routes\server_logs_route.hpp`
+- `kolosal-server\include\kolosal\server.hpp`
+- `kolosal-server\include\kolosal\server_api.hpp`
+- `kolosal-server\include\kolosal\server_config.hpp`
+- `kolosal-server\src\auth\auth_middleware.cpp`
+- `kolosal-server\src\auth\cors_handler.cpp`
+- `kolosal-server\src\auth\rate_limiter.cpp`
+- `kolosal-server\src\download_manager.cpp`
+- `kolosal-server\src\download_utils.cpp`
+- `kolosal-server\src\gpu_detection.cpp`
+- `kolosal-server\src\inference_loader.cpp`
+- `kolosal-server\src\models\chunking_request_model.cpp`
+- `kolosal-server\src\models\chunking_response_model.cpp`
+- `kolosal-server\src\models\embedding_request_model.cpp`
+- `kolosal-server\src\models\embedding_response_model.cpp`
+- `kolosal-server\src\node_manager.cpp`
+- `kolosal-server\src\qdrant_client.cpp`
+- `kolosal-server\src\retrieval\add_document_types.cpp`
+- `kolosal-server\src\retrieval\chunking_types.cpp`
+- `kolosal-server\src\retrieval\document_list_types.cpp`
+- `kolosal-server\src\retrieval\document_service.cpp`
+- `kolosal-server\src\retrieval\remove_document_types.cpp`
+- `kolosal-server\src\retrieval\retrieve_types.cpp`
+- `kolosal-server\src\routes\config\auth_config_route.cpp`
+- `kolosal-server\src\routes\downloads_route.cpp`
+- `kolosal-server\src\routes\engines_route.cpp`
+- `kolosal-server\src\routes\health_status_route.cpp`
+- `kolosal-server\src\routes\llm\completion_route.cpp`
+- `kolosal-server\src\routes\llm\oai_completions_route.cpp`
+- `kolosal-server\src\routes\models_route.cpp`
+- `kolosal-server\src\routes\retrieval\chunking_route.cpp`
+- `kolosal-server\src\routes\retrieval\documents_route.cpp`
+- `kolosal-server\src\routes\retrieval\embedding_route.cpp`
+- `kolosal-server\src\routes\retrieval\internet_search_route.cpp`
+- `kolosal-server\src\routes\retrieval\parse_document_route.cpp`
+- `kolosal-server\src\routes\server_logs_route.cpp`
+- `kolosal-server\src\server.cpp`
+- `kolosal-server\src\server_api.cpp`
+- `kolosal-server\src\server_config.cpp`
+- `naming_backup\complete_backup\include\agent\agent_data.hpp`
+- `naming_backup\complete_backup\include\document_service_manager.hpp`
+- `naming_backup\complete_backup\include\logger_system.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\auth.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\auth\auth_middleware.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\auth\cors_handler.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\auth\rate_limiter.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\download_manager.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\download_utils.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\gpu_detection.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\inference_loader.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\models\chunking_request_model.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\models\chunking_response_model.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\models\embedding_request_model.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\models\embedding_response_model.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\node_manager.h`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\qdrant_client.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\retrieval\add_document_types.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\retrieval\chunking_types.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\retrieval\document_list_types.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\retrieval\document_service.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\retrieval\remove_document_types.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\retrieval\retrieve_types.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\routes\config\auth_config_route.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\routes\downloads_route.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\routes\engines_route.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\routes\health_status_route.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\routes\llm\completion_route.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\routes\llm\oai_completions_route.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\routes\models_route.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\routes\retrieval\chunking_route.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\routes\retrieval\documents_route.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\routes\retrieval\embedding_route.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\routes\retrieval\internet_search_route.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\routes\retrieval\parse_document_route.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\routes\server_logs_route.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\server.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\server_api.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\server_config.hpp`
+- `naming_backup\complete_backup\kolosal-server\src\auth\auth_middleware.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\auth\cors_handler.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\auth\rate_limiter.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\download_manager.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\download_utils.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\gpu_detection.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\inference_loader.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\models\chunking_request_model.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\models\chunking_response_model.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\models\embedding_request_model.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\models\embedding_response_model.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\node_manager.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\qdrant_client.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\retrieval\add_document_types.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\retrieval\chunking_types.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\retrieval\document_list_types.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\retrieval\document_service.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\retrieval\remove_document_types.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\retrieval\retrieve_types.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\routes\config\auth_config_route.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\routes\downloads_route.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\routes\engines_route.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\routes\health_status_route.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\routes\llm\completion_route.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\routes\llm\oai_completions_route.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\routes\models_route.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\routes\retrieval\chunking_route.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\routes\retrieval\documents_route.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\routes\retrieval\embedding_route.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\routes\retrieval\internet_search_route.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\routes\retrieval\parse_document_route.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\routes\server_logs_route.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\server.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\server_api.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\server_config.cpp`
+- `naming_backup\complete_backup\src\document_service_manager.cpp`
+- `naming_backup\complete_backup\src\logger_system.cpp`
+- `naming_backup\include\agent\agent_data.hpp`
+- `naming_backup\include\document_service_manager.hpp`
+- `naming_backup\include\logger_system.hpp`
+- `naming_backup\kolosal-server\include\kolosal\auth.hpp`
+- `naming_backup\kolosal-server\include\kolosal\auth\auth_middleware.hpp`
+- `naming_backup\kolosal-server\include\kolosal\auth\cors_handler.hpp`
+- `naming_backup\kolosal-server\include\kolosal\auth\rate_limiter.hpp`
+- `naming_backup\kolosal-server\include\kolosal\download_manager.hpp`
+- `naming_backup\kolosal-server\include\kolosal\download_utils.hpp`
+- `naming_backup\kolosal-server\include\kolosal\gpu_detection.hpp`
+- `naming_backup\kolosal-server\include\kolosal\inference_loader.hpp`
+- `naming_backup\kolosal-server\include\kolosal\models\chunking_request_model.hpp`
+- `naming_backup\kolosal-server\include\kolosal\models\chunking_response_model.hpp`
+- `naming_backup\kolosal-server\include\kolosal\models\embedding_request_model.hpp`
+- `naming_backup\kolosal-server\include\kolosal\models\embedding_response_model.hpp`
+- `naming_backup\kolosal-server\include\kolosal\node_manager.h`
+- `naming_backup\kolosal-server\include\kolosal\qdrant_client.hpp`
+- `naming_backup\kolosal-server\include\kolosal\retrieval\add_document_types.hpp`
+- `naming_backup\kolosal-server\include\kolosal\retrieval\chunking_types.hpp`
+- `naming_backup\kolosal-server\include\kolosal\retrieval\document_list_types.hpp`
+- `naming_backup\kolosal-server\include\kolosal\retrieval\document_service.hpp`
+- `naming_backup\kolosal-server\include\kolosal\retrieval\remove_document_types.hpp`
+- `naming_backup\kolosal-server\include\kolosal\retrieval\retrieve_types.hpp`
+- `naming_backup\kolosal-server\include\kolosal\routes\config\auth_config_route.hpp`
+- `naming_backup\kolosal-server\include\kolosal\routes\downloads_route.hpp`
+- `naming_backup\kolosal-server\include\kolosal\routes\engines_route.hpp`
+- `naming_backup\kolosal-server\include\kolosal\routes\health_status_route.hpp`
+- `naming_backup\kolosal-server\include\kolosal\routes\llm\completion_route.hpp`
+- `naming_backup\kolosal-server\include\kolosal\routes\llm\oai_completions_route.hpp`
+- `naming_backup\kolosal-server\include\kolosal\routes\models_route.hpp`
+- `naming_backup\kolosal-server\include\kolosal\routes\retrieval\chunking_route.hpp`
+- `naming_backup\kolosal-server\include\kolosal\routes\retrieval\documents_route.hpp`
+- `naming_backup\kolosal-server\include\kolosal\routes\retrieval\embedding_route.hpp`
+- `naming_backup\kolosal-server\include\kolosal\routes\retrieval\internet_search_route.hpp`
+- `naming_backup\kolosal-server\include\kolosal\routes\retrieval\parse_document_route.hpp`
+- `naming_backup\kolosal-server\include\kolosal\routes\server_logs_route.hpp`
+- `naming_backup\kolosal-server\include\kolosal\server.hpp`
+- `naming_backup\kolosal-server\include\kolosal\server_api.hpp`
+- `naming_backup\kolosal-server\include\kolosal\server_config.hpp`
+- `naming_backup\kolosal-server\src\auth\auth_middleware.cpp`
+- `naming_backup\kolosal-server\src\auth\cors_handler.cpp`
+- `naming_backup\kolosal-server\src\auth\rate_limiter.cpp`
+- `naming_backup\kolosal-server\src\download_manager.cpp`
+- `naming_backup\kolosal-server\src\download_utils.cpp`
+- `naming_backup\kolosal-server\src\gpu_detection.cpp`
+- `naming_backup\kolosal-server\src\inference_loader.cpp`
+- `naming_backup\kolosal-server\src\models\chunking_request_model.cpp`
+- `naming_backup\kolosal-server\src\models\chunking_response_model.cpp`
+- `naming_backup\kolosal-server\src\models\embedding_request_model.cpp`
+- `naming_backup\kolosal-server\src\models\embedding_response_model.cpp`
+- `naming_backup\kolosal-server\src\node_manager.cpp`
+- `naming_backup\kolosal-server\src\qdrant_client.cpp`
+- `naming_backup\kolosal-server\src\retrieval\add_document_types.cpp`
+- `naming_backup\kolosal-server\src\retrieval\chunking_types.cpp`
+- `naming_backup\kolosal-server\src\retrieval\document_list_types.cpp`
+- `naming_backup\kolosal-server\src\retrieval\document_service.cpp`
+- `naming_backup\kolosal-server\src\retrieval\remove_document_types.cpp`
+- `naming_backup\kolosal-server\src\retrieval\retrieve_types.cpp`
+- `naming_backup\kolosal-server\src\routes\config\auth_config_route.cpp`
+- `naming_backup\kolosal-server\src\routes\downloads_route.cpp`
+- `naming_backup\kolosal-server\src\routes\engines_route.cpp`
+- `naming_backup\kolosal-server\src\routes\health_status_route.cpp`
+- `naming_backup\kolosal-server\src\routes\llm\completion_route.cpp`
+- `naming_backup\kolosal-server\src\routes\llm\oai_completions_route.cpp`
+- `naming_backup\kolosal-server\src\routes\models_route.cpp`
+- `naming_backup\kolosal-server\src\routes\retrieval\chunking_route.cpp`
+- `naming_backup\kolosal-server\src\routes\retrieval\documents_route.cpp`
+- `naming_backup\kolosal-server\src\routes\retrieval\embedding_route.cpp`
+- `naming_backup\kolosal-server\src\routes\retrieval\internet_search_route.cpp`
+- `naming_backup\kolosal-server\src\routes\retrieval\parse_document_route.cpp`
+- `naming_backup\kolosal-server\src\routes\server_logs_route.cpp`
+- `naming_backup\kolosal-server\src\server.cpp`
+- `naming_backup\kolosal-server\src\server_api.cpp`
+- `naming_backup\kolosal-server\src\server_config.cpp`
+- `naming_backup\src\document_service_manager.cpp`
+- `naming_backup\src\logger_system.cpp`
+- `src\document_service_manager.cpp`
+- `src\logger_system.cpp`
+
+### retrieval
+
+Used in 76 files:
+- `complete_backup\kolosal-server\include\kolosal\retrieval\add_document_types.hpp`
+- `complete_backup\kolosal-server\include\kolosal\retrieval\chunking_types.hpp`
+- `complete_backup\kolosal-server\include\kolosal\retrieval\document_list_types.hpp`
+- `complete_backup\kolosal-server\include\kolosal\retrieval\document_service.hpp`
+- `complete_backup\kolosal-server\include\kolosal\retrieval\parse_docx.hpp`
+- `complete_backup\kolosal-server\include\kolosal\retrieval\parse_html.hpp`
+- `complete_backup\kolosal-server\include\kolosal\retrieval\parse_pdf.hpp`
+- `complete_backup\kolosal-server\include\kolosal\retrieval\remove_document_types.hpp`
+- `complete_backup\kolosal-server\include\kolosal\retrieval\retrieve_types.hpp`
+- `complete_backup\kolosal-server\src\retrieval\add_document_types.cpp`
+- `complete_backup\kolosal-server\src\retrieval\chunking_types.cpp`
+- `complete_backup\kolosal-server\src\retrieval\document_list_types.cpp`
+- `complete_backup\kolosal-server\src\retrieval\document_service.cpp`
+- `complete_backup\kolosal-server\src\retrieval\parse_docx.cpp`
+- `complete_backup\kolosal-server\src\retrieval\parse_html.cpp`
+- `complete_backup\kolosal-server\src\retrieval\parse_pdf.cpp`
+- `complete_backup\kolosal-server\src\retrieval\parse_pdf_stub.cpp`
+- `complete_backup\kolosal-server\src\retrieval\remove_document_types.cpp`
+- `complete_backup\kolosal-server\src\retrieval\retrieve_types.cpp`
+- `kolosal-server\include\kolosal\retrieval\add_document_types.hpp`
+- `kolosal-server\include\kolosal\retrieval\chunking_types.hpp`
+- `kolosal-server\include\kolosal\retrieval\document_list_types.hpp`
+- `kolosal-server\include\kolosal\retrieval\document_service.hpp`
+- `kolosal-server\include\kolosal\retrieval\parse_docx.hpp`
+- `kolosal-server\include\kolosal\retrieval\parse_html.hpp`
+- `kolosal-server\include\kolosal\retrieval\parse_pdf.hpp`
+- `kolosal-server\include\kolosal\retrieval\remove_document_types.hpp`
+- `kolosal-server\include\kolosal\retrieval\retrieve_types.hpp`
+- `kolosal-server\src\retrieval\add_document_types.cpp`
+- `kolosal-server\src\retrieval\chunking_types.cpp`
+- `kolosal-server\src\retrieval\document_list_types.cpp`
+- `kolosal-server\src\retrieval\document_service.cpp`
+- `kolosal-server\src\retrieval\parse_docx.cpp`
+- `kolosal-server\src\retrieval\parse_html.cpp`
+- `kolosal-server\src\retrieval\parse_pdf.cpp`
+- `kolosal-server\src\retrieval\parse_pdf_stub.cpp`
+- `kolosal-server\src\retrieval\remove_document_types.cpp`
+- `kolosal-server\src\retrieval\retrieve_types.cpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\retrieval\add_document_types.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\retrieval\chunking_types.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\retrieval\document_list_types.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\retrieval\document_service.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\retrieval\parse_docx.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\retrieval\parse_html.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\retrieval\parse_pdf.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\retrieval\remove_document_types.hpp`
+- `naming_backup\complete_backup\kolosal-server\include\kolosal\retrieval\retrieve_types.hpp`
+- `naming_backup\complete_backup\kolosal-server\src\retrieval\add_document_types.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\retrieval\chunking_types.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\retrieval\document_list_types.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\retrieval\document_service.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\retrieval\parse_docx.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\retrieval\parse_html.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\retrieval\parse_pdf.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\retrieval\parse_pdf_stub.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\retrieval\remove_document_types.cpp`
+- `naming_backup\complete_backup\kolosal-server\src\retrieval\retrieve_types.cpp`
+- `naming_backup\kolosal-server\include\kolosal\retrieval\add_document_types.hpp`
+- `naming_backup\kolosal-server\include\kolosal\retrieval\chunking_types.hpp`
+- `naming_backup\kolosal-server\include\kolosal\retrieval\document_list_types.hpp`
+- `naming_backup\kolosal-server\include\kolosal\retrieval\document_service.hpp`
+- `naming_backup\kolosal-server\include\kolosal\retrieval\parse_docx.hpp`
+- `naming_backup\kolosal-server\include\kolosal\retrieval\parse_html.hpp`
+- `naming_backup\kolosal-server\include\kolosal\retrieval\parse_pdf.hpp`
+- `naming_backup\kolosal-server\include\kolosal\retrieval\remove_document_types.hpp`
+- `naming_backup\kolosal-server\include\kolosal\retrieval\retrieve_types.hpp`
+- `naming_backup\kolosal-server\src\retrieval\add_document_types.cpp`
+- `naming_backup\kolosal-server\src\retrieval\chunking_types.cpp`
+- `naming_backup\kolosal-server\src\retrieval\document_list_types.cpp`
+- `naming_backup\kolosal-server\src\retrieval\document_service.cpp`
+- `naming_backup\kolosal-server\src\retrieval\parse_docx.cpp`
+- `naming_backup\kolosal-server\src\retrieval\parse_html.cpp`
+- `naming_backup\kolosal-server\src\retrieval\parse_pdf.cpp`
+- `naming_backup\kolosal-server\src\retrieval\parse_pdf_stub.cpp`
+- `naming_backup\kolosal-server\src\retrieval\remove_document_types.cpp`
+- `naming_backup\kolosal-server\src\retrieval\retrieve_types.cpp`
+

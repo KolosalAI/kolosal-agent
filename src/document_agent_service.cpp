@@ -1,3 +1,14 @@
+/**
+ * @file document_agent_service.cpp
+ * @brief Service layer implementation for document agent
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Implementation file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #include "document_agent_service.hpp"
 #include "document_service_manager.hpp"
 #include "kolosal/server_api.hpp"
@@ -13,7 +24,7 @@ void DocumentAgentService::BulkDocumentRequest::from_json(const json& j) {
         documents.clear();
         for (const auto& doc_json : j["documents"]) {
             kolosal::retrieval::Document doc;
-            if (doc_json.contains("text") && doc_json["text"].is_string()) {
+        if (doc_json.contains("text") && doc_json["text"].is_string()) {
                 doc.text = doc_json["text"];
             }
             if (doc_json.contains("metadata")) {
@@ -51,7 +62,6 @@ json DocumentAgentService::BulkDocumentResponse::to_json() const {
         {"collection_name", collection_name},
         {"results", json::array()}
     };
-    
     for (const auto& result : results) {
         json result_item = {
             {"id", result.id},
@@ -69,14 +79,14 @@ void DocumentAgentService::BulkRetrievalRequest::from_json(const json& j) {
     if (j.contains("queries") && j["queries"].is_array()) {
         queries.clear();
         for (const auto& query : j["queries"]) {
-            if (query.is_string()) {
+        if (query.is_string()) {
                 queries.push_back(query);
             }
         }
     } else if (j.contains("query_list") && j["query_list"].is_array()) {
         queries.clear();
         for (const auto& query : j["query_list"]) {
-            if (query.is_string()) {
+        if (query.is_string()) {
                 queries.push_back(query);
             }
         }
@@ -110,7 +120,6 @@ json DocumentAgentService::BulkRetrievalResponse::to_json() const {
         {"total_queries", total_queries},
         {"results", json::array()}
     };
-    
     for (size_t i = 0; i < results.size(); ++i) {
         const auto& result = results[i];
         json query_result = {
@@ -120,7 +129,6 @@ json DocumentAgentService::BulkRetrievalResponse::to_json() const {
             {"total_found", result.total_found},
             {"documents", json::array()}
         };
-        
         if (!result.success) {
             query_result["error"] = result.error;
             query_result["error_type"] = result.error_type;
@@ -180,7 +188,6 @@ json DocumentAgentService::DocumentSearchResponse::to_json() const {
         {"total_found", total_found},
         {"documents", json::array()}
     };
-    
     for (const auto& doc : documents) {
         json doc_item = {
             {"id", doc.id},
@@ -231,7 +238,6 @@ json DocumentAgentService::DocumentUploadResponse::to_json() const {
         {"document_id", document_id},
         {"chunk_ids", json::array()}
     };
-    
     for (const auto& chunk_id : chunk_ids) {
         response["chunk_ids"].push_back(chunk_id);
     }
@@ -241,7 +247,7 @@ json DocumentAgentService::DocumentUploadResponse::to_json() const {
 
 // Core service methods implementation
 std::future<DocumentAgentService::BulkDocumentResponse> 
-DocumentAgentService::processBulkDocuments(const BulkDocumentRequest& request) {
+DocumentAgentService::processBulk_Documents(const BulkDocumentRequest& request) {
     return std::async(std::launch::async, [this, request]() {
         BulkDocumentResponse response;
         
@@ -259,10 +265,9 @@ DocumentAgentService::processBulkDocuments(const BulkDocumentRequest& request) {
             addRequest.documents = request.documents;
             addRequest.collection_name = request.collection_name;
             
-            auto& documentService = getDocumentService();
+            auto& documentService = getDocument_Service();
             auto future_response = documentService.addDocuments(addRequest);
             auto add_response = future_response.get();
-            
             response.success = true;
             response.message = "Bulk document operation completed";
             response.total_documents = request.documents.size();
@@ -283,7 +288,7 @@ DocumentAgentService::processBulkDocuments(const BulkDocumentRequest& request) {
             
         } catch (const std::exception& e) {
             response.success = false;
-            response.message = generateErrorMessage("bulk document processing", e);
+            response.message = generateError_Message("bulk document processing", e);
             ServerLogger::logError("Error in processBulkDocuments: %s", e.what());
         }
         
@@ -292,7 +297,7 @@ DocumentAgentService::processBulkDocuments(const BulkDocumentRequest& request) {
 }
 
 std::future<DocumentAgentService::BulkRetrievalResponse> 
-DocumentAgentService::processBulkRetrieval(const BulkRetrievalRequest& request) {
+DocumentAgentService::processBulk_Retrieval(const BulkRetrievalRequest& request) {
     return std::async(std::launch::async, [this, request]() {
         BulkRetrievalResponse response;
         
@@ -305,7 +310,7 @@ DocumentAgentService::processBulkRetrieval(const BulkRetrievalRequest& request) 
             
             ServerLogger::logInfo("Processing bulk retrieval for %zu queries", request.queries.size());
             
-            auto& documentService = getDocumentService();
+            auto& documentService = getDocument_Service();
             
             response.success = true;
             response.message = "Bulk retrieval completed";
@@ -327,7 +332,6 @@ DocumentAgentService::processBulkRetrieval(const BulkRetrievalRequest& request) 
                     if (retrieveRequest.validate()) {
                         auto future_response = documentService.retrieveDocuments(retrieveRequest);
                         auto retrieve_response = future_response.get();
-                        
                         queryResult.success = true;
                         queryResult.total_found = retrieve_response.total_found;
                         queryResult.documents = retrieve_response.documents;
@@ -367,7 +371,7 @@ DocumentAgentService::processBulkRetrieval(const BulkRetrievalRequest& request) 
             
         } catch (const std::exception& e) {
             response.success = false;
-            response.message = generateErrorMessage("bulk retrieval", e);
+            response.message = generateError_Message("bulk retrieval", e);
             ServerLogger::logError("Error in processBulkRetrieval: %s", e.what());
         }
         
@@ -376,7 +380,7 @@ DocumentAgentService::processBulkRetrieval(const BulkRetrievalRequest& request) 
 }
 
 std::future<DocumentAgentService::DocumentSearchResponse> 
-DocumentAgentService::searchDocuments(const DocumentSearchRequest& request) {
+DocumentAgentService::search_Documents(const DocumentSearchRequest& request) {
     return std::async(std::launch::async, [this, request]() {
         DocumentSearchResponse response;
         
@@ -395,10 +399,9 @@ DocumentAgentService::searchDocuments(const DocumentSearchRequest& request) {
             retrieveRequest.score_threshold = request.score_threshold;
             retrieveRequest.collection_name = request.collection_name;
             
-            auto& documentService = getDocumentService();
+            auto& documentService = getDocument_Service();
             auto future_response = documentService.retrieveDocuments(retrieveRequest);
             auto retrieve_response = future_response.get();
-            
             response.success = true;
             response.message = "Document search completed";
             response.total_found = retrieve_response.total_found;
@@ -406,7 +409,7 @@ DocumentAgentService::searchDocuments(const DocumentSearchRequest& request) {
             
         } catch (const std::exception& e) {
             response.success = false;
-            response.message = generateErrorMessage("document search", e);
+            response.message = generateError_Message("document search", e);
             ServerLogger::logError("Error in searchDocuments: %s", e.what());
         }
         
@@ -415,7 +418,7 @@ DocumentAgentService::searchDocuments(const DocumentSearchRequest& request) {
 }
 
 std::future<DocumentAgentService::DocumentUploadResponse> 
-DocumentAgentService::uploadDocument(const DocumentUploadRequest& request) {
+DocumentAgentService::upload_Document(const DocumentUploadRequest& request) {
     return std::async(std::launch::async, [this, request]() {
         DocumentUploadResponse response;
         
@@ -439,10 +442,9 @@ DocumentAgentService::uploadDocument(const DocumentUploadRequest& request) {
             addRequest.documents = {document};
             addRequest.collection_name = request.collection_name;
             
-            auto& documentService = getDocumentService();
+            auto& documentService = getDocument_Service();
             auto future_response = documentService.addDocuments(addRequest);
             auto add_response = future_response.get();
-            
             if (add_response.successful_count > 0) {
                 response.success = true;
                 response.message = "Document uploaded successfully";
@@ -455,7 +457,7 @@ DocumentAgentService::uploadDocument(const DocumentUploadRequest& request) {
             
         } catch (const std::exception& e) {
             response.success = false;
-            response.message = generateErrorMessage("document upload", e);
+            response.message = generateError_Message("document upload", e);
             ServerLogger::logError("Error in uploadDocument: %s", e.what());
         }
         
@@ -463,72 +465,72 @@ DocumentAgentService::uploadDocument(const DocumentUploadRequest& request) {
     });
 }
 
-std::future<json> DocumentAgentService::listCollections() {
+std::future<json> DocumentAgentService::list_Collections() {
     return std::async(std::launch::async, [this]() {
         try {
-            auto& documentService = getDocumentService();
+            auto& documentService = getDocument_Service();
             // This would need to be implemented in the document service
             // For now, return a basic response
-            json response = {
+            const json response = {
                 {"success", true},
                 {"collections", json::array()}
             };
             return response;
         } catch (const std::exception& e) {
-            json response = {
+            const json response = {
                 {"success", false},
-                {"error", generateErrorMessage("list collections", e)}
+                {"error", generateError_Message("list collections", e)}
             };
             return response;
         }
     });
 }
 
-std::future<json> DocumentAgentService::createCollection(const std::string& name, const json& config) {
-    return std::async(std::launch::async, [this, name, config]() {
+std::future<json> DocumentAgentService::create_Collection(const std::string& name, const json& configuration) {
+    return std::async(std::launch::async, [this, name, configuration]() {
         try {
             // Collection creation logic would be implemented here
-            json response = {
+            const json response = {
                 {"success", true},
                 {"collection_name", name},
                 {"message", "Collection created successfully"}
             };
             return response;
         } catch (const std::exception& e) {
-            json response = {
+            const json response = {
                 {"success", false},
-                {"error", generateErrorMessage("create collection", e)}
+                {"error", generateError_Message("create collection", e)}
             };
             return response;
         }
     });
 }
 
-std::future<json> DocumentAgentService::deleteCollection(const std::string& name) {
+std::future<json> DocumentAgentService::delete_Collection(const std::string& name) {
     return std::async(std::launch::async, [this, name]() {
         try {
             // Collection deletion logic would be implemented here
-            json response = {
+            const json response = {
                 {"success", true},
                 {"collection_name", name},
                 {"message", "Collection deleted successfully"}
             };
             return response;
         } catch (const std::exception& e) {
-            json response = {
+            const json response = {
                 {"success", false},
-                {"error", generateErrorMessage("delete collection", e)}
+                {"error", generateError_Message("delete collection", e)}
             };
             return response;
         }
     });
 }
 
-std::future<json> DocumentAgentService::getCollectionInfo(const std::string& name) {
+std::future<json> DocumentAgentService::getCollection_Info(const std::string& name) {
     return std::async(std::launch::async, [this, name]() {
         try {
-            // Collection info retrieval logic would be implemented here
-            json response = {
+            // Collection information retrieval logic would be implemented here
+            const json response = {
                 {"success", true},
                 {"collection_name", name},
                 {"document_count", 0},
@@ -537,9 +539,9 @@ std::future<json> DocumentAgentService::getCollectionInfo(const std::string& nam
             };
             return response;
         } catch (const std::exception& e) {
-            json response = {
+            const json response = {
                 {"success", false},
-                {"error", generateErrorMessage("get collection info", e)}
+                {"error", generateError_Message("get collection info", e)}
             };
             return response;
         }
@@ -547,14 +549,13 @@ std::future<json> DocumentAgentService::getCollectionInfo(const std::string& nam
 }
 
 // Private helper methods
-kolosal::retrieval::DocumentService& DocumentAgentService::getDocumentService() {
-    auto& docServiceManager = kolosal::agents::DocumentServiceManager::getInstance();
-    return docServiceManager.getDocumentService();
+kolosal::retrieval::DocumentService& DocumentAgentService::getDocument_Service() {
+    auto& docServiceManager = kolosal::agents::DocumentServiceManager::get_Instance();
+    return docServiceManager.getDocument_Service();
 }
 
-std::string DocumentAgentService::generateErrorMessage(const std::string& operation, const std::exception& e) {
+std::string DocumentAgentService::generateError_Message(const std::string& operation, const std::exception& e) {
     std::string error_msg = e.what();
-    
     if (error_msg.find("not initialized") != std::string::npos) {
         return "Service not ready - server may be initializing. Please try again in a moment.";
     } else if (error_msg.find("Qdrant is disabled") != std::string::npos) {

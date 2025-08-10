@@ -1,25 +1,35 @@
+/**
+ * @file document_service_manager.cpp
+ * @brief Management and coordination system for document service
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Implementation file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #include "document_service_manager.hpp"
 #include <kolosal/logger.hpp>
-#include "server_logger_adapter.hpp"
+#include "server_logger_integration.hpp"
 #include <iostream>
 
 namespace kolosal {
 namespace agents {
 
-DocumentServiceManager& DocumentServiceManager::getInstance() {
+DocumentServiceManager& DocumentServiceManager::get_Instance() {
     static DocumentServiceManager instance;
     return instance;
 }
 
-bool DocumentServiceManager::initialize(const DatabaseConfig& config) {
+bool DocumentServiceManager::initialize(const kolosal::DatabaseConfig& config) {
     try {
-        document_service_ = std::make_unique<kolosal::retrieval::DocumentService>(config);
+    document_service_ = std::make_unique<kolosal::retrieval::DocumentService>(config);
         initialized_ = true;
         
         // Test initialization
-        auto init_future = document_service_->initialize();
-        bool success = init_future.get();
-        
+    auto init_future = document_service_->initialize();
+        const bool success = init_future.get();
         if (!success) {
             std::cerr << "Warning: DocumentService initialization failed" << std::endl;
             initialized_ = false;
@@ -33,14 +43,14 @@ bool DocumentServiceManager::initialize(const DatabaseConfig& config) {
     }
 }
 
-kolosal::retrieval::DocumentService& DocumentServiceManager::getDocumentService() {
+kolosal::retrieval::DocumentService& DocumentServiceManager::getDocument_Service() {
     if (!initialized_ || !document_service_) {
         throw std::runtime_error("DocumentService not available - not initialized or failed to initialize");
     }
     return *document_service_;
 }
 
-bool DocumentServiceManager::isAvailable() const {
+bool DocumentServiceManager::is_Available() const {
     return initialized_ && document_service_ != nullptr;
 }
 

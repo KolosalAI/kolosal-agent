@@ -1,3 +1,14 @@
+/**
+ * @file node_data.h
+ * @brief Core functionality for node data
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Header file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #ifndef VALUE_DETAIL_NODE_DATA_H_62B23520_7C8E_11DE_8A39_0800200C9A66
 #define VALUE_DETAIL_NODE_DATA_H_62B23520_7C8E_11DE_8A39_0800200C9A66
 

@@ -1,4 +1,18 @@
+/**
+ * @file workflow_agent_service.hpp
+ * @brief Service layer implementation for workflow agent
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Header file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #pragma once
+
+#ifndef KOLOSAL_AGENT_INCLUDE_WORKFLOW_AGENT_SERVICE_HPP_INCLUDED
+#define KOLOSAL_AGENT_INCLUDE_WORKFLOW_AGENT_SERVICE_HPP_INCLUDED
 
 #include "agent/agent_interfaces.hpp"
 #include <json.hpp>
@@ -7,11 +21,14 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <thread>
 
 namespace kolosal::agents {
 
 using json = nlohmann::json;
-
+/**
+ * @brief Provides workflow agent services
+ */
 class WorkflowAgentService {
 public:
     WorkflowAgentService() = default;
@@ -44,7 +61,6 @@ public:
         std::string workflow_id;
         json input_parameters;
         bool async_execution = true;
-        
         void from_json(const json& j);
         bool validate() const;
     };
@@ -110,33 +126,33 @@ public:
     };
 
     // Core service methods
-    std::future<WorkflowResponse> createWorkflow(const WorkflowRequest& request);
-    std::future<WorkflowExecutionResponse> executeWorkflow(const WorkflowExecutionRequest& request);
-    std::future<WorkflowResponse> getWorkflowStatus(const WorkflowStatusRequest& request);
-    std::future<json> listWorkflows();
-    std::future<WorkflowResponse> deleteWorkflow(const std::string& workflow_id);
+    std::future<WorkflowResponse> create_Workflow(const WorkflowRequest& request);
+    std::future<WorkflowExecutionResponse> execute_Workflow(const WorkflowExecutionRequest& request);
+    std::future<WorkflowResponse> getWorkflow_Status(const WorkflowStatusRequest& request);
+    std::future<json> list_Workflows();
+    std::future<WorkflowResponse> delete_Workflow(const std::string& workflow_id);
     
     // RAG workflow operations
-    std::future<RAGWorkflowResponse> executeRAGWorkflow(const RAGWorkflowRequest& request);
-    std::future<RAGWorkflowResponse> searchRAGContext(const RAGWorkflowRequest& request);
+    std::future<RAGWorkflowResponse> execute_RAGWorkflow(const RAGWorkflowRequest& request);
+    std::future<RAGWorkflowResponse> search_RAGContext(const RAGWorkflowRequest& request);
     
     // Session management
-    std::future<SessionResponse> createSession(const SessionRequest& request);
-    std::future<SessionResponse> getSession(const std::string& session_id);
-    std::future<json> listSessions();
-    std::future<SessionResponse> deleteSession(const std::string& session_id);
-    std::future<json> getSessionHistory(const std::string& session_id);
+    std::future<SessionResponse> create_Session(const SessionRequest& request);
+    std::future<SessionResponse> get_Session(const std::string& session_id);
+    std::future<json> list_Sessions();
+    std::future<SessionResponse> delete_Session(const std::string& session_id);
+    std::future<json> getSession_History(const std::string& session_id);
 
     // Orchestration operations
-    std::future<json> createOrchestrationPlan(const json& request);
-    std::future<json> executeOrchestrationPlan(const std::string& plan_id, const json& parameters);
-    std::future<json> getOrchestrationStatus(const std::string& plan_id);
+    std::future<json> createOrchestration_Plan(const json& request);
+    std::future<json> executeOrchestration_Plan(const std::string& plan_id, const json& parameters);
+    std::future<json> getOrchestration_Status(const std::string& plan_id);
 
 private:
-    std::string generateWorkflowId();
-    std::string generateExecutionId();
-    std::string generateSessionId();
-    std::string generateErrorMessage(const std::string& operation, const std::exception& e);
+    std::string generateWorkflow_Id();
+    std::string generateExecution_Id();
+    std::string generateSession_Id();
+    std::string generateError_Message(const std::string& operation, const std::exception& e);
     
     // Internal workflow storage (in a real implementation, this would be persistent)
     std::map<std::string, json> workflows_;
@@ -145,3 +161,5 @@ private:
 };
 
 } // namespace kolosal::agents
+
+#endif // KOLOSAL_AGENT_INCLUDE_WORKFLOW_AGENT_SERVICE_HPP_INCLUDED

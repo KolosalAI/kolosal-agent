@@ -1,0 +1,38 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "CMake configure (VS2022 x64 Debug)",
+			"type": "shell",
+			"command": "cmake -S . -B build -G \"Visual Studio 17 2022\" -A x64 -DCMAKE_BUILD_TYPE=Debug",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "CMake: Configure+Build Debug (out-of-source)",
+			"type": "shell",
+			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake ..; cmake --build . --config Debug",
+			"group": "build"
+		},
+		{
+			"label": "CMake: Configure+Build Debug (INIT_SUBMODULES=OFF)",
+			"type": "shell",
+			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake .. -DINIT_SUBMODULES=OFF; cmake --build . --config Debug",
+			"group": "build"
+		},
+		{
+			"label": "Build after REST/unified/logger fixes",
+			"type": "shell",
+			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake ..; cmake --build . --config Debug",
+			"group": "build"
+		},
+		{
+			"label": "CMake: Configure+Build Debug (out-of-source)",
+			"type": "shell",
+			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake ..; cmake --build . --config Debug",
+			"group": "build"
+		}
+	]
+}

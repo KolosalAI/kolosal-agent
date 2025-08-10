@@ -1,3 +1,14 @@
+/**
+ * @file stringsource.h
+ * @brief Core functionality for stringsource
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Header file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #ifndef STRINGSOURCE_H_62B23520_7C8E_11DE_8A39_0800200C9A66
 #define STRINGSOURCE_H_62B23520_7C8E_11DE_8A39_0800200C9A66
 

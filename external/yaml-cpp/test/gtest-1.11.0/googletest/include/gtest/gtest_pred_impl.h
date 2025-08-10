@@ -1,3 +1,14 @@
+/**
+ * @file gtest_pred_impl.h
+ * @brief Core functionality for gtest pred impl
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Header file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 // Copyright 2006, Google Inc.
 // All rights reserved.
 //

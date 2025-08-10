@@ -1,3 +1,14 @@
+/**
+ * @file options.h
+ * @brief Core functionality for options
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Header file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #ifndef CURLINC_OPTIONS_H
 #define CURLINC_OPTIONS_H
 /***************************************************************************

@@ -1,3 +1,14 @@
+/**
+ * @file noexcept.h
+ * @brief Core functionality for noexcept
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Header file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #ifndef NOEXCEPT_H_768872DA_476C_11EA_88B8_90B11C0C0FF8
 #define NOEXCEPT_H_768872DA_476C_11EA_88B8_90B11C0C0FF8
 

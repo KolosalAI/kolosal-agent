@@ -1,5 +1,18 @@
-// File: include/kolosal/agents/agent_interfaces.hpp
+/**
+ * @file agent_interfaces.hpp
+ * @brief Core functionality for agent interfaces
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Header file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #pragma once
+
+#ifndef KOLOSAL_AGENT_INCLUDE_AGENT_AGENT_INTERFACES_HPP_INCLUDED
+#define KOLOSAL_AGENT_INCLUDE_AGENT_AGENT_INTERFACES_HPP_INCLUDED
 
 #include "../export.hpp"
 #include "agent_data.hpp"
@@ -20,8 +33,8 @@ struct KOLOSAL_SERVER_API FunctionResult {
     std::string llm_response; // For LLM-based functions
 
     FunctionResult() = default;
-    FunctionResult(bool success) : success(success) {}
-    FunctionResult(bool success, const std::string& error) : success(success), error_message(error) {}
+    FunctionResult(bool ok) : success(ok) {}
+    FunctionResult(bool ok, const std::string& error) : success(ok), error_message(error) {}
 };
 
 /**
@@ -30,10 +43,10 @@ struct KOLOSAL_SERVER_API FunctionResult {
 class KOLOSAL_SERVER_API AgentFunction {
 public:
     virtual ~AgentFunction() = default;
-    virtual std::string get_name() const = 0;
-    virtual std::string get_description() const = 0;
-    virtual std::string get_type() const { return "builtin"; }
-    virtual FunctionResult execute(const AgentData& params) = 0;
+    virtual std::string get__name() const = 0;
+    virtual std::string get__description() const = 0;
+    virtual std::string get__type() const { return "builtin"; }
+    virtual FunctionResult execute(const AgentData& parameters) = 0;
 };
 
 /**
@@ -74,3 +87,5 @@ public:
 };
 
 } // namespace kolosal::agents
+
+#endif // KOLOSAL_AGENT_INCLUDE_AGENT_AGENT_INTERFACES_HPP_INCLUDED

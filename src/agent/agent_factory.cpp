@@ -1,13 +1,22 @@
-// File: src/agents/agent_factory.cpp
+/**
+ * @file agent_factory.cpp
+ * @brief Core functionality for agent factory
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Implementation file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #include "agent/agent_factory.hpp"
-#include "tool_registry.hpp"
+#include "system_tool_registry.hpp"
 
 namespace kolosal::agents {
 
-std::shared_ptr<AgentCore> AgentFactory::create_researcher_agent(const std::string& name) {
-    std::string agent_name = name.empty() ? "Researcher" : name;
-    auto agent = std::make_shared<AgentCore>(agent_name, "researcher", AgentRole::RESEARCHER);
-    
+std::shared_ptr<AgentCore> AgentFactory::create__researcher_agent(const std::string& name) {
+    const std::string agent_name = name.empty() ? "Researcher" : name;
+    const auto agent = std::make_shared<AgentCore>(agent_name, "researcher", AgentRole::RESEARCHER);
     agent->add_specialization(AgentSpecialization::WEB_RESEARCH);
     agent->add_specialization(AgentSpecialization::DOCUMENT_ANALYSIS);
     
@@ -15,10 +24,9 @@ std::shared_ptr<AgentCore> AgentFactory::create_researcher_agent(const std::stri
     return agent;
 }
 
-std::shared_ptr<AgentCore> AgentFactory::create_analyst_agent(const std::string& name) {
-    std::string agent_name = name.empty() ? "Analyst" : name;
-    auto agent = std::make_shared<AgentCore>(agent_name, "analyst", AgentRole::ANALYST);
-    
+std::shared_ptr<AgentCore> AgentFactory::create__analyst_agent(const std::string& name) {
+    const std::string agent_name = name.empty() ? "Analyst" : name;
+    const auto agent = std::make_shared<AgentCore>(agent_name, "analyst", AgentRole::ANALYST);
     agent->add_specialization(AgentSpecialization::DATA_ANALYSIS);
     agent->add_specialization(AgentSpecialization::REASONING);
     
@@ -26,10 +34,9 @@ std::shared_ptr<AgentCore> AgentFactory::create_analyst_agent(const std::string&
     return agent;
 }
 
-std::shared_ptr<AgentCore> AgentFactory::create_writer_agent(const std::string& name) {
-    std::string agent_name = name.empty() ? "Writer" : name;
-    auto agent = std::make_shared<AgentCore>(agent_name, "writer", AgentRole::WRITER);
-    
+std::shared_ptr<AgentCore> AgentFactory::create__writer_agent(const std::string& name) {
+    const std::string agent_name = name.empty() ? "Writer" : name;
+    const auto agent = std::make_shared<AgentCore>(agent_name, "writer", AgentRole::WRITER);
     agent->add_specialization(AgentSpecialization::TEXT_PROCESSING);
     agent->add_specialization(AgentSpecialization::CODE_GENERATION);
     
@@ -37,20 +44,18 @@ std::shared_ptr<AgentCore> AgentFactory::create_writer_agent(const std::string& 
     return agent;
 }
 
-std::shared_ptr<AgentCore> AgentFactory::create_critic_agent(const std::string& name) {
-    std::string agent_name = name.empty() ? "Critic" : name;
-    auto agent = std::make_shared<AgentCore>(agent_name, "critic", AgentRole::CRITIC);
-    
+std::shared_ptr<AgentCore> AgentFactory::create__critic_agent(const std::string& name) {
+    const std::string agent_name = name.empty() ? "Critic" : name;
+    const auto agent = std::make_shared<AgentCore>(agent_name, "critic", AgentRole::CRITIC);
     agent->add_specialization(AgentSpecialization::REASONING);
     
     configure_agent_for_role(agent, AgentRole::CRITIC);
     return agent;
 }
 
-std::shared_ptr<AgentCore> AgentFactory::create_coordinator_agent(const std::string& name) {
-    std::string agent_name = name.empty() ? "Coordinator" : name;
-    auto agent = std::make_shared<AgentCore>(agent_name, "coordinator", AgentRole::COORDINATOR);
-    
+std::shared_ptr<AgentCore> AgentFactory::create__coordinator_agent(const std::string& name) {
+    const std::string agent_name = name.empty() ? "Coordinator" : name;
+    const auto agent = std::make_shared<AgentCore>(agent_name, "coordinator", AgentRole::COORDINATOR);
     agent->add_specialization(AgentSpecialization::PLANNING);
     agent->add_specialization(AgentSpecialization::EXECUTION);
     
@@ -58,9 +63,8 @@ std::shared_ptr<AgentCore> AgentFactory::create_coordinator_agent(const std::str
     return agent;
 }
 
-std::shared_ptr<AgentCore> AgentFactory::create_agent(const AgentConfiguration& config) {
-    auto agent = std::make_shared<AgentCore>(config.name, config.type, config.role);
-    
+std::shared_ptr<AgentCore> AgentFactory::create__agent(const AgentConfiguration& config) {
+    const auto agent = std::make_shared<AgentCore>(config.name, config.type, config.role);
     // Add specializations
     for (auto spec : config.specializations) {
         agent->add_specialization(spec);
@@ -75,69 +79,69 @@ std::shared_ptr<AgentCore> AgentFactory::create_agent(const AgentConfiguration& 
     return agent;
 }
 
-std::shared_ptr<AgentCore> AgentFactory::create_document_processing_agent(const std::string& name) {
+std::shared_ptr<AgentCore> AgentFactory::create__document_processing_agent(const std::string& name) {
     AgentConfiguration config(name.empty() ? "DocumentProcessor" : name, AgentRole::SPECIALIST);
     config.specializations = {AgentSpecialization::DOCUMENT_ANALYSIS, AgentSpecialization::TEXT_PROCESSING};
     config.custom_capabilities = {"pdf_parsing", "document_extraction", "content_analysis"};
     
-    return create_agent(config);
+    return create__agent(config);
 }
 
-std::shared_ptr<AgentCore> AgentFactory::create_web_research_agent(const std::string& name) {
+std::shared_ptr<AgentCore> AgentFactory::create__web_research_agent(const std::string& name) {
     AgentConfiguration config(name.empty() ? "WebResearcher" : name, AgentRole::RESEARCHER);
     config.specializations = {AgentSpecialization::WEB_RESEARCH, AgentSpecialization::DATA_ANALYSIS};
     config.custom_capabilities = {"web_scraping", "search_optimization", "source_validation"};
     
-    return create_agent(config);
+    return create__agent(config);
 }
 
-std::shared_ptr<AgentCore> AgentFactory::create_code_generation_agent(const std::string& name) {
+std::shared_ptr<AgentCore> AgentFactory::create__code_generation_agent(const std::string& name) {
     AgentConfiguration config(name.empty() ? "CodeGenerator" : name, AgentRole::WRITER);
     config.specializations = {AgentSpecialization::CODE_GENERATION, AgentSpecialization::REASONING};
     config.custom_capabilities = {"code_analysis", "refactoring", "testing", "documentation"};
     
-    return create_agent(config);
+    return create__agent(config);
 }
 
-std::shared_ptr<AgentCore> AgentFactory::create_data_analysis_agent(const std::string& name) {
+std::shared_ptr<AgentCore> AgentFactory::create__data_analysis_agent(const std::string& name) {
     AgentConfiguration config(name.empty() ? "DataAnalyst" : name, AgentRole::ANALYST);
     config.specializations = {AgentSpecialization::DATA_ANALYSIS, AgentSpecialization::REASONING};
     config.custom_capabilities = {"statistical_analysis", "data_visualization", "pattern_recognition"};
     
-    return create_agent(config);
+    return create__agent(config);
 }
 
-std::vector<std::shared_ptr<AgentCore>> AgentFactory::create_research_team() {
+std::vector<std::shared_ptr<AgentCore>> AgentFactory::create__research_team() {
     std::vector<std::shared_ptr<AgentCore>> team;
     
-    team.push_back(create_coordinator_agent("ResearchCoordinator"));
-    team.push_back(create_researcher_agent("PrimaryResearcher"));
-    team.push_back(create_web_research_agent("WebSpecialist"));
-    team.push_back(create_document_processing_agent("DocumentSpecialist"));
-    team.push_back(create_analyst_agent("ResearchAnalyst"));
+    team.emplace_back(create__researcher_agent("Researcher-1"));
+    team.emplace_back(create__analyst_agent("Analyst-1"));
+    team.emplace_back(create__writer_agent("Writer-1"));
+    team.emplace_back(create__critic_agent("Critic-1"));
+    team.emplace_back(create__coordinator_agent("Coordinator-1"));
     
     return team;
 }
 
-std::vector<std::shared_ptr<AgentCore>> AgentFactory::create_content_creation_team() {
+std::vector<std::shared_ptr<AgentCore>> AgentFactory::create__content_creation_team() {
     std::vector<std::shared_ptr<AgentCore>> team;
     
-    team.push_back(create_coordinator_agent("ContentCoordinator"));
-    team.push_back(create_researcher_agent("ContentResearcher"));
-    team.push_back(create_writer_agent("ContentWriter"));
-    team.push_back(create_critic_agent("ContentCritic"));
-    team.push_back(create_analyst_agent("ContentAnalyst"));
+    team.emplace_back(create__writer_agent("Writer-Lead"));
+    team.emplace_back(create__researcher_agent("Researcher-1"));
+    team.emplace_back(create__analyst_agent("Analyst-1"));
+    team.emplace_back(create__critic_agent("Editor"));
+    team.emplace_back(create__coordinator_agent("Coordinator"));
     
     return team;
 }
 
-std::vector<std::shared_ptr<AgentCore>> AgentFactory::create_analysis_team() {
+std::vector<std::shared_ptr<AgentCore>> AgentFactory::create__analysis_team() {
     std::vector<std::shared_ptr<AgentCore>> team;
     
-    team.push_back(create_coordinator_agent("AnalysisCoordinator"));
-    team.push_back(create_data_analysis_agent("PrimaryAnalyst"));
-    team.push_back(create_analyst_agent("SecondaryAnalyst"));
-    team.push_back(create_critic_agent("AnalysisCritic"));
+    team.emplace_back(create__analyst_agent("Analyst-Lead"));
+    team.emplace_back(create__researcher_agent("Researcher-1"));
+    team.emplace_back(create__critic_agent("Reviewer"));
+    team.emplace_back(create__coordinator_agent("Coordinator"));
     
     return team;
 }
@@ -147,7 +151,7 @@ void AgentFactory::configure_agent_for_role(std::shared_ptr<AgentCore> agent, Ag
     add_role_specific_tools(agent, role);
     
     // Configure memory settings based on role
-    if (auto memory_manager = agent->get_memory_manager()) {
+    if (const auto memory_manager = agent->get__memory_manager()) {
         // Different roles might have different memory requirements
         switch (role) {
             case AgentRole::RESEARCHER:
@@ -166,7 +170,7 @@ void AgentFactory::configure_agent_for_role(std::shared_ptr<AgentCore> agent, Ag
 }
 
 void AgentFactory::add_role_specific_tools(std::shared_ptr<AgentCore> agent, AgentRole role) {
-    auto tool_registry = agent->get_tool_registry();
+    const auto tool_registry = agent->get__tool_registry();
     if (!tool_registry) return;
     
     // Add role-specific custom tools here

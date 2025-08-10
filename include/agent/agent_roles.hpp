@@ -1,5 +1,18 @@
-// File: include/kolosal/agents/agent_roles.hpp
+/**
+ * @file agent_roles.hpp
+ * @brief Core functionality for agent roles
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Header file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #pragma once
+
+#ifndef KOLOSAL_AGENT_INCLUDE_AGENT_AGENT_ROLES_HPP_INCLUDED
+#define KOLOSAL_AGENT_INCLUDE_AGENT_AGENT_ROLES_HPP_INCLUDED
 
 #include "../export.hpp"
 #include <string>
@@ -59,10 +72,9 @@ struct KOLOSAL_SERVER_API AgentCapability {
     std::vector<std::string> dependencies;
 
     AgentCapability(const std::string& cap_name, const std::string& desc, 
-                   CapabilityLevel cap_level = CapabilityLevel::BASIC)
+                    const CapabilityLevel cap_level = CapabilityLevel::BASIC)
         : name(cap_name), description(desc), level(cap_level) {}
 };
-
 /**
  * @brief Agent role definition with predefined capabilities
  */
@@ -78,7 +90,7 @@ struct KOLOSAL_SERVER_API AgentRoleDefinition {
     AgentRoleDefinition() : role(AgentRole::GENERIC) {}
     
     AgentRoleDefinition(AgentRole agent_role, const std::string& role_name, 
-                       const std::string& desc)
+                        const std::string& desc)
         : role(agent_role), name(role_name), description(desc) {}
 };
 
@@ -93,12 +105,12 @@ public:
     AgentRoleManager();
     
     // Role management
-    const AgentRoleDefinition& get_role_definition(AgentRole role) const;
-    std::vector<AgentRole> get_available_roles() const;
+    const AgentRoleDefinition& get__role_definition(AgentRole role) const;
+    std::vector<AgentRole> get__available_roles() const;
     
     // Capability management
-    std::vector<AgentCapability> get_role_capabilities(AgentRole role) const;
-    bool has_capability(AgentRole role, const std::string& capability) const;
+    std::vector<AgentCapability> get__role_capabilities(AgentRole role) const;
+    bool has__capability(AgentRole role, const std::string& capability) const;
     
     // Role queries
     std::string role_to_string(AgentRole role) const;
@@ -113,3 +125,5 @@ private:
 };
 
 } // namespace kolosal::agents
+
+#endif // KOLOSAL_AGENT_INCLUDE_AGENT_AGENT_ROLES_HPP_INCLUDED

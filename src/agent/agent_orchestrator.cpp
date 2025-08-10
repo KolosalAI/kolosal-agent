@@ -1,3 +1,14 @@
+/**
+ * @file agent_orchestrator.cpp
+ * @brief Core functionality for agent orchestrator
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Implementation file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #include "agent/agent_orchestrator.hpp"
 #include "kolosal/logger.hpp"
 #include <algorithm>
@@ -352,10 +363,10 @@ bool AgentOrchestrator::execute_workflow_step(const WorkflowStep& step, const Ag
     
     // Enhanced tool execution with error handling
     try {
-        auto function_manager = agent->get_function_manager();
-        if (!function_manager->has_function(step.function_name)) {
+    auto function_manager = agent->get__function_manager();
+    if (!function_manager->has__function(step.function_name)) {
             // Try to find alternative tool/function names
-            auto available_functions = function_manager->get_function_names();
+            auto available_functions = function_manager->get__function_names();
             std::string alternatives;
             for (const auto& func : available_functions) {
                 if (!alternatives.empty()) alternatives += ", ";
@@ -367,15 +378,15 @@ bool AgentOrchestrator::execute_workflow_step(const WorkflowStep& step, const Ag
             
             // Try common alternative names for tools
             std::string alternative_function = "";
-            if (step.function_name == "web_search" && function_manager->has_function("text_processing")) {
+            if (step.function_name == "web_search" && function_manager->has__function("text_processing")) {
                 alternative_function = "text_processing";
                 step_context.set("operation", "web_search_simulation");
-            } else if (step.function_name == "code_generation" && function_manager->has_function("text_processing")) {
+            } else if (step.function_name == "code_generation" && function_manager->has__function("text_processing")) {
                 alternative_function = "text_processing";
                 step_context.set("operation", "code_generation");
-            } else if (step.function_name == "data_analysis" && function_manager->has_function("data_analysis")) {
+            } else if (step.function_name == "data_analysis" && function_manager->has__function("data_analysis")) {
                 alternative_function = "data_analysis";
-            } else if (function_manager->has_function("inference")) {
+            } else if (function_manager->has__function("inference")) {
                 alternative_function = "inference";
                 // Convert function call to inference prompt
                 std::string prompt = "Please perform the function: " + step.function_name + " with parameters: ";

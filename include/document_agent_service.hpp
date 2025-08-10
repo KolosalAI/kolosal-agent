@@ -1,4 +1,18 @@
+/**
+ * @file document_agent_service.hpp
+ * @brief Service layer implementation for document agent
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Header file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #pragma once
+
+#ifndef KOLOSAL_AGENT_INCLUDE_DOCUMENT_AGENT_SERVICE_HPP_INCLUDED
+#define KOLOSAL_AGENT_INCLUDE_DOCUMENT_AGENT_SERVICE_HPP_INCLUDED
 
 #include "agent/agent_interfaces.hpp"
 #include "kolosal/retrieval/add_document_types.hpp"
@@ -13,7 +27,6 @@
 namespace kolosal::agents {
 
 using json = nlohmann::json;
-
 // Forward declarations for types that may not exist yet
 struct QueryResult {
     std::string query;
@@ -30,6 +43,9 @@ struct DocumentResult {
     std::string error;
 };
 
+/**
+ * @brief Provides document agent services
+ */
 class DocumentAgentService {
 public:
     DocumentAgentService() = default;
@@ -40,7 +56,6 @@ public:
         std::vector<kolosal::retrieval::Document> documents;
         std::string collection_name = "documents";
         int batch_size = 100;
-        
         void from_json(const json& j);
         bool validate() const;
     };
@@ -63,7 +78,6 @@ public:
         int k = 5;
         double score_threshold = 0.0;
         std::string collection_name = "documents";
-        
         void from_json(const json& j);
         bool validate() const;
     };
@@ -94,7 +108,6 @@ public:
         std::string message;
         std::vector<kolosal::retrieval::RetrievedDocument> documents;
         size_t total_found = 0;
-        
         json to_json() const;
     };
 
@@ -105,7 +118,6 @@ public:
         std::string collection_name = "documents";
         json metadata;
         bool chunk_document = true;
-        
         void from_json(const json& j);
         bool validate() const;
     };
@@ -120,20 +132,22 @@ public:
     };
 
     // Core service methods
-    std::future<BulkDocumentResponse> processBulkDocuments(const BulkDocumentRequest& request);
-    std::future<BulkRetrievalResponse> processBulkRetrieval(const BulkRetrievalRequest& request);
-    std::future<DocumentSearchResponse> searchDocuments(const DocumentSearchRequest& request);
-    std::future<DocumentUploadResponse> uploadDocument(const DocumentUploadRequest& request);
+    std::future<BulkDocumentResponse> processBulk_Documents(const BulkDocumentRequest& request);
+    std::future<BulkRetrievalResponse> processBulk_Retrieval(const BulkRetrievalRequest& request);
+    std::future<DocumentSearchResponse> search_Documents(const DocumentSearchRequest& request);
+    std::future<DocumentUploadResponse> upload_Document(const DocumentUploadRequest& request);
 
     // Collection management
-    std::future<json> listCollections();
-    std::future<json> createCollection(const std::string& name, const json& config = {});
-    std::future<json> deleteCollection(const std::string& name);
-    std::future<json> getCollectionInfo(const std::string& name);
+    std::future<json> list_Collections();
+    std::future<json> create_Collection(const std::string& name, const json& configuration = {});
+    std::future<json> delete_Collection(const std::string& name);
+    std::future<json> getCollection_Info(const std::string& name);
 
 private:
-    kolosal::retrieval::DocumentService& getDocumentService();
-    std::string generateErrorMessage(const std::string& operation, const std::exception& e);
+    kolosal::retrieval::DocumentService& getDocument_Service();
+    std::string generateError_Message(const std::string& operation, const std::exception& e);
 };
 
 } // namespace kolosal::agents
+
+#endif // KOLOSAL_AGENT_INCLUDE_DOCUMENT_AGENT_SERVICE_HPP_INCLUDED

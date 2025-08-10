@@ -1,4 +1,14 @@
-// File: src/agents/agent_roles.cpp
+/**
+ * @file agent_roles.cpp
+ * @brief Core functionality for agent roles
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Implementation file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #include "agent/agent_roles.hpp"
 #include <stdexcept>
 
@@ -8,7 +18,7 @@ AgentRoleManager::AgentRoleManager() {
     initialize_default_roles();
 }
 
-const AgentRoleDefinition& AgentRoleManager::get_role_definition(AgentRole role) const {
+const AgentRoleDefinition& AgentRoleManager::get__role_definition(AgentRole role) const {
     auto it = role_definitions.find(role);
     if (it == role_definitions.end()) {
         throw std::runtime_error("Role definition not found");
@@ -16,7 +26,7 @@ const AgentRoleDefinition& AgentRoleManager::get_role_definition(AgentRole role)
     return it->second;
 }
 
-std::vector<AgentRole> AgentRoleManager::get_available_roles() const {
+std::vector<AgentRole> AgentRoleManager::get__available_roles() const {
     std::vector<AgentRole> roles;
     for (const auto& pair : role_definitions) {
         roles.push_back(pair.first);
@@ -24,12 +34,12 @@ std::vector<AgentRole> AgentRoleManager::get_available_roles() const {
     return roles;
 }
 
-std::vector<AgentCapability> AgentRoleManager::get_role_capabilities(AgentRole role) const {
-    return get_role_definition(role).capabilities;
+std::vector<AgentCapability> AgentRoleManager::get__role_capabilities(AgentRole role) const {
+    return get__role_definition(role).capabilities;
 }
 
-bool AgentRoleManager::has_capability(AgentRole role, const std::string& capability) const {
-    const auto& definition = get_role_definition(role);
+bool AgentRoleManager::has__capability(AgentRole role, const std::string& capability) const {
+    const auto& definition = get__role_definition(role);
     for (const auto& cap : definition.capabilities) {
         if (cap.name == capability) {
             return true;

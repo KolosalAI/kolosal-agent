@@ -1,8 +1,18 @@
-// File: src/agent/agent_core.cpp
+/**
+ * @file agent_core.cpp
+ * @brief Core agent functionality and lifecycle management
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Implementation file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #include "agent/agent_core.hpp"
 #include "agent/agent_data.hpp"
-#include "builtin_functions.hpp"
-#include "server_logger_adapter.hpp"
+#include "builtin_function_registry.hpp"
+#include "server_logger_integration.hpp"
 #include <mutex>
 #include <chrono>
 #include <ctime>
@@ -16,13 +26,9 @@ AgentCore::AgentCore(const std::string& name, const std::string& type, AgentRole
       agent_type(type),
       current_role(role) {
     
-    // Create logger bridge
+    // Initialize core components
     logger = std::make_shared<ServerLoggerAdapter>();
-    
-    // Initialize role manager
     role_manager = std::make_shared<AgentRoleManager>();
-    
-    // Initialize components
     function_manager = std::make_shared<FunctionManager>(logger);
     job_manager = std::make_shared<JobManager>(function_manager, logger);
     event_system = std::make_shared<EventSystem>(logger);
@@ -31,7 +37,7 @@ AgentCore::AgentCore(const std::string& name, const std::string& type, AgentRole
     planning_coordinator = std::make_shared<PlanningReasoningCoordinator>(logger);
     
     // Set up role-based capabilities and functions
-    set_role(role);
+    set__role(role);
     // Register default functions
     function_manager->register_function(std::make_unique<AddFunction>());
     function_manager->register_function(std::make_unique<EchoFunction>());    
@@ -63,11 +69,11 @@ AgentCore::AgentCore(const std::string& name, const std::string& type, AgentRole
                 role_manager->role_to_string(current_role));
 }
 
-void AgentCore::set_role(AgentRole role) {
+void AgentCore::set__role(AgentRole role) {
     current_role = role;
     
     try {
-        const auto& role_definition = role_manager->get_role_definition(role);
+        const auto& role_definition = role_manager->get__role_definition(role);
         
         // Clear existing capabilities and add role-based ones
         {
@@ -78,9 +84,7 @@ void AgentCore::set_role(AgentRole role) {
             }
         }
         
-        // Set specializations
-        specializations = role_definition.specializations;
-        
+        // Set const specializations specializations = role_definition.specializations;
         // Register default functions for this role
         for (const std::string& func_name : role_definition.default_functions) {
             // Functions are already registered in the constructor, 
@@ -103,7 +107,7 @@ void AgentCore::add_specialization(AgentSpecialization spec) {
     }
 }
 
-FunctionResult AgentCore::execute_tool(const std::string& tool_name, const AgentData& params) {
+FunctionResult AgentCore::execute_tool(const std::string& tool_name, const AgentData& parameters) {
     if (!tool_registry) {
         return FunctionResult(false, "Tool registry not initialized");
     }
@@ -111,15 +115,15 @@ FunctionResult AgentCore::execute_tool(const std::string& tool_name, const Agent
     ToolContext context(agent_id);
     context.logger = logger;
     
-    return tool_registry->execute_tool(tool_name, params, context);
+    return tool_registry->execute_tool(tool_name, parameters, context);
 }
 
-ExecutionPlan AgentCore::create_plan(const std::string& goal, const std::string& context) {
+ExecutionPlan AgentCore::create__plan(const std::string& goal, const std::string& context) {
     if (!planning_coordinator) {
         throw std::runtime_error("Planning coordinator not initialized");
     }
     
-    std::vector<std::string> available_functions = function_manager->get_function_names();
+    std::vector<std::string> available_functions = function_manager->get__function_names();
     return planning_coordinator->create_intelligent_plan(goal, context, available_functions);
 }
 
@@ -128,7 +132,7 @@ bool AgentCore::execute_plan(const std::string& plan_id) {
         return false;
     }
     
-    auto* planning_system = planning_coordinator->get_planning_system();
+    auto* planning_system = planning_coordinator->get__planning_system();
     if (!planning_system) {
         return false;
     }
@@ -142,11 +146,10 @@ bool AgentCore::execute_plan(const std::string& plan_id) {
     logger->info("Executing plan: " + plan->name);
     
     while (!plan->is_complete()) {
-        auto next_tasks = planning_system->get_next_tasks(plan_id);
-        
+        const auto next_tasks = planning_system->get_next_tasks(plan_id);
         if (next_tasks.empty()) {
             // Check if we're stuck due to failed dependencies
-            auto failed_tasks = plan->get_tasks_by_status(TaskStatus::FAILED);
+            const auto failed_tasks = plan->get_tasks_by_status(TaskStatus::FAILED);
             if (!failed_tasks.empty()) {
                 logger->error("Plan execution blocked by failed tasks");
                 return false;
@@ -160,8 +163,7 @@ bool AgentCore::execute_plan(const std::string& plan_id) {
             
             planning_system->update_task_status(plan_id, task->id, TaskStatus::IN_PROGRESS);
             
-            FunctionResult result = execute_function(task->function_name, task->parameters);
-            
+            const FunctionResult result = execute_function(task->function_name, task->parameters);
             if (result.success) {
                 planning_system->set_task_result(plan_id, task->id, result.result_data);
                 planning_system->update_task_status(plan_id, task->id, TaskStatus::COMPLETED);
@@ -179,7 +181,7 @@ bool AgentCore::execute_plan(const std::string& plan_id) {
         }
     }
     
-    bool success = plan->is_complete();
+    const bool success = plan->is_complete();
     std::string status_msg = success ? "completed successfully" : "failed";
     logger->info("Plan execution " + status_msg + ": " + plan->name);
     return success;
@@ -190,7 +192,7 @@ std::string AgentCore::reason_about(const std::string& question, const std::stri
         return "Reasoning system not available";
     }
     
-    auto* reasoning_system = planning_coordinator->get_reasoning_system();
+    auto* reasoning_system = planning_coordinator->get__reasoning_system();
     if (!reasoning_system) {
         return "Reasoning system not initialized";
     }
@@ -209,7 +211,7 @@ void AgentCore::store_memory(const std::string& content, const std::string& type
             std::string id = "mem_" + std::to_string(std::time(nullptr));
             MemoryEntry entry(id, content, type);
             entry.metadata["agent_id"] = agent_id;
-            memory_manager->get_vector_memory()->store(entry);
+            memory_manager->get__vector_memory()->store(entry);
         }
     }
 }
@@ -221,15 +223,15 @@ std::vector<MemoryEntry> AgentCore::recall_memories(const std::string& query, in
     return {};
 }
 
-void AgentCore::set_working_context(const std::string& key, const AgentData& data) {
+void AgentCore::set__working_context(const std::string& key, const AgentData& data) {
     if (memory_manager) {
-        memory_manager->get_working_memory()->set_context(key, data);
+        memory_manager->get__working_memory()->set_context(key, data);
     }
 }
 
-AgentData AgentCore::get_working_context(const std::string& key) {
+AgentData AgentCore::get__working_context(const std::string& key) {
     if (memory_manager) {
-        return memory_manager->get_working_memory()->get_context(key);
+        return memory_manager->get__working_memory()->get_context(key);
     }
     return AgentData();
 }
@@ -248,23 +250,22 @@ bool AgentCore::register_custom_tool(std::unique_ptr<Tool> tool) {
     return false;
 }
 
-ToolSchema AgentCore::get_tool_schema(const std::string& tool_name) {
+ToolSchema AgentCore::get__tool_schema(const std::string& tool_name) {
     if (tool_registry) {
         return tool_registry->get_tool_schema(tool_name);
     }
     throw std::runtime_error("Tool registry not available");
 }
 
-AgentCore::AgentStats AgentCore::get_statistics() const {
+AgentCore::AgentStats AgentCore::get__statistics() const {
     AgentStats stats = {};
-    
     if (memory_manager) {
-        auto memory_stats = memory_manager->get_statistics();
+        const auto memory_stats = memory_manager->get_statistics();
         stats.memory_entries_count = memory_stats.conversation_count + memory_stats.vector_memory_count;
     }
     
     if (planning_coordinator) {
-        auto planning_stats = planning_coordinator->get_planning_system()->get_statistics();
+        const auto planning_stats = planning_coordinator->get__planning_system()->get_statistics();
         stats.total_plans_created = planning_stats.active_plans + planning_stats.completed_plans;
     }
     
@@ -284,12 +285,12 @@ void AgentCore::stop() {
     if (logger) logger->info("Agent stopped: " + agent_name);
 }
 
-void AgentCore::set_message_router(std::shared_ptr<MessageRouter> router) {
+void AgentCore::set__message_router(std::shared_ptr<MessageRouter> router) {
     message_router = router;
     if (logger) logger->debug("Message router set for agent: " + agent_name);
 }
 
-FunctionResult AgentCore::execute_function(const std::string& name, const AgentData& params) {
+FunctionResult AgentCore::execute_function(const std::string& name, const AgentData& parameters) {
     if (!function_manager) {
         FunctionResult result;
         result.success = false;
@@ -298,7 +299,7 @@ FunctionResult AgentCore::execute_function(const std::string& name, const AgentD
         // result.result_data is default
         return result;
     }
-    return function_manager->execute_function(name, params);
+    return function_manager->execute_function(name, parameters);
 }
 
 void AgentCore::send_message(const std::string& to_agent, const std::string& message_type, const AgentData& payload) {
@@ -366,19 +367,18 @@ void AgentCore::handle_message(const AgentMessage& message) {
             pong_data.set("timestamp", std::to_string(std::time(nullptr)));
             send_message(message.from_agent, "pong", pong_data);
         } else if (message.type == "greeting") {
-            auto greeting_msg = message.payload.get_string("message");
+            const auto greeting_msg = message.payload.get__string("message");
             if (!greeting_msg.empty()) {
                 logger->info("Greeting received: " + greeting_msg);
             }
         } else if (message.type == "function_request") {
             // Handle function request inline since it's private
-            std::string function_name = message.payload.get_string("function");
+            const std::string function_name = message.payload.get__string("function");
             if (function_name.empty()) {
                 throw std::runtime_error("Missing function name in function request");
             }
 
-            FunctionResult result = execute_function(function_name, message.payload);
-            
+            const FunctionResult result = execute_function(function_name, message.payload);
             AgentData response_data;
             response_data.set("success", result.success);
             response_data.set("error_message", result.error_message);
@@ -407,7 +407,7 @@ void AgentCore::handle_message(const AgentMessage& message) {
     }
 }
 
-std::string AgentCore::execute_function_async(const std::string& name, const AgentData& params, int priority) {
+std::string AgentCore::execute_function_async(const std::string& name, const AgentData& parameters, int priority) {
     if (!running.load()) {
         throw std::runtime_error("Cannot execute function - agent is not running");
     }
@@ -423,7 +423,7 @@ std::string AgentCore::execute_function_async(const std::string& name, const Age
     logger->debug("Submitting async function '" + name + "' on agent " + agent_name);
 
     try {
-        return job_manager->submit_job(name, params, priority, agent_id);
+        return job_manager->submit_job(name, parameters, priority, agent_id);
     } catch (const std::exception& e) {
         logger->error("Failed to submit async function '" + name + "': " + e.what());
         throw;

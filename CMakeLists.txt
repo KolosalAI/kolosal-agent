@@ -140,15 +140,15 @@ if(NOT nlohmann_json_FOUND)
     include_directories(${EXTERNAL_DIR}/nlohmann)
 endif()
 
-# yaml-cpp (prioritize main external over subdirectory)
+# yaml-cpp (prioritize main external for this project; kolosal-server builds its own in an isolated external build)
 if(USE_SYSTEM_LIBS)
     find_package(yaml-cpp QUIET)
 endif()
 
 if(NOT yaml-cpp_FOUND)
-    # Build yaml-cpp from main external directory first
+    # Build yaml-cpp locally for agent only (kolosal-server will build its own copy in an isolated build)
     if(EXISTS "${EXTERNAL_DIR}/yaml-cpp/CMakeLists.txt")
-        message(STATUS "Using yaml-cpp from main external directory")
+        message(STATUS "Using yaml-cpp from main external directory for kolosal-agent")
         set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "disable yaml tests")
         set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "disable yaml tools")
         set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "disable yaml contrib")
@@ -296,42 +296,43 @@ set(AGENT_CORE_SOURCES
 )
 
 set(ROUTES_SOURCES
-    src/routes/message_router.cpp
-    src/routes/http_client.cpp
+    src/routing/message_router.cpp
+    src/routing/http_client.cpp
 )
 
 set(API_SOURCES
-    src/api/agent_management_route.cpp
+    src/rest_api/agent_management_route.cpp
 )
 
 set(SERVICES_SOURCES
-    src/services/agent_service.cpp
+    src/agent_services/agent_service.cpp
 )
 
 set(INTEGRATION_SOURCES
-    src/integration/unified_server.cpp
+    src/system_integration/unified_server.cpp
 )
 
 set(CORE_SOURCES
-    src/yaml_config.cpp
-    src/function_manager.cpp
-    src/job_manager.cpp
-    src/event_system.cpp
-    src/tool_registry.cpp
-    src/memory_manager.cpp
-    src/planning_system.cpp
-    src/server_logger_adapter.cpp
-    src/loading_animation.cpp
-    src/kolosal_server_client.cpp
-    src/builtin_functions.cpp
+    src/yaml_configuration_parser.cpp
+    src/function_execution_manager.cpp
+    src/task_job_manager.cpp
+    src/system_event_manager.cpp
+    src/system_tool_registry.cpp
+    src/agent_memory_manager.cpp
+    src/agent_planning_system.cpp
+    src/server_logger_integration.cpp
+    src/loading_animation_utils.cpp
+    src/server_client_interface.cpp
+    src/builtin_function_registry.cpp
     src/document_agent_service.cpp
     src/document_service_manager.cpp
     src/workflow_agent_service.cpp
+    src/logger_system.cpp
 )
 
 set(SEQUENTIAL_SOURCES
-    src/sequential/sequential_workflow.cpp
-    src/sequential/workflow_engine.cpp
+    src/workflow_sequential/sequential_workflow.cpp
+    src/workflow_sequential/workflow_engine.cpp
 )
 
 # Combine all sources
@@ -410,7 +411,6 @@ target_link_libraries(kolosal_agent
     PUBLIC
         Threads::Threads
         ${YAML_CPP_LIBRARIES}
-    PRIVATE
         kolosal_server
 )
 
@@ -452,16 +452,76 @@ else()
     target_link_libraries(kolosal_agent PRIVATE dl rt)
 endif()
 
-# Build kolosal-server subdirectory (after main library to avoid conflicts)
-# Configure kolosal-server to use our yaml-cpp
-set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "disable yaml tests in kolosal-server")
-set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "disable yaml tools in kolosal-server") 
-set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "disable yaml contrib in kolosal-server")
-set(YAML_CPP_INSTALL OFF CACHE BOOL "disable yaml install in kolosal-server")
-add_subdirectory(kolosal-server)
+# Build kolosal-server as an isolated external project (no code changes inside kolosal-server)
+include(ExternalProject)
+set(KOLOSAL_SERVER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server")
+set(KOLOSAL_SERVER_BINARY_DIR "${CMAKE_BINARY_DIR}/_ext/kolosal-server-build")
 
-# Add dependency to ensure kolosal_server is built before kolosal_agent
-add_dependencies(kolosal_agent kolosal_server)
+# Compute OpenSSL paths for kolosal-server's bundled PoDoFo deps (Windows only)
+if(WIN32)
+    set(_PODOFO_DEPS_DIR "${KOLOSAL_SERVER_SOURCE_DIR}/external/podofo/extern/deps/3rdparty")
+    set(_OPENSSL_INCLUDE "${_PODOFO_DEPS_DIR}/openssl/include")
+    # Use Debug libraries for Debug config; Release will be handled separately if needed
+    set(_OPENSSL_SSL_LIB_DEBUG "${_PODOFO_DEPS_DIR}/openssl/lib/Win64/ssld.lib")
+    set(_OPENSSL_CRYPTO_LIB_DEBUG "${_PODOFO_DEPS_DIR}/openssl/lib/Win64/cryptod.lib")
+    set(_OPENSSL_SSL_LIB_RELEASE "${_PODOFO_DEPS_DIR}/openssl/lib/Win64/ssl.lib")
+    set(_OPENSSL_CRYPTO_LIB_RELEASE "${_PODOFO_DEPS_DIR}/openssl/lib/Win64/crypto.lib")
+endif()
+
+ExternalProject_Add(ext_kolosal_server
+    SOURCE_DIR "${KOLOSAL_SERVER_SOURCE_DIR}"
+    BINARY_DIR "${KOLOSAL_SERVER_BINARY_DIR}"
+    CMAKE_GENERATOR "${CMAKE_GENERATOR}"
+    CMAKE_GENERATOR_PLATFORM "${CMAKE_VS_PLATFORM_NAME}"
+    CMAKE_ARGS
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        -DBUILD_SHARED_LIBS=ON
+        -DUSE_PODOFO=ON
+    -DCMAKE_MODULE_PATH=${CMAKE_SOURCE_DIR}/cmake/overrides
+        
+    CMAKE_CACHE_ARGS
+        $<$<BOOL:${WIN32}>:-DOPENSSL_ROOT_DIR:PATH=${_PODOFO_DEPS_DIR}/openssl>
+        $<$<BOOL:${WIN32}>:-DOPENSSL_INCLUDE_DIR:PATH=${_OPENSSL_INCLUDE}>
+        $<$<BOOL:${WIN32}>:-DOPENSSL_SSL_LIBRARY:FILEPATH=${_OPENSSL_SSL_LIB_DEBUG}>
+        $<$<BOOL:${WIN32}>:-DOPENSSL_CRYPTO_LIBRARY:FILEPATH=${_OPENSSL_CRYPTO_LIB_DEBUG}>
+    $<$<BOOL:${WIN32}>:-DOPENSSL_SSL_LIBRARY_DEBUG:FILEPATH=${_OPENSSL_SSL_LIB_DEBUG}>
+    $<$<BOOL:${WIN32}>:-DOPENSSL_SSL_LIBRARY_RELEASE:FILEPATH=${_OPENSSL_SSL_LIB_RELEASE}>
+    $<$<BOOL:${WIN32}>:-DOPENSSL_CRYPTO_LIBRARY_DEBUG:FILEPATH=${_OPENSSL_CRYPTO_LIB_DEBUG}>
+    $<$<BOOL:${WIN32}>:-DOPENSSL_CRYPTO_LIBRARY_RELEASE:FILEPATH=${_OPENSSL_CRYPTO_LIB_RELEASE}>
+    $<$<BOOL:${WIN32}>:-DOPENSSL_LIBRARIES:STRING=${_OPENSSL_SSL_LIB_DEBUG};${_OPENSSL_CRYPTO_LIB_DEBUG}>
+    $<$<BOOL:${WIN32}>:-DOPENSSL_USE_STATIC_LIBS:BOOL=TRUE>
+    BUILD_ALWAYS OFF
+    INSTALL_COMMAND ""
+    TEST_COMMAND ""
+)
+
+# Import the built kolosal_server library for linking
+if(WIN32)
+    add_library(kolosal_server SHARED IMPORTED)
+    # Import library (.lib) and runtime DLL per-config
+    set_target_properties(kolosal_server PROPERTIES
+        IMPORTED_IMPLIB_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/Debug/kolosal_server.lib"
+        IMPORTED_IMPLIB_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.lib"
+        IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/Debug/kolosal_server.dll"
+        IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.dll"
+    )
+else()
+    add_library(kolosal_server SHARED IMPORTED)
+    if(APPLE)
+        set_target_properties(kolosal_server PROPERTIES
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/Debug/libkolosal_server.dylib"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/Release/libkolosal_server.dylib"
+        )
+    else()
+        set_target_properties(kolosal_server PROPERTIES
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/Debug/libkolosal_server.so"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/Release/libkolosal_server.so"
+        )
+    endif()
+endif()
+
+# Ensure kolosal-server external build completes before building agent targets
+add_dependencies(kolosal_agent ext_kolosal_server)
 
 # Main executable (unified v2.0)
 add_executable(kolosal-agent src/main.cpp)
@@ -477,6 +537,16 @@ set_target_properties(kolosal-agent PROPERTIES
 add_executable(kolosal-launcher src/kolosal_launcher.c)
 if(WIN32)
     target_link_libraries(kolosal-launcher kernel32 user32)
+endif()
+
+# On Windows, copy kolosal_server.dll next to the agent executable for runtime
+if(WIN32)
+    add_custom_command(TARGET kolosal-agent POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:kolosal_server>"
+            "$<TARGET_FILE_DIR:kolosal-agent>/"
+        COMMENT "Copying kolosal_server DLL to agent output directory"
+    )
 endif()
 
 # Installation configuration
@@ -620,15 +690,16 @@ if(RUN_TESTS_AFTER_BUILD AND BUILD_TESTS)
     )
 endif()
 
-# Git submodule initialization target
+# Git submodule initialization target (optional)
+option(INIT_SUBMODULES "Initialize git submodules on configure/build" ON)
 find_package(Git QUIET)
-if(Git_FOUND)
+if(Git_FOUND AND INIT_SUBMODULES)
     add_custom_target(init-submodules
         COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Initializing git submodules"
     )
-    
+
     # Make main targets depend on submodule initialization
     add_dependencies(kolosal_agent init-submodules)
 endif()

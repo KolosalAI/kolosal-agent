@@ -1,3 +1,14 @@
+/**
+ * @file workflow_agent_service.cpp
+ * @brief Service layer implementation for workflow agent
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Implementation file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #include "workflow_agent_service.hpp"
 #include "kolosal/logger.hpp"
 #include <random>
@@ -45,7 +56,6 @@ json WorkflowAgentService::WorkflowResponse::to_json() const {
         {"status", status},
         {"result", result}
     };
-    
     if (!errors.empty()) {
         response["errors"] = errors;
     }
@@ -81,7 +91,6 @@ json WorkflowAgentService::WorkflowExecutionResponse::to_json() const {
         {"status", status},
         {"output", output}
     };
-    
     if (!step_results.empty()) {
         response["step_results"] = step_results;
     }
@@ -140,14 +149,13 @@ bool WorkflowAgentService::RAGWorkflowRequest::validate() const {
 
 // RAGWorkflowResponse implementation
 json WorkflowAgentService::RAGWorkflowResponse::to_json() const {
-    json response = {
+    const json response = {
         {"success", success},
         {"message", message},
         {"response_text", response_text},
         {"retrieved_documents", retrieved_documents},
         {"metadata", metadata}
     };
-    
     return response;
 }
 
@@ -172,19 +180,18 @@ bool WorkflowAgentService::SessionRequest::validate() const {
 
 // SessionResponse implementation
 json WorkflowAgentService::SessionResponse::to_json() const {
-    json response = {
+    const json response = {
         {"success", success},
         {"message", message},
         {"session_id", session_id},
         {"session_info", session_info}
     };
-    
     return response;
 }
 
 // Core service methods implementation
 std::future<WorkflowAgentService::WorkflowResponse> 
-WorkflowAgentService::createWorkflow(const WorkflowRequest& request) {
+WorkflowAgentService::create_Workflow(const WorkflowRequest& request) {
     return std::async(std::launch::async, [this, request]() {
         WorkflowResponse response;
         
@@ -195,8 +202,7 @@ WorkflowAgentService::createWorkflow(const WorkflowRequest& request) {
                 return response;
             }
             
-            std::string workflow_id = generateWorkflowId();
-            
+            std::string workflow_id = generateWorkflow_Id();
             json workflow_data = {
                 {"id", workflow_id},
                 {"name", request.name},
@@ -208,7 +214,6 @@ WorkflowAgentService::createWorkflow(const WorkflowRequest& request) {
                     std::chrono::system_clock::now().time_since_epoch()).count()},
                 {"status", "created"}
             };
-            
             workflows_[workflow_id] = workflow_data;
             
             response.success = true;
@@ -221,7 +226,7 @@ WorkflowAgentService::createWorkflow(const WorkflowRequest& request) {
             
         } catch (const std::exception& e) {
             response.success = false;
-            response.message = generateErrorMessage("workflow creation", e);
+            response.message = generateError_Message("workflow creation", e);
             ServerLogger::logError("Error in createWorkflow: %s", e.what());
         }
         
@@ -230,7 +235,7 @@ WorkflowAgentService::createWorkflow(const WorkflowRequest& request) {
 }
 
 std::future<WorkflowAgentService::WorkflowExecutionResponse> 
-WorkflowAgentService::executeWorkflow(const WorkflowExecutionRequest& request) {
+WorkflowAgentService::execute_Workflow(const WorkflowExecutionRequest& request) {
     return std::async(std::launch::async, [this, request]() {
         WorkflowExecutionResponse response;
         
@@ -249,8 +254,7 @@ WorkflowAgentService::executeWorkflow(const WorkflowExecutionRequest& request) {
                 return response;
             }
             
-            std::string execution_id = generateExecutionId();
-            
+            std::string execution_id = generateExecution_Id();
             json execution_data = {
                 {"execution_id", execution_id},
                 {"workflow_id", request.workflow_id},
@@ -260,7 +264,6 @@ WorkflowAgentService::executeWorkflow(const WorkflowExecutionRequest& request) {
                     std::chrono::system_clock::now().time_since_epoch()).count()},
                 {"async_execution", request.async_execution}
             };
-            
             executions_[execution_id] = execution_data;
             
             // Simulate workflow execution
@@ -280,7 +283,7 @@ WorkflowAgentService::executeWorkflow(const WorkflowExecutionRequest& request) {
             
         } catch (const std::exception& e) {
             response.success = false;
-            response.message = generateErrorMessage("workflow execution", e);
+            response.message = generateError_Message("workflow execution", e);
             ServerLogger::logError("Error in executeWorkflow: %s", e.what());
         }
         
@@ -289,7 +292,7 @@ WorkflowAgentService::executeWorkflow(const WorkflowExecutionRequest& request) {
 }
 
 std::future<WorkflowAgentService::WorkflowResponse> 
-WorkflowAgentService::getWorkflowStatus(const WorkflowStatusRequest& request) {
+WorkflowAgentService::getWorkflow_Status(const WorkflowStatusRequest& request) {
     return std::async(std::launch::async, [this, request]() {
         WorkflowResponse response;
         
@@ -316,7 +319,7 @@ WorkflowAgentService::getWorkflowStatus(const WorkflowStatusRequest& request) {
             
             // If execution_id is provided, include execution status
             if (!request.execution_id.empty()) {
-                auto execution_it = executions_.find(request.execution_id);
+                const auto execution_it = executions_.find(request.execution_id);
                 if (execution_it != executions_.end()) {
                     response.result["execution_status"] = execution_it->second;
                 }
@@ -324,7 +327,7 @@ WorkflowAgentService::getWorkflowStatus(const WorkflowStatusRequest& request) {
             
         } catch (const std::exception& e) {
             response.success = false;
-            response.message = generateErrorMessage("workflow status retrieval", e);
+            response.message = generateError_Message("workflow status retrieval", e);
             ServerLogger::logError("Error in getWorkflowStatus: %s", e.what());
         }
         
@@ -332,11 +335,10 @@ WorkflowAgentService::getWorkflowStatus(const WorkflowStatusRequest& request) {
     });
 }
 
-std::future<json> WorkflowAgentService::listWorkflows() {
+std::future<json> WorkflowAgentService::list_Workflows() {
     return std::async(std::launch::async, [this]() {
         try {
             json workflows_list = json::array();
-            
             for (const auto& workflow_pair : workflows_) {
                 json workflow_summary = {
                     {"id", workflow_pair.second["id"]},
@@ -349,17 +351,16 @@ std::future<json> WorkflowAgentService::listWorkflows() {
                 workflows_list.push_back(workflow_summary);
             }
             
-            json response = {
+            const json response = {
                 {"success", true},
                 {"workflows", workflows_list},
                 {"total_count", workflows_.size()}
             };
-            
             return response;
         } catch (const std::exception& e) {
-            json response = {
+            const json response = {
                 {"success", false},
-                {"error", generateErrorMessage("list workflows", e)}
+                {"error", generateError_Message("list workflows", e)}
             };
             return response;
         }
@@ -367,7 +368,7 @@ std::future<json> WorkflowAgentService::listWorkflows() {
 }
 
 std::future<WorkflowAgentService::WorkflowResponse> 
-WorkflowAgentService::deleteWorkflow(const std::string& workflow_id) {
+WorkflowAgentService::delete_Workflow(const std::string& workflow_id) {
     return std::async(std::launch::async, [this, workflow_id]() {
         WorkflowResponse response;
         
@@ -390,7 +391,7 @@ WorkflowAgentService::deleteWorkflow(const std::string& workflow_id) {
             
         } catch (const std::exception& e) {
             response.success = false;
-            response.message = generateErrorMessage("workflow deletion", e);
+            response.message = generateError_Message("workflow deletion", e);
             ServerLogger::logError("Error in deleteWorkflow: %s", e.what());
         }
         
@@ -399,7 +400,7 @@ WorkflowAgentService::deleteWorkflow(const std::string& workflow_id) {
 }
 
 std::future<WorkflowAgentService::RAGWorkflowResponse> 
-WorkflowAgentService::executeRAGWorkflow(const RAGWorkflowRequest& request) {
+WorkflowAgentService::execute_RAGWorkflow(const RAGWorkflowRequest& request) {
     return std::async(std::launch::async, [this, request]() {
         RAGWorkflowResponse response;
         
@@ -427,7 +428,7 @@ WorkflowAgentService::executeRAGWorkflow(const RAGWorkflowRequest& request) {
             
         } catch (const std::exception& e) {
             response.success = false;
-            response.message = generateErrorMessage("RAG workflow execution", e);
+            response.message = generateError_Message("RAG workflow execution", e);
             ServerLogger::logError("Error in executeRAGWorkflow: %s", e.what());
         }
         
@@ -436,7 +437,7 @@ WorkflowAgentService::executeRAGWorkflow(const RAGWorkflowRequest& request) {
 }
 
 std::future<WorkflowAgentService::RAGWorkflowResponse> 
-WorkflowAgentService::searchRAGContext(const RAGWorkflowRequest& request) {
+WorkflowAgentService::search_RAGContext(const RAGWorkflowRequest& request) {
     return std::async(std::launch::async, [this, request]() {
         RAGWorkflowResponse response;
         
@@ -461,7 +462,7 @@ WorkflowAgentService::searchRAGContext(const RAGWorkflowRequest& request) {
             
         } catch (const std::exception& e) {
             response.success = false;
-            response.message = generateErrorMessage("RAG context search", e);
+            response.message = generateError_Message("RAG context search", e);
             ServerLogger::logError("Error in searchRAGContext: %s", e.what());
         }
         
@@ -471,7 +472,7 @@ WorkflowAgentService::searchRAGContext(const RAGWorkflowRequest& request) {
 
 // Session management implementations
 std::future<WorkflowAgentService::SessionResponse> 
-WorkflowAgentService::createSession(const SessionRequest& request) {
+WorkflowAgentService::create_Session(const SessionRequest& request) {
     return std::async(std::launch::async, [this, request]() {
         SessionResponse response;
         
@@ -482,8 +483,7 @@ WorkflowAgentService::createSession(const SessionRequest& request) {
                 return response;
             }
             
-            std::string session_id = generateSessionId();
-            
+            std::string session_id = generateSession_Id();
             json session_data = {
                 {"session_id", session_id},
                 {"session_name", request.session_name},
@@ -494,7 +494,6 @@ WorkflowAgentService::createSession(const SessionRequest& request) {
                 {"status", "active"},
                 {"conversation_history", json::array()}
             };
-            
             sessions_[session_id] = session_data;
             
             response.success = true;
@@ -506,7 +505,7 @@ WorkflowAgentService::createSession(const SessionRequest& request) {
             
         } catch (const std::exception& e) {
             response.success = false;
-            response.message = generateErrorMessage("session creation", e);
+            response.message = generateError_Message("session creation", e);
             ServerLogger::logError("Error in createSession: %s", e.what());
         }
         
@@ -515,7 +514,7 @@ WorkflowAgentService::createSession(const SessionRequest& request) {
 }
 
 std::future<WorkflowAgentService::SessionResponse> 
-WorkflowAgentService::getSession(const std::string& session_id) {
+WorkflowAgentService::get_Session(const std::string& session_id) {
     return std::async(std::launch::async, [this, session_id]() {
         SessionResponse response;
         
@@ -534,7 +533,7 @@ WorkflowAgentService::getSession(const std::string& session_id) {
             
         } catch (const std::exception& e) {
             response.success = false;
-            response.message = generateErrorMessage("session retrieval", e);
+            response.message = generateError_Message("session retrieval", e);
             ServerLogger::logError("Error in getSession: %s", e.what());
         }
         
@@ -542,11 +541,10 @@ WorkflowAgentService::getSession(const std::string& session_id) {
     });
 }
 
-std::future<json> WorkflowAgentService::listSessions() {
+std::future<json> WorkflowAgentService::list_Sessions() {
     return std::async(std::launch::async, [this]() {
         try {
             json sessions_list = json::array();
-            
             for (const auto& session_pair : sessions_) {
                 json session_summary = {
                     {"session_id", session_pair.second["session_id"]},
@@ -558,17 +556,16 @@ std::future<json> WorkflowAgentService::listSessions() {
                 sessions_list.push_back(session_summary);
             }
             
-            json response = {
+            const json response = {
                 {"success", true},
                 {"sessions", sessions_list},
                 {"total_count", sessions_.size()}
             };
-            
             return response;
         } catch (const std::exception& e) {
-            json response = {
+            const json response = {
                 {"success", false},
-                {"error", generateErrorMessage("list sessions", e)}
+                {"error", generateError_Message("list sessions", e)}
             };
             return response;
         }
@@ -576,7 +573,7 @@ std::future<json> WorkflowAgentService::listSessions() {
 }
 
 std::future<WorkflowAgentService::SessionResponse> 
-WorkflowAgentService::deleteSession(const std::string& session_id) {
+WorkflowAgentService::delete_Session(const std::string& session_id) {
     return std::async(std::launch::async, [this, session_id]() {
         SessionResponse response;
         
@@ -598,7 +595,7 @@ WorkflowAgentService::deleteSession(const std::string& session_id) {
             
         } catch (const std::exception& e) {
             response.success = false;
-            response.message = generateErrorMessage("session deletion", e);
+            response.message = generateError_Message("session deletion", e);
             ServerLogger::logError("Error in deleteSession: %s", e.what());
         }
         
@@ -606,30 +603,29 @@ WorkflowAgentService::deleteSession(const std::string& session_id) {
     });
 }
 
-std::future<json> WorkflowAgentService::getSessionHistory(const std::string& session_id) {
+std::future<json> WorkflowAgentService::getSession_History(const std::string& session_id) {
     return std::async(std::launch::async, [this, session_id]() {
         try {
             auto session_it = sessions_.find(session_id);
             if (session_it == sessions_.end()) {
-                json response = {
+                const json response = {
                     {"success", false},
                     {"error", "Session not found"}
                 };
                 return response;
             }
             
-            json response = {
+            const json response = {
                 {"success", true},
                 {"session_id", session_id},
                 {"conversation_history", session_it->second["conversation_history"]},
                 {"total_messages", session_it->second["conversation_history"].size()}
             };
-            
             return response;
         } catch (const std::exception& e) {
-            json response = {
+            const json response = {
                 {"success", false},
-                {"error", generateErrorMessage("session history retrieval", e)}
+                {"error", generateError_Message("session history retrieval", e)}
             };
             return response;
         }
@@ -637,11 +633,10 @@ std::future<json> WorkflowAgentService::getSessionHistory(const std::string& ses
 }
 
 // Orchestration operations
-std::future<json> WorkflowAgentService::createOrchestrationPlan(const json& request) {
+std::future<json> WorkflowAgentService::createOrchestration_Plan(const json& request) {
     return std::async(std::launch::async, [this, request]() {
         try {
-            std::string plan_id = generateWorkflowId();
-            
+            std::string plan_id = generateWorkflow_Id();
             json plan_data = {
                 {"plan_id", plan_id},
                 {"definition", request},
@@ -649,61 +644,57 @@ std::future<json> WorkflowAgentService::createOrchestrationPlan(const json& requ
                 {"created_at", std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::system_clock::now().time_since_epoch()).count()}
             };
-            
             workflows_[plan_id] = plan_data;
             
-            json response = {
+            const json response = {
                 {"success", true},
                 {"plan_id", plan_id},
                 {"status", "created"},
                 {"message", "Orchestration plan created successfully"}
             };
-            
             return response;
         } catch (const std::exception& e) {
-            json response = {
+            const json response = {
                 {"success", false},
-                {"error", generateErrorMessage("orchestration plan creation", e)}
+                {"error", generateError_Message("orchestration plan creation", e)}
             };
             return response;
         }
     });
 }
 
-std::future<json> WorkflowAgentService::executeOrchestrationPlan(const std::string& plan_id, const json& parameters) {
+std::future<json> WorkflowAgentService::executeOrchestration_Plan(const std::string& plan_id, const json& parameters) {
     return std::async(std::launch::async, [this, plan_id, parameters]() {
         try {
             auto plan_it = workflows_.find(plan_id);
             if (plan_it == workflows_.end()) {
-                json response = {
+                const json response = {
                     {"success", false},
                     {"error", "Orchestration plan not found"}
                 };
                 return response;
             }
             
-            std::string execution_id = generateExecutionId();
-            
-            json response = {
+            std::string execution_id = generateExecution_Id();
+            const json response = {
                 {"success", true},
                 {"plan_id", plan_id},
                 {"execution_id", execution_id},
                 {"status", "running"},
                 {"message", "Orchestration plan execution started"}
             };
-            
             return response;
         } catch (const std::exception& e) {
-            json response = {
+            const json response = {
                 {"success", false},
-                {"error", generateErrorMessage("orchestration plan execution", e)}
+                {"error", generateError_Message("orchestration plan execution", e)}
             };
             return response;
         }
     });
 }
 
-std::future<json> WorkflowAgentService::getOrchestrationStatus(const std::string& plan_id) {
+std::future<json> WorkflowAgentService::getOrchestration_Status(const std::string& plan_id) {
     return std::async(std::launch::async, [this, plan_id]() {
         try {
             auto plan_it = workflows_.find(plan_id);
@@ -715,18 +706,17 @@ std::future<json> WorkflowAgentService::getOrchestrationStatus(const std::string
                 return response;
             }
             
-            json response = {
+            const json response = {
                 {"success", true},
                 {"plan_id", plan_id},
                 {"status", plan_it->second["status"]},
                 {"plan_data", plan_it->second}
             };
-            
             return response;
         } catch (const std::exception& e) {
-            json response = {
+            const json response = {
                 {"success", false},
-                {"error", generateErrorMessage("orchestration status retrieval", e)}
+                {"error", generateError_Message("orchestration status retrieval", e)}
             };
             return response;
         }
@@ -734,40 +724,37 @@ std::future<json> WorkflowAgentService::getOrchestrationStatus(const std::string
 }
 
 // Private helper methods
-std::string WorkflowAgentService::generateWorkflowId() {
+std::string WorkflowAgentService::generateWorkflow_Id() {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(100000, 999999);
     
-    auto now = std::chrono::system_clock::now();
-    auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-    
+    const auto now = std::chrono::system_clock::now();
+    const auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
     return "workflow_" + std::to_string(timestamp) + "_" + std::to_string(dis(gen));
 }
 
-std::string WorkflowAgentService::generateExecutionId() {
+std::string WorkflowAgentService::generateExecution_Id() {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(100000, 999999);
     
     auto now = std::chrono::system_clock::now();
-    auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-    
+    const auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
     return "exec_" + std::to_string(timestamp) + "_" + std::to_string(dis(gen));
 }
 
-std::string WorkflowAgentService::generateSessionId() {
+std::string WorkflowAgentService::generateSession_Id() {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(100000, 999999);
     
     auto now = std::chrono::system_clock::now();
-    auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-    
+    const auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
     return "session_" + std::to_string(timestamp) + "_" + std::to_string(dis(gen));
 }
 
-std::string WorkflowAgentService::generateErrorMessage(const std::string& operation, const std::exception& e) {
+std::string WorkflowAgentService::generateError_Message(const std::string& operation, const std::exception& e) {
     std::string error_msg = e.what();
     return "Error during " + operation + ": " + error_msg;
 }

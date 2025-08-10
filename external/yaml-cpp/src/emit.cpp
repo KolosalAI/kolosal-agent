@@ -1,3 +1,14 @@
+/**
+ * @file emit.cpp
+ * @brief Core functionality for emit
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Implementation file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #include "yaml-cpp/node/emit.h"
 #include "nodeevents.h"
 #include "yaml-cpp/emitfromevents.h"

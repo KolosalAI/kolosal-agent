@@ -1,3 +1,14 @@
+/**
+ * @file mock_event_handler.h
+ * @brief Core functionality for mock event handler
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Header file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #include "yaml-cpp/emitterstyle.h"
 #include "yaml-cpp/eventhandler.h"
 #include "yaml-cpp/mark.h"

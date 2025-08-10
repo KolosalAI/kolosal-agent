@@ -1,10 +1,20 @@
-// File: src/agents/multi_agent_system.cpp
+/**
+ * @file multi_agent_system.cpp
+ * @brief Multi-agent coordination and orchestringingingingation
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Implementation file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #include "agent/multi_agent_system.hpp"
-#include "builtin_functions.hpp"
-#include "server_logger_adapter.hpp"
+#include "builtin_function_registry.hpp"
+#include "server_logger_integration.hpp"
 #include "agent/agent_core.hpp"
-#include "routes/message_router.hpp"
-#include "yaml_config.hpp"
+#include "routing/message_router.hpp"
+#include "yaml_configuration_parser.hpp"
 #include "agent/agent_config_validator.hpp"
 #include <mutex>
 #include <chrono>
@@ -16,6 +26,10 @@ namespace kolosal::agents {
 
 // ConfigurableAgentFactory implementation
 ConfigurableAgentFactory::ConfigurableAgentFactory(std::shared_ptr<Logger> log) 
+    /**
+     * @brief Perform logger operation
+     * @return : Description of return value
+     */
     : logger(log) {
 }
 
@@ -24,8 +38,8 @@ void ConfigurableAgentFactory::register_function_config(const FunctionConfig& co
     logger->info("Registered function config: " + config.name + " (type: " + config.type + ")");
 }
 
-std::unique_ptr<AgentFunction> ConfigurableAgentFactory::create_function(const std::string& function_name) {
-    auto it = function_configs.find(function_name);
+std::unique_ptr<AgentFunction> ConfigurableAgentFactory::create__function(const std::string& function_name) {
+    const auto it = function_configs.find(function_name);
     if (it != function_configs.end()) {
         // Found explicit function config
         const FunctionConfig& config = it->second;
@@ -45,7 +59,7 @@ std::unique_ptr<AgentFunction> ConfigurableAgentFactory::create_function(const s
                 config.endpoint
             );
         } else if (config.type == "builtin") {
-            return create_builtin_function(config);
+            return create__builtin_function(config);
         } else if (config.type == "inference") {
             return std::make_unique<InferenceFunction>();
         } else if (config.type == "retrieval") {
@@ -67,7 +81,7 @@ std::unique_ptr<AgentFunction> ConfigurableAgentFactory::create_function(const s
     default_config.type = "builtin";
     default_config.description = "Built-in function: " + function_name;
     
-    auto builtin_function = create_builtin_function(default_config);
+    auto builtin_function = create__builtin_function(default_config);
     if (builtin_function) {
         logger->info("Successfully created builtin function: " + function_name);
         return builtin_function;
@@ -77,7 +91,7 @@ std::unique_ptr<AgentFunction> ConfigurableAgentFactory::create_function(const s
     return nullptr;
 }
 
-std::unique_ptr<AgentFunction> ConfigurableAgentFactory::create_builtin_function(const FunctionConfig& config) {
+std::unique_ptr<AgentFunction> ConfigurableAgentFactory::create__builtin_function(const FunctionConfig& config) {
     if (config.name == "add") {
         return std::make_unique<AddFunction>();
     } else if (config.name == "echo") {
@@ -116,7 +130,7 @@ std::unique_ptr<AgentFunction> ConfigurableAgentFactory::create_builtin_function
 
 // YAMLConfigurableAgentManager implementation
 YAMLConfigurableAgentManager::YAMLConfigurableAgentManager() {
-    // Use the adapter to bridge ServerLogger singleton with agents::Logger interface
+    // Use the adapter to bridge ServerLogger singleton with agents::Logger
     logger = std::make_shared<ServerLoggerAdapter>();
     message_router = std::make_shared<MessageRouter>(logger);
     agent_factory = std::make_shared<ConfigurableAgentFactory>(logger);
@@ -133,10 +147,9 @@ bool YAMLConfigurableAgentManager::load_configuration(const std::string& yaml_fi
         // Validate configuration before proceeding
         logger->info("Validating agent system configuration...");
         
-        auto system_validation = AgentConfigValidator::validate_system_config(system_config);
-        auto engine_validation = AgentConfigValidator::validate_inference_engines(system_config.inference_engines);
-        auto function_validation = AgentConfigValidator::validate_function_configs(system_config.functions);
-        
+    const auto system_validation = AgentConfigValidator::validate_system_config(system_config);
+    const auto engine_validation = AgentConfigValidator::validate_inference_engines(system_config.inference_engines);
+        const auto function_validation = AgentConfigValidator::validate_function_configs(system_config.functions);
         // Log validation results
         if (!system_validation.is_valid || !engine_validation.is_valid || !function_validation.is_valid) {
             logger->error("Configuration validation failed:");
@@ -177,9 +190,9 @@ bool YAMLConfigurableAgentManager::load_configuration(const std::string& yaml_fi
         }
         
         // Validate individual agent configurations
-        int valid_agents = 0;
+    int valid_agents = 0;
         for (const auto& agent_config : system_config.agents) {
-            auto agent_validation = AgentConfigValidator::validate_agent_config(agent_config);
+            const auto agent_validation = AgentConfigValidator::validate_agent_config(agent_config);
             if (!agent_validation.is_valid) {
                 logger->error("Agent '" + agent_config.name + "' configuration is invalid:");
                 for (const auto& error : agent_validation.errors) {
@@ -211,7 +224,7 @@ bool YAMLConfigurableAgentManager::load_configuration(const std::string& yaml_fi
         // Check inference engine health - wrap in try-catch to prevent failures
         try {
             logger->info("DEBUG: About to check inference engine health");
-            auto engine_statuses = AgentConfigValidator::check_inference_engine_health();
+            const auto engine_statuses = AgentConfigValidator::check_inference_engine_health();
             logger->info("DEBUG: Inference engine health check completed successfully");
             
             int healthy_engines = 0;
@@ -268,16 +281,14 @@ bool YAMLConfigurableAgentManager::load_configuration(const std::string& yaml_fi
 
 bool YAMLConfigurableAgentManager::load_configuration(const SystemConfig& system_config_param) {
     try {
-        // Store the provided system configuration
-        system_config = system_config_param;
-        
+    // Store the provided system configuration
+    system_config = system_config_param;
         // Validate configuration before proceeding
         logger->info("Validating agent system configuration...");
         
         auto system_validation = AgentConfigValidator::validate_system_config(system_config);
         auto engine_validation = AgentConfigValidator::validate_inference_engines(system_config.inference_engines);
-        auto function_validation = AgentConfigValidator::validate_function_configs(system_config.functions);
-        
+        const auto function_validation = AgentConfigValidator::validate_function_configs(system_config.functions);
         // Log validation results
         if (!system_validation.is_valid || !engine_validation.is_valid || !function_validation.is_valid) {
             logger->error("Configuration validation failed:");
@@ -340,7 +351,7 @@ void YAMLConfigurableAgentManager::start() {
     
     // Create and start agents from configuration
     for (const auto& agent_config : system_config.agents) {
-        std::string agent_id = create_agent_from_config(agent_config);
+        std::string agent_id = create__agent_from_config(agent_config);
         if (!agent_id.empty() && agent_config.auto_start) {
             start_agent(agent_id);
         }
@@ -362,7 +373,7 @@ void YAMLConfigurableAgentManager::stop() {
         // Stop all agents
         for (const auto& pair : active_agents) {
             try {
-                if (pair.second && pair.second->is_running()) {
+                if (pair.second && pair.second->is__running()) {
                     pair.second->stop();
                 }
             } catch (const std::exception& e) {
@@ -375,15 +386,14 @@ void YAMLConfigurableAgentManager::stop() {
     logger->info("YAML-configurable agent manager stopped");
 }
 
-std::string YAMLConfigurableAgentManager::create_agent_from_config(const AgentConfig& config) {
+std::string YAMLConfigurableAgentManager::create__agent_from_config(const AgentConfig& config) {
     if (config.name.empty() || config.type.empty()) {
         logger->error("Invalid agent configuration: name and type are required");
         return "";
     }
 
     try {
-        auto agent = std::make_shared<AgentCore>(config.name, config.type);
-        
+        const auto agent = std::make_shared<AgentCore>(config.name, config.type);
         // Set up agent capabilities
         for (const auto& capability : config.capabilities) {
             agent->add_capability(capability);
@@ -391,20 +401,19 @@ std::string YAMLConfigurableAgentManager::create_agent_from_config(const AgentCo
         
         // Register functions for this agent
         for (const auto& function_name : config.functions) {
-            auto function = agent_factory->create_function(function_name);
+            auto function = agent_factory->create__function(function_name);
             if (function) {
-                agent->get_function_manager()->register_function(std::move(function));
+                agent->get__function_manager()->register_function(std::move(function));
             } else {
                 logger->warn("Failed to create function: " + function_name + " for agent: " + config.name);
             }
         }
         
         // Set up message handling
-        agent->set_message_router(message_router);
+        agent->set__message_router(message_router);
         
-        // Get agent ID before locking to minimize lock time
-        std::string agent_id = agent->get_agent_id();
-        
+    // Get agent ID before locking to minimize lock time
+    std::string agent_id = agent->get__agent_id();
         // Store the agent thread-safely
         {
             std::lock_guard<std::mutex> lock(agents_mutex);
@@ -427,7 +436,7 @@ bool YAMLConfigurableAgentManager::start_agent(const std::string& agent_id) {
     }
 
     std::lock_guard<std::mutex> lock(agents_mutex);
-    auto it = active_agents.find(agent_id);
+    const auto it = active_agents.find(agent_id);
     if (it == active_agents.end()) {
         logger->error("Agent not found: " + agent_id);
         return false;
@@ -438,7 +447,7 @@ bool YAMLConfigurableAgentManager::start_agent(const std::string& agent_id) {
         return false;
     }
 
-    if (it->second->is_running()) {
+    if (it->second->is__running()) {
         logger->warn("Agent is already running: " + agent_id);
         return true;
     }
@@ -471,7 +480,7 @@ bool YAMLConfigurableAgentManager::stop_agent(const std::string& agent_id) {
         return false;
     }
 
-    if (!it->second->is_running()) {
+    if (!it->second->is__running()) {
         logger->warn("Agent is not running: " + agent_id);
         return true;
     }
@@ -506,7 +515,7 @@ bool YAMLConfigurableAgentManager::delete_agent(const std::string& agent_id) {
 
     try {
         // Stop the agent first if it's running
-        if (it->second->is_running()) {
+        if (it->second->is__running()) {
             it->second->stop();
         }
         
@@ -529,7 +538,7 @@ bool YAMLConfigurableAgentManager::reload_configuration(const std::string& yaml_
     // Stop all current agents
     for (const auto& pair : active_agents) {
         try {
-            if (pair.second && pair.second->is_running()) {
+            if (pair.second && pair.second->is__running()) {
                 pair.second->stop();
             }
         } catch (const std::exception& e) {
@@ -546,7 +555,7 @@ bool YAMLConfigurableAgentManager::reload_configuration(const std::string& yaml_
     
     // Create and start new agents
     for (const auto& agent_config : system_config.agents) {
-        std::string agent_id = create_agent_from_config(agent_config);
+        std::string agent_id = create__agent_from_config(agent_config);
         if (!agent_id.empty() && agent_config.auto_start) {
             start_agent(agent_id);
         }
@@ -566,7 +575,7 @@ std::vector<std::string> YAMLConfigurableAgentManager::list_agents() const {
     return agent_ids;
 }
 
-std::shared_ptr<AgentCore> YAMLConfigurableAgentManager::get_agent(const std::string& agent_id) {
+std::shared_ptr<AgentCore> YAMLConfigurableAgentManager::get__agent(const std::string& agent_id) {
     if (agent_id.empty()) {
         logger->error("Invalid agent ID provided");
         return nullptr;
@@ -577,7 +586,7 @@ std::shared_ptr<AgentCore> YAMLConfigurableAgentManager::get_agent(const std::st
     return (it != active_agents.end()) ? it->second : nullptr;
 }
 
-std::string YAMLConfigurableAgentManager::get_system_status() const {
+std::string YAMLConfigurableAgentManager::get__system_status() const {
     std::lock_guard<std::mutex> lock(agents_mutex);
     
     std::ostringstream status;
@@ -587,7 +596,7 @@ std::string YAMLConfigurableAgentManager::get_system_status() const {
     
     int running_count = 0;
     for (const auto& pair : active_agents) {
-        if (pair.second && pair.second->is_running()) {
+        if (pair.second && pair.second->is__running()) {
             running_count++;
         }
     }
@@ -602,27 +611,26 @@ std::string YAMLConfigurableAgentManager::get_system_status() const {
 
 void YAMLConfigurableAgentManager::demonstrate_system() {
     logger->info("=== YAML-Configurable Multi-Agent System Demo ===");
-    
     // Show system status
-    logger->info(get_system_status());
+    logger->info(get__system_status());
     
     // List all agents - Note: This already includes mutex locking
-    auto agent_ids = list_agents();
+    const auto agent_ids = list_agents();
     logger->info("Active Agents: " + std::to_string(agent_ids.size()));
     
     // No need for additional lock since we're using get_agent which has its own locking
     for (const auto& agent_id : agent_ids) {
-        auto agent = get_agent(agent_id);
+        const auto agent = get__agent(agent_id);
         if (agent) {
             std::ostringstream agent_info;
-            agent_info << "  - " << agent->get_agent_name() 
+            agent_info << "  - " << agent->get__agent_name() 
                       << " (ID: " << agent_id.substr(0, 8) << "...)" 
-                      << " Type: " << agent->get_agent_type()
-                      << " Status: " << (agent->is_running() ? "RUNNING" : "STOPPED");
+                      << " Type: " << agent->get__agent_type()
+                      << " Status: " << (agent->is__running() ? "RUNNING" : "STOPPED");
             logger->info(agent_info.str());
             
             // Show capabilities
-            auto capabilities = agent->get_capabilities();
+            const auto capabilities = agent->get__capabilities();
             if (!capabilities.empty()) {
                 std::ostringstream caps;
                 caps << "    Capabilities: ";
@@ -634,7 +642,7 @@ void YAMLConfigurableAgentManager::demonstrate_system() {
             }
             
             // Show available functions
-            auto function_names = agent->get_function_manager()->get_function_names();
+            const auto function_names = agent->get__function_manager()->get__function_names();
             if (!function_names.empty()) {
                 std::ostringstream funcs;
                 funcs << "    Functions: ";

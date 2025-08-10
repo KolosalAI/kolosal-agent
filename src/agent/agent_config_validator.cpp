@@ -1,3 +1,14 @@
+/**
+* @file agent_config_validator.cpp
+ * @brief Core functionality for agent config validator
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Implementation file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #include "agent/agent_config_validator.hpp"
 #include "kolosal/server_api.hpp"
 #include "kolosal/node_manager.h"
@@ -35,9 +46,9 @@ AgentConfigValidator::ValidationResult AgentConfigValidator::validate_system_con
     }
     
     // Validate global settings
-    auto timeout_it = config.global_settings.find("default_timeout_ms");
+    const auto timeout_it = config.global_settings.find("default_timeout_ms");
     if (timeout_it != config.global_settings.end()) {
-        int timeout_ms = std::stoi(timeout_it->second);
+        const int timeout_ms = std::stoi(timeout_it->second);
         if (timeout_ms < 1000) {
             result.warnings.push_back("Default timeout is very short (< 1 second), may cause frequent timeouts");
         } else if (timeout_ms > 300000) {
@@ -45,19 +56,19 @@ AgentConfigValidator::ValidationResult AgentConfigValidator::validate_system_con
         }
     }
     
-    auto retries_it = config.global_settings.find("max_retries");
+    const auto retries_it = config.global_settings.find("maximum_retries");
     if (retries_it != config.global_settings.end()) {
-        int max_retries = std::stoi(retries_it->second);
+        const int max_retries = std::stoi(retries_it->second);
         if (max_retries < 0) {
-            result.errors.push_back("Max retries cannot be negative");
+            result.errors.push_back("maximum retries cannot be negative");
             result.is_valid = false;
         } else if (max_retries > 10) {
-            result.warnings.push_back("Max retries is very high (> 10), may cause long delays on failures");
+                result.warnings.push_back("Maximum retries is very high (> 10), may cause long delays on failures");
         }
     }
     
     // Performance suggestions
-    auto metrics_it = config.global_settings.find("enable_metrics");
+    const auto metrics_it = config.global_settings.find("enable_metrics");
     if (metrics_it != config.global_settings.end() && metrics_it->second == "true") {
         result.suggestions.push_back("Metrics are enabled - consider using monitoring endpoints for system health");
     }
@@ -92,7 +103,7 @@ AgentConfigValidator::ValidationResult AgentConfigValidator::validate_inference_
         if (engine.model_path.empty()) {
             result.errors.push_back("Model path cannot be empty for engine: " + engine.name);
             result.is_valid = false;
-        } else if (!is_valid_url(engine.model_path) && !is_valid_path(engine.model_path)) {
+        } else if (!is__valid_url(engine.model_path) && !is__valid_path(engine.model_path)) {
             result.warnings.push_back("Model path may not be valid for engine " + engine.name + ": " + engine.model_path);
         }
         
@@ -110,7 +121,7 @@ AgentConfigValidator::ValidationResult AgentConfigValidator::validate_inference_
             result.warnings.push_back("Very large batch size for engine " + engine.name + " - may consume excessive memory");
         }
         
-        if (!is_valid_thread_count(engine.threads)) {
+        if (!is__valid_thread_count(engine.threads)) {
             result.warnings.push_back("Thread count for engine " + engine.name + " may not be optimal");
         }
         
@@ -153,28 +164,28 @@ AgentConfigValidator::ValidationResult AgentConfigValidator::validate_agent_conf
     }
     
     // Validate LLM config - model_name is now optional since it can be specified at request time
-    if (!is_valid_url(agent.llm_config.api_endpoint) && !agent.llm_config.api_endpoint.empty()) {
+    if (!is__valid_url(agent.llm_config.api_endpoint) && !agent.llm_config.api_endpoint.empty()) {
         result.warnings.push_back("Invalid API endpoint for agent " + agent.name + ": " + agent.llm_config.api_endpoint);
     }
     
-    if (!is_valid_temperature(agent.llm_config.temperature)) {
+    if (!is__valid_temperature(agent.llm_config.temperature)) {
         result.warnings.push_back("Temperature out of range for agent " + agent.name + " (should be 0.0-2.0)");
     }
     
     if (agent.llm_config.max_tokens < 1) {
-        result.errors.push_back("Max tokens must be positive for agent: " + agent.name);
+        result.errors.push_back("maximum tokens must be positive for agent: " + agent.name);
         result.is_valid = false;
     } else if (agent.llm_config.max_tokens > 8192) {
-        result.warnings.push_back("Very high max tokens for agent " + agent.name + " - may consume excessive resources");
+    result.warnings.push_back("Very high max tokens for agent " + agent.name + " - may consume excessive resources");
     }
     
-    if (!is_valid_timeout(agent.llm_config.timeout_seconds * 1000)) {
+    if (!is__valid_timeout(agent.llm_config.timeout_seconds * 1000)) {
         result.warnings.push_back("Timeout may be too short or too long for agent: " + agent.name);
     }
     
     // Validate concurrency settings
     if (agent.max_concurrent_jobs < 1) {
-        result.errors.push_back("Max concurrent jobs must be at least 1 for agent: " + agent.name);
+        result.errors.push_back("maximum concurrent jobs must be at least 1 for agent: " + agent.name);
         result.is_valid = false;
     } else if (agent.max_concurrent_jobs > 20) {
         result.warnings.push_back("Very high concurrent job limit for agent " + agent.name + " - may impact performance");
@@ -226,12 +237,12 @@ AgentConfigValidator::ValidationResult AgentConfigValidator::validate_function_c
         }
         
         // Validate timeout
-        if (!is_valid_timeout(func.timeout_ms)) {
+        if (!is__valid_timeout(func.timeout_ms)) {
             result.warnings.push_back("Timeout may be inappropriate for function: " + func.name);
         }
         
         // Validate external API endpoints
-        if (func.type == "external_api" && !is_valid_url(func.endpoint)) {
+        if (func.type == "external_api" && !is__valid_url(func.endpoint)) {
             result.errors.push_back("Invalid endpoint URL for external API function: " + func.name);
             result.is_valid = false;
         }
@@ -282,8 +293,7 @@ bool AgentConfigValidator::validate_agent_dependencies(const AgentConfig& agent,
 std::vector<std::string> AgentConfigValidator::suggest_performance_optimizations(const SystemConfig& config) {
     std::vector<std::string> suggestions;
     
-    auto cpu_cores = std::thread::hardware_concurrency();
-    
+    const auto cpu_cores = std::thread::hardware_concurrency();
     if (config.worker_threads != cpu_cores) {
         suggestions.push_back("Consider setting worker_threads to " + std::to_string(cpu_cores) + 
                              " (number of CPU cores) for optimal performance");
@@ -327,39 +337,39 @@ std::vector<std::string> AgentConfigValidator::suggest_agent_improvements(const 
 }
 
 // Private helper methods
-bool AgentConfigValidator::is_valid_path(const std::string& path) {
+bool AgentConfigValidator::is__valid_path(const std::string& path) {
     if (path.empty()) return false;
     
     // Check if it's an absolute path or relative path that could exist
     try {
         std::filesystem::path p(path);
-        return !path.empty() && (p.is_absolute() || path.find("..") == std::string::npos);
+    return !path.empty() && (p.is_absolute() || path.find("..") == std::string::npos);
     } catch (...) {
         return false;
     }
 }
 
-bool AgentConfigValidator::is_valid_url(const std::string& url) {
+bool AgentConfigValidator::is__valid_url(const std::string& url) {
     if (url.empty()) return false;
     
     std::regex url_pattern(R"(^https?://[^\s/$.?#].[^\s]*$)", std::regex_constants::icase);
     return std::regex_match(url, url_pattern);
 }
 
-bool AgentConfigValidator::is_valid_timeout(int timeout_ms) {
+bool AgentConfigValidator::is__valid_timeout(int timeout_ms) {
     return timeout_ms >= 1000 && timeout_ms <= 600000; // 1 second to 10 minutes
 }
 
-bool AgentConfigValidator::is_valid_thread_count(int threads) {
-    auto max_threads = std::thread::hardware_concurrency();
+bool AgentConfigValidator::is__valid_thread_count(int threads) {
+    const auto max_threads = std::thread::hardware_concurrency();
     return threads >= 1 && threads <= static_cast<int>(max_threads * 2);
 }
 
-bool AgentConfigValidator::is_valid_temperature(double temperature) {
+bool AgentConfigValidator::is__valid_temperature(double temperature) {
     return temperature >= 0.0 && temperature <= 2.0;
 }
 
-bool AgentConfigValidator::is_valid_port(int port) {
+bool AgentConfigValidator::is__valid_port(int port) {
     return port >= 1024 && port <= 65535; // Avoid system ports
 }
 

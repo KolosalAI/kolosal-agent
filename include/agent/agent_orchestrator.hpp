@@ -1,4 +1,18 @@
+/**
+ * @file agent_orchestrator.hpp
+ * @brief Core functionality for agent orchestrator
+ * @version 2.0.0
+ * @author Kolosal AI Team
+ * @date 2025
+ * 
+ * Header file for the Kolosal Agent System v2.0.
+ * Part of the unified multi-agent AI platform.
+ */
+
 #pragma once
+
+#ifndef KOLOSAL_AGENT_INCLUDE_AGENT_AGENT_ORCHESTRATOR_HPP_INCLUDED
+#define KOLOSAL_AGENT_INCLUDE_AGENT_AGENT_ORCHESTRATOR_HPP_INCLUDED
 
 #include "../export.hpp"
 #include "multi_agent_system.hpp"
@@ -27,10 +41,10 @@ public:
         AgentData parameters;
         std::vector<std::string> dependencies; // Step IDs this step depends on
         std::string step_id;
-        bool parallel_allowed = true;
-        int timeout_seconds = 30;
-        int retry_count = 0;
-        int max_retries = 3;
+    bool parallel_allowed = true;
+    int timeout_seconds = 30;
+    int retry_count = 0;
+    int max_retries = 3;
     };
 
     // Workflow definition
@@ -40,17 +54,17 @@ public:
         std::string description;
         std::vector<WorkflowStep> steps;
         std::map<std::string, AgentData> global_context;
-        bool auto_cleanup = true;
-        int max_execution_time_seconds = 300;
+    bool auto_cleanup = true;
+    int max_execution_time_seconds = 300;
     };
 
     // Workflow execution result
     struct WorkflowResult {
         std::string workflow_id;
-        bool success = false;
+    bool success = false;
         std::string error_message;
         std::map<std::string, FunctionResult> step_results;
-        double total_execution_time_ms = 0.0;
+    double total_execution_time_ms = 0.0;
         std::chrono::time_point<std::chrono::system_clock> start_time;
         std::chrono::time_point<std::chrono::system_clock> end_time;
     };
@@ -59,7 +73,7 @@ public:
     enum class CollaborationPattern {
         SEQUENTIAL,      // Execute agents one after another
         PARALLEL,        // Execute agents in parallel
-        PIPELINE,        // Output of one agent becomes input of next
+        PIPELINE,        // Output of one agent becomes input of next_item
         CONSENSUS,       // Multiple agents vote on result
         HIERARCHY,       // Master-slave pattern
         NEGOTIATION      // Agents negotiate to reach agreement
@@ -72,7 +86,7 @@ public:
         CollaborationPattern pattern;
         std::vector<std::string> agent_ids;
         std::map<std::string, AgentData> shared_context;
-        std::function<AgentData(const std::vector<FunctionResult>&)> result_aggregator;
+    std::function<AgentData(const std::vector<FunctionResult>&)> result_aggregator;
         int consensus_threshold = 2; // For consensus pattern
         int max_negotiation_rounds = 5; // For negotiation pattern
     };
@@ -87,7 +101,7 @@ private:
     std::queue<std::string> workflow_queue;
     std::mutex workflow_mutex;
     std::condition_variable workflow_cv;
-    std::atomic<bool> orchestrator_running{false};
+    std::atomic<bool> orchestrator_running {false};
     std::thread orchestrator_thread;
 
     // Collaboration management
@@ -95,9 +109,9 @@ private:
     std::mutex collaboration_mutex;
 
     // Monitoring and metrics
-    std::atomic<int> active_workflows{0};
-    std::atomic<int> completed_workflows{0};
-    std::atomic<int> failed_workflows{0};
+    std::atomic<int> active_workflows {0};
+    std::atomic<int> completed_workflows {0};
+    std::atomic<int> failed_workflows {0};
 
 public:
     explicit AgentOrchestrator(std::shared_ptr<YAMLConfigurableAgentManager> manager);
@@ -163,3 +177,5 @@ private:
 };
 
 } // namespace kolosal::agents
+
+#endif // KOLOSAL_AGENT_INCLUDE_AGENT_AGENT_ORCHESTRATOR_HPP_INCLUDED
