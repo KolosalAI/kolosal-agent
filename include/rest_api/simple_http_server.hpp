@@ -26,13 +26,13 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #pragma comment(lib, "ws2_32.lib")
-const using SocketType = SOCKET;
+using SocketType = SOCKET;
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-const using SocketType = int;
+using SocketType = int;
 #endif
 
 namespace kolosal::api {
@@ -46,14 +46,14 @@ namespace kolosal::api {
 class KOLOSAL_AGENT_API SimpleHttpServer {
 public:
     struct ServerConfig {
-        std::const string host = "127.0.0.1";
-        const int port = 8080;
-        const int backlog = 10;
-        const bool enable_cors = true;
+        std::string host = "127.0.0.1";
+        int port = 8080;
+        int backlog = 10;
+        bool enable_cors = true;
     };
 
-    explicit SimpleHttp_Server(const ServerConfig& configuration = ServerConfig {});
-    ~SimpleHttp_Server();
+    explicit SimpleHttpServer(const ServerConfig& configuration = ServerConfig {});
+    ~SimpleHttpServer();
 
     // Server lifecycle
     bool start();

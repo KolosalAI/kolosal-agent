@@ -1,6 +1,18 @@
 /**
  * @file unified_server.hpp
- * @brief Unified server integrating LLM and agents
+ * @brief Unifi    // Server configuration (for LLM server)
+    std::string server_executable_path = "";
+    std::string server_host = "127.0.0.1";
+    int server_port = 8080;
+    bool auto_start_server = true;
+    int server_startup_timeout_seconds = 60;
+    // Agent API server configuration
+    std::string agent_api_host = "127.0.0.1";
+    int agent_api_port = 8081;  // Use different port for agent API
+    // Agent system configuration
+    std::string agent_config_file = "config.yaml";
+    bool auto_start_agents = true;
+    bool enable_agent_api = true;integrating LLM and agents
  * @version 2.0.0
  * @author Kolosal AI Team
  * @date 2025
@@ -18,6 +30,8 @@
 #include "../server_client_interface.h"
 #include "../agent_services/agent_service.hpp"
 #include "../agent/multi_agent_system.hpp"
+#include "../rest_api/simple_http_server.hpp"
+#include "../rest_api/agent_management_route.hpp"
 #include <memory>
 #include <string>
 #include <atomic>
@@ -45,12 +59,15 @@ namespace kolosal::integration {
 class KOLOSAL_AGENT_API UnifiedKolosalServer {
 public:
     struct ServerConfig {
-    // LLM Server configuration
+    // LLM Server configuration  
     std::string server_executable_path = "";
     std::string server_host = "127.0.0.1";
     int server_port = 8080;
     bool auto_start_server = true;
     int server_startup_timeout_seconds = 60;
+    // Agent API server configuration
+    std::string agent_api_host = "127.0.0.1";
+    int agent_api_port = 8081;  // Use different port for agent API
     // Agent system configuration
     std::string agent_config_file = "config.yaml";
     bool auto_start_agents = true;
@@ -129,6 +146,8 @@ private:
     std::shared_ptr<KolosalServerClient> llm_server_client_;
     std::shared_ptr<kolosal::agents::YAMLConfigurableAgentManager> agent_manager_;
     std::shared_ptr<kolosal::services::AgentService> agent_service_;
+    std::unique_ptr<kolosal::api::SimpleHttpServer> agent_http_server_;
+    std::shared_ptr<kolosal::api::AgentManagementRoute> agent_management_route_;
     
     // Health monitoring
     std::thread health_monitoring_thread_;
@@ -147,8 +166,10 @@ private:
     // Internal methods
     bool start_LLMServer();
     bool startAgent_System();
+    bool start_AgentHttpServer();
     void stop_LLMServer();
     void stopAgent_System();
+    void stop_AgentHttpServer();
     
     void healthMonitoring_Loop();
     bool performLLMServerHealth_Check();

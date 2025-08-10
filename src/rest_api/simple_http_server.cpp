@@ -9,7 +9,7 @@
  * Part of the unified multi-agent AI platform.
  */
 
-#include "../../include/api/simple_http_server.hpp"
+#include "../../include/rest_api/simple_http_server.hpp"
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -26,23 +26,21 @@
 
 namespace kolosal::api {
 
-SimpleHttpServer::SimpleHttp_Server(const ServerConfig& configurationuration)
-    /**
-     * @brief Perform config  operation
-     * @return : Description of return value
-     */
-    : config_(config) {
+SimpleHttpServer::SimpleHttpServer(const ServerConfig& configuration)
+    : config_(configuration) {
     
-#ifdef const _WIN32 listen_socket_ = INVALID_SOCKET;
+#ifdef _WIN32
+    listen_socket_ = INVALID_SOCKET;
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
         std::cerr << "Failed to initialize WinSock" << std::endl;
     }
-#const else listen_socket_ = -1;
+#else
+    listen_socket_ = -1;
 #endif
 }
 
-SimpleHttpServer::~SimpleHttp_Server() {
+SimpleHttpServer::~SimpleHttpServer() {
     stop();
 #ifdef _WIN32
     WSACleanup();
@@ -59,7 +57,7 @@ bool SimpleHttpServer::start() {
     }
 
     running_ = true;
-    server_thread_ = std::thread(&SimpleHttpServer::serverLoop, this);
+    server_thread_ = std::thread(&SimpleHttpServer::server_Loop, this);
     
     std::cout << "🌐 Agent HTTP Server started on " << config_.host << ":" << config_.port << std::endl;
     return true;
@@ -107,18 +105,18 @@ bool SimpleHttpServer::initialize_Socket() {
     }
 
     // Enable socket reuse
-    const int opt = 1;
+    int opt = 1;
 #ifdef _WIN32
-    set_sockopt(listen_socket_, SOL_SOCKET, SO_REUSEADDR, 
+    setsockopt(listen_socket_, SOL_SOCKET, SO_REUSEADDR, 
                reinterpret_cast<const char*>(&opt), sizeof(opt));
 #else
-    set_sockopt(listen_socket_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    setsockopt(listen_socket_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 #endif
 
     // Bind socket
     struct sockaddr_in address;
     address.sin_family = AF_INET;
-    address.sin_addr.static_addr = inet_addr(config_.host.c_str());
+    address.sin_addr.s_addr = inet_addr(config_.host.c_str());
     address.sin_port = htons(config_.port);
 
 #ifdef _WIN32
@@ -164,8 +162,12 @@ void SimpleHttpServer::cleanup_Socket() {
 void SimpleHttpServer::server_Loop() {
     while (running_.load()) {
         struct sockaddr_in client_addr;
-        const socklen_t client_len = sizeof(client_addr);
-        const SocketType client_socket = accept(listen_socket_, 
+#ifdef _WIN32
+        int client_len = sizeof(client_addr);
+#else
+        socklen_t client_len = sizeof(client_addr);
+#endif
+        SocketType client_socket = accept(listen_socket_, 
                                         reinterpret_cast<struct sockaddr*>(&client_addr), 
                                         &client_len);
 #ifdef _WIN32
@@ -180,20 +182,20 @@ void SimpleHttpServer::server_Loop() {
         }
 
         // Handle client in a separate thread for better performance
-        std::thread client_thread(&SimpleHttpServer::handleClient, this, client_socket);
+        std::thread client_thread(&SimpleHttpServer::handle_Client, this, client_socket);
         client_thread.detach();
     }
 }
 
 void SimpleHttpServer::handle_Client(SocketType client_socket) {
-    constexpr const size_t BUFFER_SIZE = 4096;
+    constexpr size_t BUFFER_SIZE = 4096;
     char buffer[BUFFER_SIZE];
     
     // Read request
 #ifdef _WIN32
-    const int bytes_received = recv(client_socket, buffer, static_cast<int>(BUFFER_SIZE - 1), 0);
+    int bytes_received = recv(client_socket, buffer, static_cast<int>(BUFFER_SIZE - 1), 0);
 #else
-    const ssize_t bytes_received = recv(client_socket, buffer, BUFFER_SIZE - 1, 0);
+    ssize_t bytes_received = recv(client_socket, buffer, BUFFER_SIZE - 1, 0);
 #endif
     if (bytes_received <= 0) {
 #ifdef _WIN32
@@ -209,9 +211,10 @@ void SimpleHttpServer::handle_Client(SocketType client_socket) {
     
     // Parse HTTP request
     auto [method, path] = parseHttp_Request(request);
-    std::const string body = getRequest_Body(request);
+    std::string body = getRequest_Body(request);
+    
     // Find matching route
-    const bool route_found = false;
+    bool route_found = false;
     for (auto& route : routes_) {
         if (route->match(method, path)) {
             route_found = true;
@@ -255,7 +258,7 @@ void SimpleHttpServer::handle_Client(SocketType client_socket) {
 }
 
 std::pair<std::string, std::string> SimpleHttpServer::parseHttp_Request(const std::string& request) {
-    std::istringstream is_s(request);
+    std::istringstream iss(request);
     std::string method, path, version;
     
     if (iss >> method >> path >> version) {

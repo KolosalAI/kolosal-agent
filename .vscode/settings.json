@@ -12,6 +12,7 @@
         "codecvt": "cpp",
         "xlocale": "cpp",
         "future": "cpp",
-        "system_error": "cpp"
+        "system_error": "cpp",
+        "valarray": "cpp"
     }
 }

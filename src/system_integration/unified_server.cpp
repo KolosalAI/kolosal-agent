@@ -10,6 +10,8 @@
  */
 
 #include "system_integration/unified_server.hpp"
+#include "rest_api/simple_http_server.hpp"
+#include "rest_api/agent_management_route.hpp"
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -36,6 +38,20 @@ UnifiedKolosalServer::UnifiedKolosalServer(const ServerConfig& config)
     // Initialize agent manager and service
     agent_manager_ = std::make_shared<YAMLConfigurableAgentManager>();
     agent_service_ = std::make_shared<AgentService>(agent_manager_);
+    
+    // Initialize HTTP server components if agent API is enabled
+    if (config_.enable_agent_api) {
+        kolosal::api::SimpleHttpServer::ServerConfig http_config;
+        http_config.host = config_.agent_api_host;
+        http_config.port = config_.agent_api_port;
+        http_config.backlog = 10;
+        agent_http_server_ = std::make_unique<kolosal::api::SimpleHttpServer>(http_config);
+        
+        // Create agent management route
+        agent_management_route_ = std::make_shared<kolosal::api::AgentManagementRoute>(agent_manager_);
+        agent_http_server_->add_Route(agent_management_route_);
+    }
+    
     // Initialize current status
     current_status_.last_health_check = std::chrono::system_clock::now();
     
@@ -84,6 +100,20 @@ bool UnifiedKolosalServer::start() {
             }
         }
         
+        // Start agent HTTP server if enabled
+        if (config_.enable_agent_api && agent_http_server_) {
+            if (!start_AgentHttpServer()) {
+                log_Event("ERROR", "Failed to start agent HTTP server");
+                if (config_.auto_start_agents) {
+                    stopAgent_System();
+                }
+                if (config_.auto_start_server) {
+                    stop_LLMServer();
+                }
+                return false;
+            }
+        }
+        
         // Start health monitoring
         if (config_.enable_health_monitoring) {
             health_monitoring_active_ = true;
@@ -124,6 +154,11 @@ void UnifiedKolosalServer::stop() {
     // Stop agent service health monitoring
     if (agent_service_) {
     agent_service_->stopHealthMonitoring();
+    }
+    
+    // Stop agent HTTP server
+    if (config_.enable_agent_api && agent_http_server_) {
+        stop_AgentHttpServer();
     }
     
     // Stop agent system
@@ -267,6 +302,31 @@ void UnifiedKolosalServer::stopAgent_System() {
     if (agent_manager_) {
         log_Event("information", "Stopping agent system...");
         agent_manager_->stop();
+    }
+}
+
+bool UnifiedKolosalServer::start_AgentHttpServer() {
+    if (!agent_http_server_) {
+        log_Event("ERROR", "Agent HTTP server not initialized");
+        return false;
+    }
+    
+    log_Event("information", "Starting agent HTTP server on " + config_.agent_api_host + ":" + std::to_string(config_.agent_api_port));
+    
+    if (!agent_http_server_->start()) {
+        log_Event("ERROR", "Failed to start agent HTTP server");
+        return false;
+    }
+    
+    log_Event("information", "Agent HTTP server started successfully");
+    return true;
+}
+
+void UnifiedKolosalServer::stop_AgentHttpServer() {
+    if (agent_http_server_) {
+        log_Event("information", "Stopping agent HTTP server...");
+        agent_http_server_->stop();
+        log_Event("information", "Agent HTTP server stopped");
     }
 }
 
@@ -563,9 +623,11 @@ std::unique_ptr<UnifiedKolosalServer> UnifiedServerFactory::createDevelopment_Se
 
 UnifiedKolosalServer::ServerConfig UnifiedServerFactory::buildDefault_Config() {
     UnifiedKolosalServer::ServerConfig config;
-    config.server_port = 8080;
+    config.server_port = 8080;        // LLM server port
+    config.agent_api_port = 8081;     // Agent API port
     config.auto_start_server = true;
     config.auto_start_agents = true;
+    config.enable_agent_api = true;
     config.enable_health_monitoring = true;
     config.enable_metrics_collection = true;
     return config;
@@ -574,6 +636,7 @@ UnifiedKolosalServer::ServerConfig UnifiedServerFactory::buildDefault_Config() {
 UnifiedKolosalServer::ServerConfig UnifiedServerFactory::buildProduction_Config(int port) {
     auto config = buildDefault_Config();
     config.server_port = port;
+    config.agent_api_port = port + 1;  // Use next port for agent API
     config.health_check_interval = std::chrono::seconds(60);
     config.server_startup_timeout_seconds = 120;
     return config;
@@ -582,6 +645,7 @@ UnifiedKolosalServer::ServerConfig UnifiedServerFactory::buildProduction_Config(
 UnifiedKolosalServer::ServerConfig UnifiedServerFactory::buildDevelopment_Config(int port) {
     auto config = buildDefault_Config();
     config.server_port = port;
+    config.agent_api_port = port + 1;  // Use next port for agent API
     config.health_check_interval = std::chrono::seconds(10);
     config.server_startup_timeout_seconds = 30;
     return config;

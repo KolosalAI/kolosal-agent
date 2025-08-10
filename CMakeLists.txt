@@ -302,6 +302,7 @@ set(ROUTES_SOURCES
 
 set(API_SOURCES
     src/rest_api/agent_management_route.cpp
+    src/rest_api/simple_http_server.cpp
 )
 
 set(SERVICES_SOURCES

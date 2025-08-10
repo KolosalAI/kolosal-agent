@@ -823,11 +823,13 @@ int main(int argc, char* argv[]) {
         if (!application_config.enable_quiet_mode) {
             COMPONENT_INFO(application_main, "🎯 Kolosal Agent System is fully operational!");
             COMPONENT_INFO(application_main, "   • LLM Inference Server: http://{}:{}", server_configuration.server_host, server_configuration.server_port);
-            COMPONENT_INFO(application_main, "   • Agent Management API: http://{}:{}/v1/agents", server_configuration.server_host, server_configuration.server_port);
-            COMPONENT_INFO(application_main, "   • System Status Endpoint: http://{}:{}/v1/system/status", server_configuration.server_host, server_configuration.server_port);
+            COMPONENT_INFO(application_main, "   • Agent Management API: http://{}:{}/v1/agents", server_configuration.agent_api_host, server_configuration.agent_api_port);
+            COMPONENT_INFO(application_main, "   • System Status Endpoint: http://{}:{}/v1/system/status", server_configuration.agent_api_host, server_configuration.agent_api_port);
             COMPONENT_INFO(application_main, "Press Ctrl+C to initiate graceful shutdown...");
         } else {
-            COMPONENT_INFO(application_main, "System operational on {}:{} (Press Ctrl+C to stop)", server_configuration.server_host, server_configuration.server_port);
+            COMPONENT_INFO(application_main, "System operational - LLM: {}:{}, Agent API: {}:{} (Press Ctrl+C to stop)", 
+                          server_configuration.server_host, server_configuration.server_port,
+                          server_configuration.agent_api_host, server_configuration.agent_api_port);
         }
         
         // Event loop with periodic status monitoring and responsive signal handling
