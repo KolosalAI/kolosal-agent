@@ -69,6 +69,16 @@ inference_engines:
     version: 1.0.0
     description: CPU inference engine
     load_on_startup: true
+    type: "llama_cpp"
+    model_path: "d:\\Works\\Genta\\codes\\kolosal-agent\\models\\Qwen3-0.6B-UD-Q4_K_XL.gguf"
+    auto_load: true
+    context_size: 2048
+    batch_size: 512
+    threads: 4
+    gpu_layers: 0
+    settings:
+      verbose: "false"
+      mlock: "false"
 default_inference_engine: llama-cpu
 
 # Model configurations using models from the models/ directory
@@ -115,3 +125,106 @@ models:
 features:
   health_check: true
   metrics: false
+
+# Agent System Configuration
+system:
+  worker_threads: 4
+  health_check_interval_seconds: 10
+  log_level: "info"
+
+# Agent Configurations
+agents:
+  # Basic research and analysis agent
+  - name: "research_analyst"
+    type: "research" 
+    role: "ANALYST"
+    description: "Handles research, analysis, and information synthesis tasks"
+    system_prompt: "You are a research analyst capable of analyzing data, conducting research, and synthesizing information into comprehensive reports."
+    capabilities:
+      - "data_analysis"
+      - "research_synthesis" 
+      - "report_generation"
+      - "information_processing"
+    functions:
+      - "analyze_data"
+      - "research_topic"
+      - "generate_report"
+      - "synthesize_information"
+    llm_config:
+      api_endpoint: "http://127.0.0.1:8080"
+      model_name: "qwen3-0.6b-main"
+      temperature: 0.7
+      max_tokens: 2048
+      timeout_seconds: 30
+    auto_start: true
+    max_concurrent_jobs: 3
+    heartbeat_interval_seconds: 5
+
+  # Task execution agent
+  - name: "task_executor"
+    type: "executor"
+    role: "EXECUTOR" 
+    description: "Executes specific tasks and operations using available tools"
+    system_prompt: "You are a task executor capable of performing specific operations, using tools, and completing assigned tasks efficiently."
+    capabilities:
+      - "task_execution"
+      - "tool_usage"
+      - "file_operations"
+      - "api_integration"
+    functions:
+      - "execute_task"
+      - "use_tool"
+      - "process_files"
+      - "call_api"
+    llm_config:
+      api_endpoint: "http://127.0.0.1:8080"
+      model_name: "qwen3-0.6b-main"
+      temperature: 0.5
+      max_tokens: 1024
+      timeout_seconds: 30
+    auto_start: true
+    max_concurrent_jobs: 5
+    heartbeat_interval_seconds: 5
+
+# Function Definitions
+functions:
+  - name: "analyze_data"
+    type: "builtin"
+    description: "Analyze structured and unstructured data"
+    parameters:
+      data_source: "string"
+      analysis_type: "string" 
+      output_format: "string"
+    async_capable: true
+    timeout_ms: 10000
+
+  - name: "research_topic"
+    type: "builtin"
+    description: "Conduct research on a given topic"
+    parameters:
+      topic: "string"
+      depth: "string"
+      sources: "array"
+    async_capable: true
+    timeout_ms: 15000
+
+  - name: "execute_task"
+    type: "builtin"
+    description: "Execute a specific task with given parameters"
+    parameters:
+      task_definition: "object"
+      priority: "integer"
+      timeout: "integer"
+    async_capable: true
+    timeout_ms: 5000
+
+  - name: "generate_report"
+    type: "builtin"
+    description: "Generate reports based on analyzed data"
+    parameters:
+      data: "object"
+      format: "string"
+      template: "string"
+    async_capable: true
+    timeout_ms: 8000
+

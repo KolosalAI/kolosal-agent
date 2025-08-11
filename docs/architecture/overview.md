@@ -1,74 +1,316 @@
 # Kolosal Agent System Architecture
 
-Comprehensive overview of the system architecture.
+Comprehensive overview of the Kolosal Agent System v2.0 architecture - a unified multi-agent AI platform that seamlessly integrates advanced language model inference with sophisticated agent orchestration capabilities.
 
-Generated on 2025-08-08 14:06:25
+Generated on 2025-08-12
+
+## 📋 Table of Contents
+
+- [System Overview](#system-overview)
+- [Core Architecture](#core-architecture)
+- [System Components](#system-components)
+- [Architecture Diagrams](#architecture-diagrams)
+- [Component Details](#component-details)
+- [Integration Patterns](#integration-patterns)
+- [Deployment Architecture](#deployment-architecture)
+- [Namespaces](#namespaces)
+
+## System Overview
+
+The Kolosal Agent System v2.0 represents a next-generation unified multi-agent AI platform that brings together:
+
+- **🔄 Unified Server Architecture**: Single binary managing both LLM inference and multi-agent systems
+- **🤖 Advanced Agent Orchestration**: Sophisticated workflow execution and inter-agent communication
+- **🌐 Comprehensive REST API**: Full-featured management interface with OpenAPI compatibility
+- **📊 Service Layer Architecture**: High-level abstractions for complex operations
+- **⚡ Async-First Design**: Non-blocking operations with Future-based patterns
+- **🔧 Dynamic Configuration**: Hot-reloading and runtime configuration updates
+- **💓 Health Monitoring**: Comprehensive monitoring with auto-recovery mechanisms
+- **🔗 MCP Protocol Integration**: Standardized AI tool and resource interoperability
+
+## Core Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    🌐 Client Layer                          │
+├─────────────────────────────────────────────────────────────┤
+│              🔄 Unified Kolosal Server v2.0                 │
+├─────────────────┬─────────────────┬─────────────────────────┤
+│  ⚡ LLM Server  │  🌐 Agent API   │     📊 Service Layer    │
+│  (Port 8080)    │  (Port 8081)    │   (Agent Operations)    │
+├─────────────────┼─────────────────┼─────────────────────────┤
+│           🤖 Multi-Agent System Core                        │
+├─────────────────┬─────────────────┬─────────────────────────┤
+│ 🎭 Orchestrator │  ⚙️ Workflows   │   💾 Memory System      │
+├─────────────────┼─────────────────┼─────────────────────────┤
+│    🛠️ Function Registry & Tool Management                   │
+├─────────────────────────────────────────────────────────────┤
+│  📄 External Services (Documents, Web, Databases, etc.)    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+For detailed architectural diagrams, see [System Architecture Diagrams](system-diagrams.md).
 
 ## System Components
 
-### Core System
+## Architecture Diagrams
 
-- **ChunkData** (`naming_backup\kolosal-server\include\kolosal\models\chunking_response_model.hpp`): /** * @brief Model for a single chunk in the response */...
-- **ChunkingRequest** (`naming_backup\kolosal-server\include\kolosal\models\chunking_request_model.hpp`): /** * @brief Model for chunking request * * This model represents the request body for the /chunking...
-- **ChunkingResponse** (`naming_backup\kolosal-server\include\kolosal\models\chunking_response_model.hpp`): /** * @brief Model for chunking response * * This model represents the response body for the /chunki...
-- **ChunkingService** (`naming_backup\kolosal-server\include\kolosal\retrieval\chunking_types.hpp`): /** * @brief Service for text chunking operations * * This service provides both regular and semanti...
-- **DOCXParser** (`naming_backup\kolosal-server\include\kolosal\retrieval\parse_docx.hpp`): /** * @brief Represents d o c x parser functionality */...
-- **DocumentParser** (`naming_backup\kolosal-server\include\kolosal\retrieval\parse_pdf.hpp`): /** * @brief Represents document parser functionality */...
-- **EmbeddingErrorResponse** (`naming_backup\kolosal-server\include\kolosal\models\embedding_response_model.hpp`): /** * @brief Error response for embedding requests */...
-- **EmbeddingInferenceService** (`naming_backup\kolosal-server\inference\src\inference.cpp`): EmbeddingInferenceService (Optimized for Embedding Models)...
-- **EmbeddingRequest** (`naming_backup\kolosal-server\include\kolosal\models\embedding_request_model.hpp`): /** * @brief Model for embedding request * * This model represents the request body for the /v1/embe...
-- **EmbeddingResponse** (`naming_backup\kolosal-server\include\kolosal\models\embedding_response_model.hpp`): /** * @brief Model for embedding response * * This model represents the response for the /v1/embeddi...
-- **InferenceLoader** (`naming_backup\kolosal-server\include\kolosal\inference_loader.hpp`): * at runtime. It provides functionality to: * - Configure available inference engines from configura...
-- **InferenceService** (`naming_backup\kolosal-server\inference\src\inference.cpp`): InferenceService Interface (Internal Use Only)...
-- **JobStatus** (`naming_backup\include\task_job_manager.hpp`)
-- **KolosalServerClient** (`naming_backup\include\server_client_interface.h`): /** * @brief Client for communicating with Kolosal Server */...
-- **LlamaInferenceService** (`naming_backup\kolosal-server\inference\src\inference.cpp`): LlamaInferenceService (CPU Implementation)...
-- **ModelType** (`naming_backup\kolosal-server\include\kolosal\node_manager.h`): /** * @brief Removes a model configuration from the config file * * @param engineId The engine ID to...
-- **PDFParseMethod** (`naming_backup\kolosal-server\include\kolosal\retrieval\parse_pdf.hpp`): /** * @brief Represents pdf mem document functionality */...
-- **Solution** (`src\builtin_function_registry.cpp`)
-- **StepStatus** (`naming_backup\include\sequential\workflow_engine.hpp`): /** * @brief Workflow step execution status */...
-- **ThreadPool** (`naming_backup\kolosal-server\inference\src\inference.cpp`)
-- **Tokenizer** (`naming_backup\kolosal-server\inference\src\inference.cpp`)
-- **WorkflowStatus** (`naming_backup\include\sequential\workflow_engine.hpp`): /** * @brief Workflow execution status */...
-- **WorkflowType** (`naming_backup\include\sequential\workflow_engine.hpp`): /** * @brief Workflow execution type */...
+🔗 **[Complete System Architecture Diagrams](system-diagrams.md)** - Comprehensive visual documentation including:
 
-### Agent Management
+- **High-Level System Architecture** - Overall system structure and component relationships
+- **Agent Workflow Execution Flow** - Function execution and processing flow
+- **Multi-Agent Workflow Orchestration** - Complex workflow coordination patterns
+- **Memory System Architecture** - Memory types and storage backends
+- **Function Registry and Tool System** - Function management and tool integration
+- **REST API Architecture** - API endpoints and request routing
+- **Data Flow Architecture** - Sequence diagrams showing system interactions
+- **Configuration and Deployment Architecture** - Deployment patterns and configuration management
 
-- **Agent** (`naming_backup\include\agent\agent_data.hpp`): /** * @brief Represents agent functionality */...
-- **AgentData** (`naming_backup\include\agent\agent_data.hpp`): /** * @brief Represents agent data functionality */...
-- **CollaborationPattern** (`naming_backup\include\agent\agent_orchestrator.hpp`): Agent collaboration pattern...
-- **DocumentAgentService** (`naming_backup\include\document_agent_service.hpp`): /** * @brief Provides document agent services */...
-- **UUIDGenerator** (`naming_backup\include\agent\agent_data.hpp`): /** * @brief Represents u u i d generator functionality */...
-- **WorkflowAgentService** (`naming_backup\include\workflow_agent_service.hpp`): /** * @brief Provides workflow agent services */...
+## Component Details
 
-### API Layer
+### 🔄 Unified Server (`UnifiedKolosalServer`)
 
-- **DocumentType** (`naming_backup\kolosal-server\include\kolosal\routes\retrieval\parse_document_route.hpp`): * @brief Represents parse document route functionality */...
-- **DownloadsRoute** (`naming_backup\kolosal-server\include\kolosal\routes\downloads_route.hpp`): /** * @brief Represents downloads route functionality */...
-- **EnginesRoute** (`naming_backup\kolosal-server\include\kolosal\routes\engines_route.hpp`): * * Supported endpoints: * - GET /engines or /v1/engines - List available engines with default engin...
-- **HealthStatusRoute** (`naming_backup\kolosal-server\include\kolosal\routes\health_status_route.hpp`): /** * @brief Represents health status route functionality */...
-- **HttpClient** (`naming_backup\include\routes\http_client.hpp`): /** * @brief Simple HTTP client stub for making requests */...
-- **InternetSearchRoute** (`naming_backup\kolosal-server\include\kolosal\routes\retrieval\internet_search_route.hpp`): /** * @brief Represents internet search route functionality */...
-- **ParseDocumentRoute** (`naming_backup\kolosal-server\include\kolosal\routes\retrieval\parse_document_route.hpp`): /** * @brief Represents parse document route functionality */...
+The central orchestrator that manages the entire system lifecycle:
 
-### Services
+**Core Responsibilities:**
+- **Process Management**: Coordinates LLM server and agent system processes
+- **Configuration Management**: Handles dynamic configuration loading and hot-reloading
+- **Health Monitoring**: Continuous monitoring with automatic recovery mechanisms
+- **Service Integration**: Bridges LLM capabilities with agent operations
+- **API Gateway**: Unified entry point for all system operations
 
-- **DocumentServiceManager** (`naming_backup\include\document_service_manager.hpp`): /** * @brief Manager for DocumentService instances in the agent context */...
+**Key Features:**
+- Single binary deployment with integrated process management
+- Automatic health monitoring and recovery
+- Hot-reloadable configuration system
+- Comprehensive logging and metrics collection
+- Production-ready with security features
 
-### Utilities
+### 📊 Service Layer (`AgentService`)
 
-- **ComponentLogger** (`naming_backup\include\logging_utilities.hpp`): /** * @brief Component-based logger wrapper for easier usage */...
-- **ConsoleAppender** (`naming_backup\include\logger_system.hpp`): /** * @brief Console appender for logging to stdout/stderr */...
-- **DefaultLogFormatter** (`naming_backup\include\logger_system.hpp`): /** * @brief Default log formatter with customizable formatting */...
-- **FileAppender** (`naming_backup\include\logger_system.hpp`): /** * @brief File appender for logging to files with rotation support */...
-- **LoadingAnimation** (`naming_backup\include\loading_animation_utils.hpp`): /** * @brief Simple loading animation stub for console output */...
-- **LogAppender** (`naming_backup\include\logger_system.hpp`): /** * @brief Log appender interface for different output destinations */...
-- **LogFormatter** (`naming_backup\include\logger_system.hpp`): /** * @brief Log formatter interface */...
-- **LogLevel** (`naming_backup\kolosal-server\include\kolosal\logger.hpp`)
-- **Logger** (`naming_backup\include\server_logger_integration.hpp`): /** * @brief Logger interface for agent system (moved from removed logger.hpp) */...
-- **LoggingConfig** (`naming_backup\include\logging_utilities.hpp`): /** * @brief Utility functions for setting up logging */...
-- **LoggingScope** (`naming_backup\include\logging_utilities.hpp`): /** * @brief RAII-based logging scope */...
-- **PerformanceLogger** (`naming_backup\include\logging_utilities.hpp`): /** * @brief Performance logging utility */...
+High-level service abstractions providing business logic and advanced operations:
+
+**Service Categories:**
+- **Agent Lifecycle Management**: Creation, configuration, startup, and shutdown
+- **Bulk Operations**: Batch processing and multi-agent operations
+- **Performance Analytics**: System optimization and performance insights
+- **Health Monitoring**: Service-level health checks and diagnostics
+- **Event Management**: Event-driven notifications and callbacks
+
+**Advanced Features:**
+- Async-first operations with Future-based patterns
+- Comprehensive error handling and recovery
+- Performance metrics and optimization suggestions
+- Auto-scaling and resource management
+- Integration with external systems
+
+### 🌐 REST API Layer (`AgentManagementRoute`)
+
+Comprehensive RESTful API providing full system management capabilities:
+
+**API Categories:**
+
+#### Agent Management Endpoints
+- `GET /v1/agents` - List all agents with status and statistics
+- `POST /v1/agents` - Create new agents from configuration
+- `GET /v1/agents/{id}` - Retrieve specific agent details and status
+- `PUT /v1/agents/{id}/start` - Start agent with optional parameters
+- `PUT /v1/agents/{id}/stop` - Gracefully stop agent
+- `DELETE /v1/agents/{id}` - Remove agent and cleanup resources
+- `POST /v1/agents/{id}/execute` - Execute functions with parameters
+
+#### System Management Endpoints
+- `GET /v1/system/status` - System-wide status and health metrics
+- `POST /v1/system/reload` - Hot-reload configuration
+- `GET /v1/health` - Health check endpoint for load balancers
+- `GET /v1/metrics` - Prometheus-compatible metrics
+
+#### Workflow Management Endpoints
+- `POST /v1/workflows/execute` - Execute complex multi-agent workflows
+- `GET /v1/workflows/{id}/status` - Monitor workflow execution status
+- `PUT /v1/workflows/{id}/cancel` - Cancel running workflows
+
+**API Features:**
+- OpenAPI 3.0 specification compliance
+- Comprehensive input validation and error handling
+- Rate limiting and authentication support
+- CORS handling for web applications
+- Detailed response formatting with metadata
+
+### 🤖 Multi-Agent Core
+
+The heart of the agent system providing sophisticated agent management:
+
+#### YAMLConfigurableAgentManager
+**Primary Functions:**
+- Dynamic agent creation from YAML/JSON configurations
+- Agent lifecycle management (start, stop, restart, remove)
+- Resource allocation and monitoring
+- Inter-agent communication facilitation
+- Configuration hot-reloading
+
+**Agent Types:**
+- **Coordinator Agents** (`COORDINATOR`): System planning and resource management
+- **Analyst Agents** (`ANALYST`): Data processing and analysis
+- **Research Agents** (`RESEARCHER`): Information gathering and synthesis
+- **Specialist Agents** (`SPECIALIST`): Domain-specific expertise and processing
+
+#### Agent Orchestrator
+**Orchestration Capabilities:**
+- **Workflow Management**: Sequential, parallel, and conditional workflows
+- **Resource Coordination**: Agent selection and load balancing
+- **Result Aggregation**: Combining outputs from multiple agents
+- **Error Handling**: Failure detection and recovery strategies
+
+**Collaboration Patterns:**
+- **Sequential Processing**: Step-by-step agent execution
+- **Parallel Processing**: Concurrent agent execution
+- **Consensus Building**: Multi-agent agreement mechanisms
+- **Negotiation**: Inter-agent negotiation protocols
+
+### ⚙️ Workflow Engine
+
+Advanced workflow execution system supporting complex multi-agent scenarios:
+
+**Workflow Types:**
+- **Sequential Workflows**: Linear execution with dependencies
+- **Parallel Workflows**: Concurrent execution with synchronization
+- **Conditional Workflows**: Decision-based routing and execution
+- **Hybrid Workflows**: Combined patterns for complex scenarios
+
+**Execution Features:**
+- Dependency resolution and execution ordering
+- Error handling and recovery mechanisms
+- Workflow pause, resume, and cancellation
+- Progress monitoring and status reporting
+- Persistent workflow state management
+
+### 💾 Memory System
+
+Sophisticated memory architecture supporting different memory types:
+
+**Memory Types:**
+- **Episodic Memory**: Experience and interaction history
+- **Semantic Memory**: Knowledge base and learned concepts
+- **Working Memory**: Current context and active information
+
+**Storage Backends:**
+- **Vector Databases**: Semantic search and similarity matching
+- **Structured Databases**: Relational data and metadata
+- **File Systems**: Document storage and caching
+- **In-Memory Caches**: High-performance temporary storage
+
+### 🛠️ Function Registry & Tool Management
+
+Extensible function and tool system:
+
+**Built-in Functions:**
+- **Planning Functions**: Task decomposition and orchestration
+- **Analysis Functions**: Data processing and insights
+- **Communication Functions**: Inter-agent messaging
+- **Utility Functions**: Common operations and helpers
+
+**Tool Integration:**
+- **Document Processing**: PDF, DOCX, HTML parsers
+- **Web Tools**: Search engines, content fetchers
+- **Analysis Tools**: Statistical analysis, machine learning
+- **Storage Tools**: Database connectors, file managers
+
+### 🔗 External Service Integration
+
+Comprehensive integration with external services:
+
+**Document Services:**
+- **RAG Integration**: Retrieval-Augmented Generation
+- **Document Processing**: Multi-format document parsing
+- **Content Extraction**: Text and metadata extraction
+- **Vector Database**: Semantic search capabilities
+
+**Web Services:**
+- **Search APIs**: Web search and content discovery
+- **HTTP Clients**: RESTful API integration
+- **Content Processing**: Web scraping and analysis
+
+**Data Services:**
+- **Database Connectivity**: SQL and NoSQL databases
+- **File System Operations**: Local and remote file access
+- **Cloud Storage**: Integration with cloud providers
+
+## Integration Patterns
+
+### 1. Service-Oriented Architecture (SOA)
+- **Clear Separation**: Distinct layers with well-defined interfaces
+- **Loose Coupling**: Minimal dependencies between components
+- **High Cohesion**: Related functionality grouped together
+
+### 2. Event-Driven Architecture
+- **Async Communication**: Non-blocking inter-component communication
+- **Event Sourcing**: State changes captured as events
+- **Message Queuing**: Reliable message delivery between agents
+
+### 3. Plugin Architecture
+- **Dynamic Loading**: Runtime loading of functions and tools
+- **Interface-Based**: Common interfaces for extensibility
+- **Configuration-Driven**: Plugin configuration through YAML/JSON
+
+### 4. Microservices Pattern
+- **Service Decomposition**: Functionality broken into focused services
+- **Independent Deployment**: Services can be deployed independently
+- **Technology Diversity**: Different technologies for different services
+
+## Deployment Architecture
+
+### Container Deployment
+```yaml
+# Docker deployment example
+services:
+  kolosal-agent:
+    image: kolosal/agent-system:v2.0
+    ports:
+      - "8080:8080"  # LLM Server
+      - "8081:8081"  # Agent API
+    volumes:
+      - ./config:/app/config
+      - ./models:/app/models
+    environment:
+      - KOLOSAL_CONFIG=/app/config/production.yaml
+```
+
+### Kubernetes Deployment
+```yaml
+# Kubernetes deployment example
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kolosal-agent-system
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: kolosal-agent
+  template:
+    spec:
+      containers:
+      - name: kolosal-agent
+        image: kolosal/agent-system:v2.0
+        ports:
+        - containerPort: 8080
+        - containerPort: 8081
+```
+
+### Configuration Management
+
+**Configuration Sources (Priority Order):**
+1. Command-line arguments
+2. Environment variables
+3. Configuration files (YAML/JSON)
+4. Default values
+
+**Hot-Reloading Support:**
+- Runtime configuration updates
+- Agent configuration changes
+- Function registry updates
+- Service endpoint modifications
 
 ## Namespaces
 
