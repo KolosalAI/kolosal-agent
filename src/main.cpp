@@ -34,6 +34,7 @@
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <crtdbg.h>
 #pragma comment(lib, "ws2_32.lib")
 #else
 #include <unistd.h>
@@ -62,11 +63,66 @@ DECLARE_COMPONENT_LOGGER(signal_handler);
 DECLARE_COMPONENT_LOGGER(configuration);
 DECLARE_COMPONENT_LOGGER(unified_server);
 DECLARE_COMPONENT_LOGGER(system_demo);
+
+// Forward declarations
+void system_signal_handler(int signal_number);
 DECLARE_COMPONENT_LOGGER(health_monitor);
 
 // Global state for graceful shutdown
 std::atomic<bool> system_running {true};
 std::unique_ptr<UnifiedKolosalServer> unified_server_instance;
+
+/**
+ * @brief Disable Windows error dialogs and crash popups for silent operation
+ */
+void disable_windows_error_dialogs() {
+#ifdef _WIN32
+    // Disable the Windows Error Reporting dialog
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
+    
+    // Disable debug assertion dialogs in Debug builds
+    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+    
+    // Disable abort() dialog
+    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+    
+    // Set console control handler to prevent Windows from showing dialogs on console close
+    SetConsoleCtrlHandler([](DWORD control_type) -> BOOL {
+        if (control_type == CTRL_C_EVENT || control_type == CTRL_BREAK_EVENT || control_type == CTRL_CLOSE_EVENT) {
+            system_signal_handler(SIGINT);
+            return TRUE;
+        }
+        return FALSE;
+    }, TRUE);
+    
+    // Disable Windows critical error handler dialogs
+    SetUnhandledExceptionFilter([](PEXCEPTION_POINTERS pExceptionInfo) -> LONG {
+        // Log the exception instead of showing a dialog
+        try {
+            COMPONENT_FATAL(application_main, "Unhandled exception occurred - application terminating silently");
+        } catch (...) {
+            // If logging fails, write to stderr
+            std::cerr << "Fatal: Unhandled exception - terminating" << std::endl;
+        }
+        return EXCEPTION_EXECUTE_HANDLER;
+    });
+    
+    // Redirect abort() to our custom handler
+    signal(SIGABRT, [](int) {
+        try {
+            COMPONENT_FATAL(application_main, "Abort signal received - terminating silently");
+        } catch (...) {
+            std::cerr << "Fatal: Abort signal - terminating" << std::endl;
+        }
+        std::_Exit(3); // Use _Exit to avoid calling atexit handlers
+    });
+#endif
+}
 
 /**
  * @brief Enhanced signal handler for graceful system shutdown
@@ -652,8 +708,10 @@ std::string detect_server_executable_path_automatically() {
     
     // Define candidate paths for the kolosal-server executable
     std::vector<std::string> candidate_executable_paths = {
-        // Relative to the executable directory (build/Debug/)
+        // With the external project build approach, check build/kolosal-server paths:
         "./kolosal-server/Debug/kolosal-server.exe",
+        "./kolosal-server/Release/kolosal-server.exe", 
+        "./kolosal-server/kolosal-server.exe",
         "../kolosal-server/Debug/kolosal-server.exe", 
         "./kolosal-server.exe",
         "../kolosal-server.exe",
@@ -688,14 +746,31 @@ std::string detect_server_executable_path_automatically() {
  */
 int main(int argc, char* argv[]) {
     try {
-        // Initialize logging system with development defaults
-        LoggingConfig::setupDevelopment_Logging();
+        // Early diagnostic output
+        std::cout << "[bootstrap] kolosal-agent-unified starting..." << std::endl;
         
-        PERF_LOG("application_main", "application_startup_sequence");
-        COMPONENT_INFO(application_main, "Kolosal Agent System v2.0.0 initializing...");
+        // Disable Windows error dialogs first thing
+        disable_windows_error_dialogs();
+        
+        // Initialize logging system with development defaults early
+        try {
+            LoggingConfig::setupDevelopment_Logging();
+            std::cout << "[bootstrap] logging initialized" << std::endl;
+        } catch (const std::exception& e) {
+            std::cout << "[bootstrap] logging initialization failed: " << e.what() << std::endl;
+            // Continue without logging if it fails
+        }
+        
+        try {
+            PERF_LOG("application_main", "application_startup_sequence");
+            COMPONENT_INFO(application_main, "Kolosal Agent System v2.0.0 initializing...");
+        } catch (...) {
+            std::cout << "[bootstrap] logging calls failed, continuing..." << std::endl;
+        }
         
         // Parse and validate command line arguments
         const ApplicationConfiguration application_config = parse_command_line_arguments(argc, argv);
+        std::cout << "[bootstrap] args parsed" << std::endl;
         // Handle immediate exit scenarios
         if (application_config.display_help_information) {
             display_application_usage_information(argv[0]);
@@ -732,19 +807,13 @@ int main(int argc, char* argv[]) {
         std::signal(SIGTERM, system_signal_handler);
 #ifdef _WIN32
         std::signal(SIGBREAK, system_signal_handler);
-        // Also handle console control events on Windows
-        SetConsoleCtrlHandler([](DWORD control_type) -> BOOL {
-            if (control_type == CTRL_C_EVENT || control_type == CTRL_BREAK_EVENT || control_type == CTRL_CLOSE_EVENT) {
-                system_signal_handler(SIGINT);
-                return TRUE;
-            }
-            return FALSE;
-        }, TRUE);
+        // Console control handler was already set in disable_windows_error_dialogs()
 #endif
 
         // Display application banner if not in quiet mode
         if (!application_config.enable_quiet_mode) {
             display_application_banner();
+            std::cout << "[bootstrap] banner displayed" << std::endl;
         }
         
         // Ensure configuration file exists
@@ -790,51 +859,100 @@ int main(int argc, char* argv[]) {
             COMPONENT_INFO(configuration, "  • Auto-start Server: {}", (server_configuration.auto_start_server ? "Enabled" : "Disabled"));
         }
 
-    // Create and initialize unified server instance
-    unified_server_instance = std::make_unique<UnifiedKolosalServer>(server_configuration);
+        // Create and initialize unified server instance
+        try {
+            unified_server_instance = std::make_unique<UnifiedKolosalServer>(server_configuration);
+            std::cout << "[bootstrap] unified server constructed" << std::endl;
+        } catch (const std::exception& e) {
+            std::cout << "[bootstrap] ERROR: failed to construct unified server: " << e.what() << std::endl;
+            return EXIT_FAILURE;
+        }
+        
         // Configure system health monitoring
-        if (server_configuration.enable_health_monitoring) {
-            initialize_system_health_monitoring(*unified_server_instance);
-            unified_server_instance->enableAuto_Recovery(true);
+        try {
+            if (server_configuration.enable_health_monitoring) {
+                initialize_system_health_monitoring(*unified_server_instance);
+                unified_server_instance->enableAuto_Recovery(true);
+            }
+        } catch (const std::exception& e) {
+            std::cout << "[bootstrap] WARNING: health monitoring setup failed: " << e.what() << std::endl;
+            // Continue without health monitoring
         }
         
         // Start the unified server system
         if (!application_config.enable_quiet_mode) {
-            COMPONENT_INFO(unified_server, "Starting Kolosal unified server system...");
+            try {
+                COMPONENT_INFO(unified_server, "Starting Kolosal unified server system...");
+            } catch (...) {
+                std::cout << "Starting Kolosal unified server system..." << std::endl;
+            }
         }
         
         PERF_LOG("unified_server", "server_startup_sequence");
-        if (!unified_server_instance->start()) {
-            COMPONENT_FATAL(unified_server, "Failed to start unified server system!");
-            return EXIT_FAILURE;
+        bool server_started = false;
+        try {
+            server_started = unified_server_instance->start();
+            if (!server_started) {
+                std::cout << "[bootstrap] WARNING: unified server failed to start normally, but continuing..." << std::endl;
+                // Don't exit immediately; allow main loop to run for diagnostics
+            } else {
+                std::cout << "[bootstrap] unified server started successfully" << std::endl;
+            }
+        } catch (const std::exception& e) {
+            std::cout << "[bootstrap] ERROR: exception during server startup: " << e.what() << std::endl;
+            std::cout << "[bootstrap] continuing with partial functionality..." << std::endl;
         }
         
-        if (!application_config.enable_quiet_mode) {
-            COMPONENT_INFO(unified_server, "Unified server system started successfully!");
+        if (!application_config.enable_quiet_mode && server_started) {
+            try {
+                COMPONENT_INFO(unified_server, "Unified server system started successfully!");
+            } catch (...) {
+                std::cout << "Unified server system started successfully!" << std::endl;
+            }
         }
         
         // Execute system demonstration if requested
         if (application_config.enable_system_demonstration) {
-            std::this_thread::sleep_for(std::chrono::seconds(2)); // Allow system to stabilize
-            execute_system_demonstration(*unified_server_instance);
+            try {
+                std::this_thread::sleep_for(std::chrono::seconds(2)); // Allow system to stabilize
+                execute_system_demonstration(*unified_server_instance);
+            } catch (const std::exception& e) {
+                std::cout << "[demo] WARNING: system demonstration failed: " << e.what() << std::endl;
+            }
         }
         
         // Main application event loop
         if (!application_config.enable_quiet_mode) {
-            COMPONENT_INFO(application_main, "🎯 Kolosal Agent System is fully operational!");
-            COMPONENT_INFO(application_main, "   • LLM Inference Server: http://{}:{}", server_configuration.server_host, server_configuration.server_port);
-            COMPONENT_INFO(application_main, "   • Agent Management API: http://{}:{}/v1/agents", server_configuration.agent_api_host, server_configuration.agent_api_port);
-            COMPONENT_INFO(application_main, "   • System Status Endpoint: http://{}:{}/v1/system/status", server_configuration.agent_api_host, server_configuration.agent_api_port);
-            COMPONENT_INFO(application_main, "Press Ctrl+C to initiate graceful shutdown...");
+            try {
+                const auto server_config = unified_server_instance ? unified_server_instance->get_Configuration() : server_configuration;
+                COMPONENT_INFO(application_main, "🎯 Kolosal Agent System is operational!");
+                COMPONENT_INFO(application_main, "   • LLM Inference Server: http://{}:{}", server_config.server_host, server_config.server_port);
+                COMPONENT_INFO(application_main, "   • Agent Management API: http://{}:{}/v1/agents", server_config.agent_api_host, server_config.agent_api_port);
+                COMPONENT_INFO(application_main, "   • System Status Endpoint: http://{}:{}/v1/system/status", server_config.agent_api_host, server_config.agent_api_port);
+                COMPONENT_INFO(application_main, "Press Ctrl+C to initiate graceful shutdown...");
+            } catch (const std::exception& e) {
+                std::cout << "🎯 Kolosal Agent System is operational!" << std::endl;
+                std::cout << "   • LLM Inference Server: http://" << server_configuration.server_host << ":" << server_configuration.server_port << std::endl;
+                std::cout << "   • Agent Management API: http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/agents" << std::endl;
+                std::cout << "   • System Status Endpoint: http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/system/status" << std::endl;
+                std::cout << "Press Ctrl+C to initiate graceful shutdown..." << std::endl;
+            }
         } else {
-            COMPONENT_INFO(application_main, "System operational - LLM: {}:{}, Agent API: {}:{} (Press Ctrl+C to stop)", 
-                          server_configuration.server_host, server_configuration.server_port,
-                          server_configuration.agent_api_host, server_configuration.agent_api_port);
+            try {
+                const auto server_config = unified_server_instance ? unified_server_instance->get_Configuration() : server_configuration;
+                COMPONENT_INFO(application_main, "System operational - LLM: {}:{}, Agent API: {}:{} (Press Ctrl+C to stop)", 
+                              server_config.server_host, server_config.server_port,
+                              server_config.agent_api_host, server_config.agent_api_port);
+            } catch (const std::exception& e) {
+                std::cout << "System operational - LLM: " << server_configuration.server_host << ":" << server_configuration.server_port
+                          << ", Agent API: " << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port 
+                          << " (Press Ctrl+C to stop)" << std::endl;
+            }
         }
         
         // Event loop with periodic status monitoring and responsive signal handling
     auto last_status_update_time = std::chrono::system_clock::now();
-        while (system_running.load() && unified_server_instance->is_Running()) {
+    while (system_running.load()) {
             // Use shorter sleep intervals to improve signal responsiveness
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             
@@ -842,7 +960,7 @@ int main(int argc, char* argv[]) {
             if (application_config.enable_verbose_logging) {
                 auto current_time = std::chrono::system_clock::now();
                 if (current_time - last_status_update_time >= std::chrono::minutes(5)) {
-                    const auto current_system_status = unified_server_instance->getSystem_Status();
+            const auto current_system_status = unified_server_instance ? unified_server_instance->getSystem_Status() : UnifiedKolosalServer::SystemStatus{};
                     COMPONENT_INFO(application_main, "📊 System Status - Agents: {}/{}, Response Time: {:.1f} ms", 
                                   current_system_status.running_agents, current_system_status.total_agents,
                                   current_system_status.average_response_time_ms);
@@ -862,7 +980,11 @@ int main(int argc, char* argv[]) {
         
         PERF_LOG("application_main", "application_shutdown_sequence");
         if (unified_server_instance) {
-            unified_server_instance->stop();
+            try {
+                unified_server_instance->stop();
+            } catch (...) {
+                // swallow
+            }
             unified_server_instance.reset();
         }
         

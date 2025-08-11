@@ -71,49 +71,56 @@ bool UnifiedKolosalServer::start() {
     log_Event("information", "Starting unified Kolosal server...");
     
     try {
-        // Start LLM server if configured
+        bool llm_started_or_connected = false;
+        // Start or connect to LLM server according to configuration, but treat failure as non-fatal
         if (config_.auto_start_server) {
             if (!start_LLMServer()) {
-                log_Event("ERROR", "Failed to start LLM server");
-                return false;
+                log_Event("ERROR", "Failed to start LLM server (continuing without LLM)");
+            } else {
+                llm_started_or_connected = true;
             }
         } else {
             // Create client for external server
-                    std::string server_url = "http://" + config_.server_host + ":" + std::to_string(config_.server_port);
+            std::string server_url = "http://" + config_.server_host + ":" + std::to_string(config_.server_port);
             llm_server_client_ = std::make_shared<KolosalServerClient>(server_url);
-            
             // Test connection
             if (!llm_server_client_->waitForServer_Ready(10)) {
-                log_Event("ERROR", "Cannot connect to external LLM server at " + server_url);
-                return false;
+                log_Event("ERROR", "Cannot connect to external LLM server at " + server_url + " (continuing without LLM)");
+                llm_server_client_.reset();
+            } else {
+                llm_started_or_connected = true;
             }
         }
         
         // Start agent system
+        bool agents_started = false;
         if (config_.auto_start_agents) {
             if (!startAgent_System()) {
                 log_Event("ERROR", "Failed to start agent system");
-                if (config_.auto_start_server) {
-                    stop_LLMServer();
-                }
-                return false;
+            } else {
+                agents_started = true;
             }
         }
         
         // Start agent HTTP server if enabled
+        bool http_started = false;
         if (config_.enable_agent_api && agent_http_server_) {
             if (!start_AgentHttpServer()) {
-                log_Event("ERROR", "Failed to start agent HTTP server");
-                if (config_.auto_start_agents) {
-                    stopAgent_System();
-                }
-                if (config_.auto_start_server) {
-                    stop_LLMServer();
-                }
-                return false;
+                log_Event("ERROR", "Failed to start agent HTTP server (continuing without Agent API)");
+            } else {
+                http_started = true;
             }
         }
         
+        // If none of the subsystems started, treat startup as failure
+        if (!llm_started_or_connected && !agents_started && !http_started) {
+            log_Event("ERROR", "No subsystems started successfully (LLM, agents, or Agent API). Aborting startup.");
+            if (server_started_by_us_.load()) {
+                stop_LLMServer();
+            }
+            return false;
+        }
+
         // Start health monitoring
         if (config_.enable_health_monitoring) {
             health_monitoring_active_ = true;
@@ -311,15 +318,37 @@ bool UnifiedKolosalServer::start_AgentHttpServer() {
         return false;
     }
     
-    log_Event("information", "Starting agent HTTP server on " + config_.agent_api_host + ":" + std::to_string(config_.agent_api_port));
-    
-    if (!agent_http_server_->start()) {
-        log_Event("ERROR", "Failed to start agent HTTP server");
-        return false;
+    // Try starting on configured port, with fallback to next ports if unavailable
+    const int max_attempts = 10;
+    for (int attempt = 0; attempt < max_attempts; ++attempt) {
+        const int port_to_try = config_.agent_api_port + attempt;
+        log_Event("information", "Starting agent HTTP server on " + config_.agent_api_host + ":" + std::to_string(port_to_try));
+
+        // Recreate server with the new port if not the first attempt
+        if (attempt > 0) {
+            kolosal::api::SimpleHttpServer::ServerConfig http_config;
+            http_config.host = config_.agent_api_host;
+            http_config.port = port_to_try;
+            http_config.backlog = 10;
+            http_config.enable_cors = true;
+            agent_http_server_ = std::make_unique<kolosal::api::SimpleHttpServer>(http_config);
+            // Reattach routes
+            if (agent_management_route_) {
+                agent_http_server_->add_Route(agent_management_route_);
+            }
+        }
+
+        if (agent_http_server_->start()) {
+            config_.agent_api_port = port_to_try;
+            log_Event("information", "Agent HTTP server started successfully on port " + std::to_string(port_to_try));
+            return true;
+        }
+
+        log_Event("WARN", "Port " + std::to_string(port_to_try) + " unavailable. Trying next port...");
     }
-    
-    log_Event("information", "Agent HTTP server started successfully");
-    return true;
+
+    log_Event("ERROR", "Failed to start agent HTTP server on any tried port");
+    return false;
 }
 
 void UnifiedKolosalServer::stop_AgentHttpServer() {

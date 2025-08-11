@@ -413,7 +413,39 @@ target_link_libraries(kolosal_agent
         Threads::Threads
         ${YAML_CPP_LIBRARIES}
         kolosal_server
+        llama_cpu
+        pugixml_static
+        minizip_static
+        zlib_static
+        yaml_cpp_server
 )
+
+# Add PoDoFo libraries conditionally
+if(TARGET podofo_static)
+    target_link_libraries(kolosal_agent PUBLIC
+        podofo_static
+        podofo_private
+        podofo_3rd
+    )
+endif()
+
+# Windows system libraries for PoDoFo and other dependencies
+if(WIN32)
+    target_link_libraries(kolosal_agent PRIVATE
+        ws2_32
+        winmm
+        crypt32
+        advapi32
+        user32
+        gdi32
+        ole32
+        oleaut32
+        uuid
+        shell32
+        comdlg32
+        winspool
+    )
+endif()
 
 # CURL linking (optional)
 if(CURL_FOUND AND CURL_LIBRARIES)
@@ -453,21 +485,10 @@ else()
     target_link_libraries(kolosal_agent PRIVATE dl rt)
 endif()
 
-# Build kolosal-server as an isolated external project (no code changes inside kolosal-server)
+# Build kolosal-server as an external project in the same build tree
 include(ExternalProject)
 set(KOLOSAL_SERVER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server")
-set(KOLOSAL_SERVER_BINARY_DIR "${CMAKE_BINARY_DIR}/_ext/kolosal-server-build")
-
-# Compute OpenSSL paths for kolosal-server's bundled PoDoFo deps (Windows only)
-if(WIN32)
-    set(_PODOFO_DEPS_DIR "${KOLOSAL_SERVER_SOURCE_DIR}/external/podofo/extern/deps/3rdparty")
-    set(_OPENSSL_INCLUDE "${_PODOFO_DEPS_DIR}/openssl/include")
-    # Use Debug libraries for Debug config; Release will be handled separately if needed
-    set(_OPENSSL_SSL_LIB_DEBUG "${_PODOFO_DEPS_DIR}/openssl/lib/Win64/ssld.lib")
-    set(_OPENSSL_CRYPTO_LIB_DEBUG "${_PODOFO_DEPS_DIR}/openssl/lib/Win64/cryptod.lib")
-    set(_OPENSSL_SSL_LIB_RELEASE "${_PODOFO_DEPS_DIR}/openssl/lib/Win64/ssl.lib")
-    set(_OPENSSL_CRYPTO_LIB_RELEASE "${_PODOFO_DEPS_DIR}/openssl/lib/Win64/crypto.lib")
-endif()
+set(KOLOSAL_SERVER_BINARY_DIR "${CMAKE_BINARY_DIR}/kolosal-server")
 
 ExternalProject_Add(ext_kolosal_server
     SOURCE_DIR "${KOLOSAL_SERVER_SOURCE_DIR}"
@@ -476,53 +497,215 @@ ExternalProject_Add(ext_kolosal_server
     CMAKE_GENERATOR_PLATFORM "${CMAKE_VS_PLATFORM_NAME}"
     CMAKE_ARGS
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-        -DBUILD_SHARED_LIBS=ON
-        -DUSE_PODOFO=ON
-    -DCMAKE_MODULE_PATH=${CMAKE_SOURCE_DIR}/cmake/overrides
+        -DBUILD_SHARED_LIBS=OFF
+        -DUSE_PODOFO=${USE_PODOFO}  # Pass through PoDoFo setting
+        -DCMAKE_MODULE_PATH=${CMAKE_SOURCE_DIR}/cmake/overrides
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON
         
-    CMAKE_CACHE_ARGS
-        $<$<BOOL:${WIN32}>:-DOPENSSL_ROOT_DIR:PATH=${_PODOFO_DEPS_DIR}/openssl>
-        $<$<BOOL:${WIN32}>:-DOPENSSL_INCLUDE_DIR:PATH=${_OPENSSL_INCLUDE}>
-        $<$<BOOL:${WIN32}>:-DOPENSSL_SSL_LIBRARY:FILEPATH=${_OPENSSL_SSL_LIB_DEBUG}>
-        $<$<BOOL:${WIN32}>:-DOPENSSL_CRYPTO_LIBRARY:FILEPATH=${_OPENSSL_CRYPTO_LIB_DEBUG}>
-    $<$<BOOL:${WIN32}>:-DOPENSSL_SSL_LIBRARY_DEBUG:FILEPATH=${_OPENSSL_SSL_LIB_DEBUG}>
-    $<$<BOOL:${WIN32}>:-DOPENSSL_SSL_LIBRARY_RELEASE:FILEPATH=${_OPENSSL_SSL_LIB_RELEASE}>
-    $<$<BOOL:${WIN32}>:-DOPENSSL_CRYPTO_LIBRARY_DEBUG:FILEPATH=${_OPENSSL_CRYPTO_LIB_DEBUG}>
-    $<$<BOOL:${WIN32}>:-DOPENSSL_CRYPTO_LIBRARY_RELEASE:FILEPATH=${_OPENSSL_CRYPTO_LIB_RELEASE}>
-    $<$<BOOL:${WIN32}>:-DOPENSSL_LIBRARIES:STRING=${_OPENSSL_SSL_LIB_DEBUG};${_OPENSSL_CRYPTO_LIB_DEBUG}>
-    $<$<BOOL:${WIN32}>:-DOPENSSL_USE_STATIC_LIBS:BOOL=TRUE>
     BUILD_ALWAYS OFF
     INSTALL_COMMAND ""
     TEST_COMMAND ""
 )
 
-# Import the built kolosal_server library for linking
+# Add a custom target to copy the kolosal-server executable after build
 if(WIN32)
-    add_library(kolosal_server SHARED IMPORTED)
-    # Import library (.lib) and runtime DLL per-config
+    set(KOLOSAL_SERVER_EXE_PATH "${KOLOSAL_SERVER_BINARY_DIR}/$<CONFIG>/kolosal-server.exe")
+    set(KOLOSAL_SERVER_COPY_PATH "${CMAKE_BINARY_DIR}/$<CONFIG>/kolosal-server.exe")
+else()
+    set(KOLOSAL_SERVER_EXE_PATH "${KOLOSAL_SERVER_BINARY_DIR}/kolosal-server")
+    set(KOLOSAL_SERVER_COPY_PATH "${CMAKE_BINARY_DIR}/kolosal-server")
+endif()
+
+add_custom_target(kolosal-server-exe
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different 
+        "${KOLOSAL_SERVER_EXE_PATH}"
+        "${KOLOSAL_SERVER_COPY_PATH}"
+    DEPENDS ext_kolosal_server
+    COMMENT "Copying kolosal-server executable to output directory"
+)
+
+# Import the built kolosal_server static library for linking
+if(WIN32)
+    add_library(kolosal_server STATIC IMPORTED)
+    # Import library (.lib) for static linking
     set_target_properties(kolosal_server PROPERTIES
-        IMPORTED_IMPLIB_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/Debug/kolosal_server.lib"
-        IMPORTED_IMPLIB_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.lib"
-        IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/Debug/kolosal_server.dll"
-        IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.dll"
+        IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/Debug/kolosal_server.lib"
+        IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.lib"
+    )
+    
+    # Import kolosal-server dependencies (static libraries)
+    add_library(podofo_static STATIC IMPORTED)
+    set_target_properties(podofo_static PROPERTIES
+        IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/Debug/podofo.lib"
+        IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/Release/podofo.lib"
+    )
+    
+    add_library(pugixml_static STATIC IMPORTED)
+    set_target_properties(pugixml_static PROPERTIES
+        IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/pugixml/Debug/pugixml.lib"
+        IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/pugixml/Release/pugixml.lib"
+    )
+    
+    add_library(minizip_static STATIC IMPORTED)
+    set_target_properties(minizip_static PROPERTIES
+        IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/Debug/minizip.lib"
+        IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/Release/minizip.lib"
+    )
+    
+    add_library(zlib_static STATIC IMPORTED)
+    set_target_properties(zlib_static PROPERTIES
+        IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/zlib/Debug/zsd.lib"
+        IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/zlib/Release/zsd.lib"
+    )
+    
+    add_library(llama_cpu STATIC IMPORTED)
+    set_target_properties(llama_cpu PROPERTIES
+        IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/lib/Debug/llama-cpu.lib"
+        IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/lib/Release/llama-cpu.lib"
+    )
+    
+    add_library(podofo_3rd STATIC IMPORTED)
+    set_target_properties(podofo_3rd PROPERTIES
+        IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/3rdparty/Debug/podofo_3rdparty.lib"
+        IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/3rdparty/Release/podofo_3rdparty.lib"
+    )
+    
+    # Add podofo_private library
+    add_library(podofo_private STATIC IMPORTED)
+    set_target_properties(podofo_private PROPERTIES
+        IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/private/Debug/podofo_private.lib"
+        IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/private/Release/podofo_private.lib"
+    )
+    
+    add_library(yaml_cpp_server STATIC IMPORTED)
+    set_target_properties(yaml_cpp_server PROPERTIES
+        IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/yaml-cpp/Debug/yaml-cppd.lib"
+        IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/yaml-cpp/Release/yaml-cpp.lib"
     )
 else()
-    add_library(kolosal_server SHARED IMPORTED)
+    add_library(kolosal_server STATIC IMPORTED)
     if(APPLE)
         set_target_properties(kolosal_server PROPERTIES
-            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/Debug/libkolosal_server.dylib"
-            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/Release/libkolosal_server.dylib"
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/Debug/libkolosal_server.a"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/Release/libkolosal_server.a"
         )
     else()
         set_target_properties(kolosal_server PROPERTIES
-            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/Debug/libkolosal_server.so"
-            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/Release/libkolosal_server.so"
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/Debug/libkolosal_server.a"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/Release/libkolosal_server.a"
+        )
+    endif()
+    
+    # Import kolosal-server dependencies (static libraries)
+    add_library(podofo_static STATIC IMPORTED)
+    if(APPLE)
+        set_target_properties(podofo_static PROPERTIES
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/Debug/libpodofo.a"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/Release/libpodofo.a"
+        )
+    else()
+        set_target_properties(podofo_static PROPERTIES
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/Debug/libpodofo.a"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/Release/libpodofo.a"
+        )
+    endif()
+    
+    add_library(pugixml_static STATIC IMPORTED)
+    if(APPLE)
+        set_target_properties(pugixml_static PROPERTIES
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/pugixml/Debug/libpugixml.a"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/pugixml/Release/libpugixml.a"
+        )
+    else()
+        set_target_properties(pugixml_static PROPERTIES
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/pugixml/Debug/libpugixml.a"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/pugixml/Release/libpugixml.a"
+        )
+    endif()
+    
+    add_library(minizip_static STATIC IMPORTED)
+    if(APPLE)
+        set_target_properties(minizip_static PROPERTIES
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/Debug/libminizip.a"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/Release/libminizip.a"
+        )
+    else()
+        set_target_properties(minizip_static PROPERTIES
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/Debug/libminizip.a"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/Release/libminizip.a"
+        )
+    endif()
+    
+    add_library(zlib_static STATIC IMPORTED)
+    if(APPLE)
+        set_target_properties(zlib_static PROPERTIES
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/zlib/Debug/libz.a"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/zlib/Release/libz.a"
+        )
+    else()
+        set_target_properties(zlib_static PROPERTIES
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/zlib/Debug/libz.a"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/zlib/Release/libz.a"
+        )
+    endif()
+    
+    add_library(llama_cpu STATIC IMPORTED)
+    if(APPLE)
+        set_target_properties(llama_cpu PROPERTIES
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/lib/Debug/libllama-cpu.a"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/lib/Release/libllama-cpu.a"
+        )
+    else()
+        set_target_properties(llama_cpu PROPERTIES
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/lib/Debug/libllama-cpu.a"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/lib/Release/libllama-cpu.a"
+        )
+    endif()
+    
+    add_library(podofo_3rd STATIC IMPORTED)
+    if(APPLE)
+        set_target_properties(podofo_3rd PROPERTIES
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/3rdparty/Debug/libpodofo_3rdparty.a"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/3rdparty/Release/libpodofo_3rdparty.a"
+        )
+    else()
+        set_target_properties(podofo_3rd PROPERTIES
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/3rdparty/Debug/libpodofo_3rdparty.a"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/3rdparty/Release/libpodofo_3rdparty.a"
+        )
+    endif()
+    
+    add_library(yaml_cpp_server STATIC IMPORTED)
+    if(APPLE)
+        set_target_properties(yaml_cpp_server PROPERTIES
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/yaml-cpp/Debug/libyaml-cpp.a"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/yaml-cpp/Release/libyaml-cpp.a"
+        )
+    else()
+        set_target_properties(yaml_cpp_server PROPERTIES
+            IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/yaml-cpp/Debug/libyaml-cpp.a"
+            IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/yaml-cpp/Release/libyaml-cpp.a"
         )
     endif()
 endif()
 
 # Ensure kolosal-server external build completes before building agent targets
 add_dependencies(kolosal_agent ext_kolosal_server)
+add_dependencies(podofo_static ext_kolosal_server)
+add_dependencies(podofo_3rd ext_kolosal_server)
+add_dependencies(podofo_private ext_kolosal_server)
+add_dependencies(pugixml_static ext_kolosal_server)
+add_dependencies(minizip_static ext_kolosal_server)
+add_dependencies(zlib_static ext_kolosal_server)
+add_dependencies(llama_cpu ext_kolosal_server)
+add_dependencies(yaml_cpp_server ext_kolosal_server)
+set(KOLOSAL_SERVER_AVAILABLE TRUE)
+
+# Simple test executable for Windows dialog fixes
+add_executable(simple-test src/simple_test_main.cpp)
+if(WIN32)
+    target_link_libraries(simple-test kernel32 user32)
+endif()
 
 # Main executable (unified v2.0)
 add_executable(kolosal-agent src/main.cpp)
@@ -531,7 +714,16 @@ set_target_properties(kolosal-agent PROPERTIES
     CXX_STANDARD ${CMAKE_CXX_STANDARD}
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
-    OUTPUT_NAME "kolosal-agent-unified"
+    OUTPUT_NAME "kolosal-agent"
+)
+
+# Make sure kolosal-server executable is built by default
+add_dependencies(kolosal-agent kolosal-server-exe)
+
+# Ensure both main executables are built by default (ALL target)
+add_custom_target(ALL_BUILD_TARGETS ALL
+    DEPENDS kolosal-agent kolosal-server-exe simple-test kolosal-launcher
+    COMMENT "Building all main targets: kolosal-agent, kolosal-server, simple-test, and kolosal-launcher"
 )
 
 # Launcher executable
@@ -540,15 +732,8 @@ if(WIN32)
     target_link_libraries(kolosal-launcher kernel32 user32)
 endif()
 
-# On Windows, copy kolosal_server.dll next to the agent executable for runtime
-if(WIN32)
-    add_custom_command(TARGET kolosal-agent POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<TARGET_FILE:kolosal_server>"
-            "$<TARGET_FILE_DIR:kolosal-agent>/"
-        COMMENT "Copying kolosal_server DLL to agent output directory"
-    )
-endif()
+# Since kolosal-server is now built as a static library, no need to copy DLLs
+# The static library will be linked directly into the executable
 
 # Installation configuration
 include(GNUInstallDirs)
@@ -558,6 +743,14 @@ install(TARGETS kolosal-agent kolosal-launcher kolosal_agent
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+# Install kolosal-server executable
+install(FILES "${KOLOSAL_SERVER_COPY_PATH}"
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+    PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE 
+                GROUP_READ GROUP_EXECUTE 
+                WORLD_READ WORLD_EXECUTE
 )
 
 # Install headers
@@ -628,8 +821,8 @@ if(WIN32)
     set(CPACK_GENERATOR "ZIP;NSIS")
     set(CPACK_NSIS_DISPLAY_NAME "Kolosal Agent System")
     set(CPACK_NSIS_PACKAGE_NAME "Kolosal Agent System")
-    set(CPACK_NSIS_HELP_LINK "https://github.com/Evintkoo/kolosal-agent")
-    set(CPACK_NSIS_URL_INFO_ABOUT "https://github.com/Evintkoo/kolosal-agent")
+    set(CPACK_NSIS_HELP_LINK "https://github.com/kolosalai/kolosal-agent")
+    set(CPACK_NSIS_URL_INFO_ABOUT "https://github.com/kolosalai/kolosal-agent")
     set(CPACK_NSIS_CONTACT "support@kolosal.ai")
 elseif(APPLE)
     set(CPACK_GENERATOR "TGZ;DragNDrop")
@@ -665,6 +858,24 @@ add_custom_target(info
     COMMAND ${CMAKE_COMMAND} -E echo "Binary Dir: ${CMAKE_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E echo "========================================="
     COMMENT "Displaying system and build information"
+)
+
+# Build only kolosal-server target
+add_custom_target(build-server
+    DEPENDS kolosal-server-exe
+    COMMENT "Building only the kolosal-server executable"
+)
+
+# Build only kolosal-agent target
+add_custom_target(build-agent
+    DEPENDS kolosal-agent
+    COMMENT "Building only the kolosal-agent executable"
+)
+
+# Build both main targets
+add_custom_target(build-all
+    DEPENDS kolosal-agent kolosal-server-exe
+    COMMENT "Building both kolosal-agent and kolosal-server executables"
 )
 
 # Post-build actions
@@ -721,6 +932,7 @@ message(STATUS "  Shared Libraries: ${BUILD_SHARED_LIBS}")
 message(STATUS "  Tests: ${BUILD_TESTS}")
 message(STATUS "  Examples: ${BUILD_EXAMPLES}")
 message(STATUS "  Documentation: ${BUILD_DOCS}")
+message(STATUS "  Kolosal Server: Will be built as external executable")
 message(STATUS "  Features:")
 message(STATUS "    - Logging: ${ENABLE_LOGGING}")
 message(STATUS "    - Metrics: ${ENABLE_METRICS}")
@@ -736,12 +948,27 @@ message(STATUS "🔧 Build Instructions:")
 message(STATUS "  Configure with Debug build:")
 message(STATUS "    cmake .. -DCMAKE_BUILD_TYPE=Debug")
 message(STATUS "  ")
-message(STATUS "  Build with Debug configuration:")
+message(STATUS "  Build ALL targets (default - builds both kolosal-server.exe and kolosal-agent):")
 message(STATUS "    cmake --build . --config Debug")
+message(STATUS "  ")
+message(STATUS "  Build specific targets:")
+message(STATUS "    cmake --build . --target kolosal-agent --config Debug      # Build only kolosal-agent")
+message(STATUS "    cmake --build . --target build-server --config Debug      # Build only kolosal-server.exe")
+message(STATUS "    cmake --build . --target build-agent --config Debug       # Build only kolosal-agent")
+message(STATUS "    cmake --build . --target build-all --config Debug         # Build both main executables")
+message(STATUS "  ")
+message(STATUS "  Output executables (in build/Debug/ or build/ directory):")
+message(STATUS "    - kolosal-agent(.exe) - Main agent system")
+message(STATUS "    - kolosal-server(.exe) - Standalone LLM server")
+message(STATUS "    - kolosal-launcher(.exe) - System launcher")
+message(STATUS "    - simple-test(.exe) - Simple test utility")
 message(STATUS "  ")
 message(STATUS "  Additional options:")
 message(STATUS "    cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON")
 message(STATUS "    cmake --build . --config Debug --parallel")
+message(STATUS "  ")
+message(STATUS "  Build only kolosal-server:")
+message(STATUS "    cmake --build . --target build-server --config Debug")
 message(STATUS "  ")
 if(NOT CURL_FOUND)
 message(STATUS "  💡 To enable HTTP client functionality:")
