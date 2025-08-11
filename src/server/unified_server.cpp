@@ -632,12 +632,17 @@ std::shared_ptr<AgentService> UnifiedKolosalServer::getAgent_Service() const {
 }
 
 // Factory methods
-std::unique_ptr<UnifiedKolosalServer> UnifiedServerFactory::createDefault_Server() {
-    return std::make_unique<UnifiedKolosalServer>(buildDefault_Config());
-}
+
 
 std::unique_ptr<UnifiedKolosalServer> UnifiedServerFactory::createFromConfig_File(const std::string& config_file) {
-    auto config = buildDefault_Config();
+    UnifiedKolosalServer::ServerConfig config;
+    config.server_port = 8080;        // LLM server port
+    config.agent_api_port = 8081;     // Agent API port
+    config.auto_start_server = true;
+    config.auto_start_agents = true;
+    config.enable_agent_api = true;
+    config.enable_health_monitoring = true;
+    config.enable_metrics_collection = true;
     config.agent_config_file = config_file;
     return std::make_unique<UnifiedKolosalServer>(config);
 }
@@ -650,31 +655,31 @@ std::unique_ptr<UnifiedKolosalServer> UnifiedServerFactory::createDevelopment_Se
     return std::make_unique<UnifiedKolosalServer>(buildDevelopment_Config(port));
 }
 
-UnifiedKolosalServer::ServerConfig UnifiedServerFactory::buildDefault_Config() {
+
+
+UnifiedKolosalServer::ServerConfig UnifiedServerFactory::buildProduction_Config(int port) {
     UnifiedKolosalServer::ServerConfig config;
-    config.server_port = 8080;        // LLM server port
-    config.agent_api_port = 8081;     // Agent API port
+    config.server_port = port;
+    config.agent_api_port = port + 1;  // Use next port for agent API
     config.auto_start_server = true;
     config.auto_start_agents = true;
     config.enable_agent_api = true;
     config.enable_health_monitoring = true;
     config.enable_metrics_collection = true;
-    return config;
-}
-
-UnifiedKolosalServer::ServerConfig UnifiedServerFactory::buildProduction_Config(int port) {
-    auto config = buildDefault_Config();
-    config.server_port = port;
-    config.agent_api_port = port + 1;  // Use next port for agent API
     config.health_check_interval = std::chrono::seconds(60);
     config.server_startup_timeout_seconds = 120;
     return config;
 }
 
 UnifiedKolosalServer::ServerConfig UnifiedServerFactory::buildDevelopment_Config(int port) {
-    auto config = buildDefault_Config();
+    UnifiedKolosalServer::ServerConfig config;
     config.server_port = port;
     config.agent_api_port = port + 1;  // Use next port for agent API
+    config.auto_start_server = true;
+    config.auto_start_agents = true;
+    config.enable_agent_api = true;
+    config.enable_health_monitoring = true;
+    config.enable_metrics_collection = true;
     config.health_check_interval = std::chrono::seconds(10);
     config.server_startup_timeout_seconds = 30;
     return config;

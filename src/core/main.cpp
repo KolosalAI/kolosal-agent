@@ -280,11 +280,11 @@ OPTIONS:
     -v, --version             Show version information
 
 EXAMPLES:
-    # Basic usage with default configuration
+    # Basic usage - will auto-detect development mode with config.yaml
     )" << program_executable_name << R"(
 
-    # Custom configuration and port
-    )" << program_executable_name << R"( -c my_config.yaml -p 9090
+    # Development mode with custom configuration and port
+    )" << program_executable_name << R"( --dev -c my_config.yaml -p 9090
 
     # Development mode with verbose output
     )" << program_executable_name << R"( --dev --verbose --log-level DEBUG
@@ -292,11 +292,11 @@ EXAMPLES:
     # Production mode
     )" << program_executable_name << R"( --prod -p 8080
 
-    # Run demonstration
-    )" << program_executable_name << R"( --demo
+    # Run demonstration in development mode
+    )" << program_executable_name << R"( --dev --demo
 
-    # Connect to external LLM server
-    )" << program_executable_name << R"( --no-server --host external-server.com -p 8080
+    # Connect to external LLM server in production mode
+    )" << program_executable_name << R"( --prod --no-server --host external-server.com -p 8080
 
 FEATURES:
     * High-performance LLM inference server
@@ -336,313 +336,7 @@ void display_application_banner() {
 )" << std::endl;
 }
 
-/**
- * @brief Create default configuration file if it doesn't exist
- * @param configuration_file_path Path to the configuration file
- */
-void initialize_default_configuration_if_missing(const std::string& configuration_file_path) {
-    if (std::filesystem::exists(configuration_file_path)) {
-        return;
-    }
 
-    COMPONENT_INFO(configuration, "Creating default configuration at: {}", configuration_file_path);
-    
-    std::ofstream configuration_file(configuration_file_path);
-    configuration_file << R"DELIM(# Kolosal Agent System v2.0 Configuration
-# Enhanced configuration with modern features and better organization
-
-system:
-  name: "Kolosal Multi-Agent System v2.0"
-  version: "2.0.0"
-  environment: "development"  # development, production, testing
-  
-  server:
-    host: "127.0.0.1"
-    port: 8080
-    timeout: 30
-    enable_cors: true
-    allowed_origins: ["*"]
-    
-  logging:
-    level: "INFO"  # DEBUG, INFO, WARN, ERROR
-    file: "kolosal_agent_system.log"
-    enable_console: true
-    maximum_file_size_mb: 100
-    max_backup_files: 5
-    
-  monitoring:
-    enable_health_checks: true
-    health_check_interval_seconds: 30
-    enable_metrics: true
-    enable_performance_analytics: true
-    enable_auto_recovery: true
-    max_recovery_attempts: 3
-
-# Agent definitions with enhanced capabilities
-agents:
-  - name: "system_coordinator"
-    id: "coord-001"
-    type: "coordinator"
-    role: "COORDINATOR"
-    priority: 1
-    
-    specializations:
-      - "TASK_PLANNING"
-      - "RESOURCE_MANAGEMENT"
-      - "SYSTEM_MONITORING"
-      - "WORKFLOW_ORCHESTRATION"
-    
-    capabilities:
-      - "plan_execution"
-      - "task_delegation" 
-      - "system_monitoring"
-      - "resource_optimization"
-      - "error_recovery"
-    
-    functions:
-      - "plan_tasks"
-      - "delegate_work"
-      - "monitor_progress" 
-      - "optimize_resources"
-      - "handle_system_events"
-    
-    config:
-      auto_start: true
-      max_concurrent_tasks: 10
-      memory_limit_mb: 512
-      enable_persistence: true
-      heartbeat_interval_seconds: 10
-
-  - name: "data_analyst"
-    id: "analyst-001"
-    type: "specialist"
-    role: "ANALYST"
-    priority: 2
-    
-    specializations:
-      - "DATA_ANALYSIS"
-      - "RESEARCH"
-      - "PATTERN_RECOGNITION"
-      - "STATISTICAL_MODELING"
-    
-    capabilities:
-      - "data_processing"
-      - "research_synthesis"
-      - "report_generation"
-      - "trend_analysis"
-      - "visualization"
-    
-    functions:
-      - "analyze_data"
-      - "research_topic"
-      - "generate_report"
-      - "identify_patterns"
-      - "create_visualizations"
-    
-    config:
-      auto_start: true
-      max_concurrent_tasks: 5
-      memory_limit_mb: 1024
-      enable_persistence: true
-      specialized_tools: ["python", "pandas", "matplotlib"]
-
-  - name: "task_executor"
-    id: "exec-001"
-    type: "worker"
-    role: "EXECUTOR"
-    priority: 3
-    
-    specializations:
-      - "TASK_EXECUTION"
-      - "TOOL_USAGE"
-      - "FILE_OPERATIONS"
-      - "API_INTEGRATION"
-    
-    capabilities:
-      - "execute_commands"
-      - "use_tools"
-      - "file_operations"
-      - "api_calls"
-      - "batch_processing"
-    
-    functions:
-      - "execute_task"
-      - "use_tool"
-      - "process_files"
-      - "make_api_call"
-      - "batch_execute"
-    
-    config:
-      auto_start: true
-      max_concurrent_tasks: 20
-      memory_limit_mb: 256
-      enable_persistence: false
-      timeout_seconds: 300
-
-  - name: "knowledge_manager"
-    id: "knowledge-001"
-    type: "specialist"
-    role: "SPECIALIST"
-    priority: 2
-    
-    specializations:
-      - "KNOWLEDGE_MANAGEMENT"
-      - "MEMORY_OPERATIONS"
-      - "INFORMATION_RETRIEVAL"
-      - "CONTENT_CURATION"
-    
-    capabilities:
-      - "knowledge_storage"
-      - "information_retrieval"
-      - "content_summarization"
-      - "semantic_search"
-      - "knowledge_graph_operations"
-    
-    functions:
-      - "store_knowledge"
-      - "retrieve_information"
-      - "summarize_content"
-      - "semantic_search"
-      - "update_knowledge_graph"
-    
-    config:
-      auto_start: true
-      max_concurrent_tasks: 8
-      memory_limit_mb: 2048
-      enable_persistence: true
-      vector_db_enabled: true
-
-# Enhanced function definitions with better metadata
-functions:
-  - name: "plan_tasks"
-    type: "builtin"
-    category: "planning"
-    description: "Create comprehensive execution plans for complex tasks"
-    version: "2.0"
-    
-    parameters:
-      - name: "goal"
-        type: "string"
-        required: true
-        description: "The main objective to achieve"
-      - name: "context"
-        type: "string"
-        required: false
-        description: "Additional context and constraints"
-      - name: "priority"
-        type: "integer"
-        required: false
-        default: 5
-        minimum: 1
-        max: 10
-        description: "Task priority (1-10)"
-      - name: "deadline"
-        type: "datetime"
-        required: false
-        description: "Task deadline in ISO format"
-        
-    returns:
-      type: "object"
-      description: "Execution plan with steps and dependencies"
-
-  - name: "analyze_data"
-    type: "builtin"
-    category: "analysis"
-    description: "Perform comprehensive data analysis with statistical insights"
-    version: "2.0"
-    
-    parameters:
-      - name: "data_source"
-        type: "string"
-        required: true
-        description: "Path to data file or dataset identifier"
-      - name: "analysis_type"
-        type: "string"
-        required: false
-        default: "comprehensive"
-        enum: ["basic", "comprehensive", "statistical", "predictive"]
-        description: "Type of analysis to perform"
-      - name: "output_format"
-        type: "string"
-        required: false
-        default: "json"
-        enum: ["json", "csv", "report", "visualization"]
-        description: "Output format for results"
-        
-    returns:
-      type: "object" 
-      description: "Analysis results with insights and recommendations"
-
-  - name: "execute_task"
-    type: "builtin"
-    category: "execution"
-    description: "Execute specific tasks with comprehensive error handling"
-    version: "2.0"
-    
-    parameters:
-      - name: "task_definition"
-        type: "object"
-        required: true
-        description: "Complete task definition with steps and requirements"
-      - name: "execution_mode"
-        type: "string"
-        required: false
-        default: "safe"
-        enum: ["safe", "fast", "thorough"]
-        description: "Execution mode balancing speed and safety"
-      - name: "retry_policy"
-        type: "object"
-        required: false
-        description: "Retry configuration for failed operations"
-        
-    returns:
-      type: "object"
-      description: "Execution results with status and output data"
-
-# System-wide templates for quick agent creation
-templates:
-  basic_worker:
-    type: "worker"
-    role: "EXECUTOR"
-    specializations: ["TASK_EXECUTION"]
-    capabilities: ["execute_commands"]
-    functions: ["execute_task"]
-    config:
-      auto_start: false
-      max_concurrent_tasks: 5
-      
-  data_processor:
-    type: "specialist"
-    role: "ANALYST"
-    specializations: ["DATA_ANALYSIS"]
-    capabilities: ["data_processing", "report_generation"]
-    functions: ["analyze_data", "generate_report"]
-    config:
-      auto_start: false
-      max_concurrent_tasks: 3
-      memory_limit_mb: 512
-
-# Integration settings
-integration:
-  llm_server:
-    auto_start: true
-    startup_timeout_seconds: 60
-    health_check_endpoint: "/v1/health"
-    
-  external_apis:
-    enable_rate_limiting: true
-    default_timeout_seconds: 30
-    retry_attempts: 3
-    
-  database:
-    enable_persistence: true
-    connection_pool_size: 10
-    backup_interval_hours: 24
-)DELIM";
-
-    configuration_file.close();
-    COMPONENT_INFO(configuration, "Default configuration created successfully!");
-}
 
 /**
  * @brief Setup comprehensive health monitoring for the unified server
@@ -680,21 +374,21 @@ void execute_system_demonstration(const UnifiedKolosalServer& unified_server_ref
     // Display current system status
     const auto system_status = unified_server_ref.getSystem_Status();
     COMPONENT_INFO(system_demo, "Current System Status:");
-    COMPONENT_INFO(system_demo, "  • LLM Server: {}", (system_status.llm_server_healthy ? "Healthy" : "Unhealthy"));
-    COMPONENT_INFO(system_demo, "  • Active Agents: {}/{}", system_status.running_agents, system_status.total_agents);
+    COMPONENT_INFO(system_demo, "  * LLM Server: {}", (system_status.llm_server_healthy ? "Healthy" : "Unhealthy"));
+    COMPONENT_INFO(system_demo, "  * Active Agents: {}/{}", system_status.running_agents, system_status.total_agents);
     
     // Display all registered agents
     const auto registered_agents = agent_service->getAllAgentInfo();
     COMPONENT_INFO(system_demo, "Registered Agent Instances:");
     for (const auto& agent_info : registered_agents) {
-        COMPONENT_INFO(system_demo, "  • {} ({}) - Status: {}", agent_info.name, agent_info.id, (agent_info.running ? "Running" : "Stopped"));
+        COMPONENT_INFO(system_demo, "  * {} ({}) - Status: {}", agent_info.name, agent_info.id, (agent_info.running ? "Running" : "Stopped"));
     }
     
     // Display system performance metrics
     const auto performance_metrics = unified_server_ref.get_Metrics();
     COMPONENT_INFO(system_demo, "📈 Performance Metrics:");
-    COMPONENT_INFO(system_demo, "  • LLM Requests: {} (Successful: {})", performance_metrics.total_llm_requests, performance_metrics.successful_llm_requests);
-    COMPONENT_INFO(system_demo, "  • Agent Function Calls: {} (Successful: {})", performance_metrics.total_agent_function_calls, performance_metrics.successful_agent_function_calls);
+    COMPONENT_INFO(system_demo, "  * LLM Requests: {} (Successful: {})", performance_metrics.total_llm_requests, performance_metrics.successful_llm_requests);
+    COMPONENT_INFO(system_demo, "  * Agent Function Calls: {} (Successful: {})", performance_metrics.total_agent_function_calls, performance_metrics.successful_agent_function_calls);
     
     COMPONENT_INFO(system_demo, "System demonstration completed successfully! System is ready for production use.");
 }
@@ -736,7 +430,7 @@ std::string detect_server_executable_path_automatically() {
     COMPONENT_WARN(unified_server, "Could not auto-detect kolosal-server executable");
     COMPONENT_DEBUG(unified_server, "Searched the following candidate paths:");
     for (const auto& candidate_path : candidate_executable_paths) {
-        COMPONENT_DEBUG(unified_server, "  • {}", candidate_path);
+        COMPONENT_DEBUG(unified_server, "  * {}", candidate_path);
     }
     COMPONENT_WARN(unified_server, "Please specify the executable path using the --server option");
     
@@ -772,7 +466,7 @@ int main(int argc, char* argv[]) {
         }
         
         // Parse and validate command line arguments
-        const ApplicationConfiguration application_config = parse_command_line_arguments(argc, argv);
+        ApplicationConfiguration application_config = parse_command_line_arguments(argc, argv);
         std::cout << "[bootstrap] args parsed" << std::endl;
         // Handle immediate exit scenarios
         if (application_config.display_help_information) {
@@ -813,14 +507,13 @@ int main(int argc, char* argv[]) {
         // Console control handler was already set in disable_windows_error_dialogs()
 #endif
 
-        // Display application banner if not in quiet mode
-        if (!application_config.enable_quiet_mode) {
-            display_application_banner();
-            std::cout << "[bootstrap] banner displayed" << std::endl;
+        // Configuration file must exist - no default creation
+        if (!std::filesystem::exists(application_config.configuration_file_path)) {
+            COMPONENT_ERROR(configuration, "Configuration file not found: {}", application_config.configuration_file_path);
+            std::cerr << "Error: Configuration file not found: " << application_config.configuration_file_path << std::endl;
+            std::cerr << "Please create a configuration file or use --config to specify an existing one." << std::endl;
+            return EXIT_FAILURE;
         }
-        
-        // Ensure configuration file exists
-    initialize_default_configuration_if_missing(application_config.configuration_file_path);
         
         // Build unified server configuration
         UnifiedKolosalServer::ServerConfig server_configuration;
@@ -830,7 +523,10 @@ int main(int argc, char* argv[]) {
         } else if (application_config.is_development_mode) {
             server_configuration = UnifiedServerFactory::buildDevelopment_Config(application_config.server_port_number);
         } else {
-            server_configuration = UnifiedServerFactory::buildDefault_Config();
+            // Auto-detect mode: if config.yaml exists, use development mode as default
+            COMPONENT_INFO(configuration, "No mode specified, defaulting to development mode with config file: {}", application_config.configuration_file_path);
+            server_configuration = UnifiedServerFactory::buildDevelopment_Config(application_config.server_port_number);
+            application_config.is_development_mode = true; // Set the flag for consistency
         }
         
         // Apply command line configuration overrides
@@ -852,14 +548,14 @@ int main(int argc, char* argv[]) {
         // Display configuration summary if not in quiet mode
         if (!application_config.enable_quiet_mode) {
             COMPONENT_INFO(configuration, "System Configuration Summary:");
-            COMPONENT_INFO(configuration, "  • Configuration File: {}", application_config.configuration_file_path);
-            COMPONENT_INFO(configuration, "  • Server Endpoint: {}:{}", server_configuration.server_host, server_configuration.server_port);
+            COMPONENT_INFO(configuration, "  * Configuration File: {}", application_config.configuration_file_path);
+            COMPONENT_INFO(configuration, "  * Server Endpoint: {}:{}", server_configuration.server_host, server_configuration.server_port);
             if (server_configuration.auto_start_server && !server_configuration.server_executable_path.empty()) {
-                COMPONENT_INFO(configuration, "  • Server Executable: {}", server_configuration.server_executable_path);
+                COMPONENT_INFO(configuration, "  * Server Executable: {}", server_configuration.server_executable_path);
             }
-            COMPONENT_INFO(configuration, "  • Operating Mode: {}", (application_config.is_production_mode ? "Production" : 
+            COMPONENT_INFO(configuration, "  * Operating Mode: {}", (application_config.is_production_mode ? "Production" : 
                                           application_config.is_development_mode ? "Development" : "Default"));
-            COMPONENT_INFO(configuration, "  • Auto-start Server: {}", (server_configuration.auto_start_server ? "Enabled" : "Disabled"));
+            COMPONENT_INFO(configuration, "  * Auto-start Server: {}", (server_configuration.auto_start_server ? "Enabled" : "Disabled"));
         }
 
         // Create and initialize unified server instance
@@ -929,15 +625,15 @@ int main(int argc, char* argv[]) {
             try {
                 const auto server_config = unified_server_instance ? unified_server_instance->get_Configuration() : server_configuration;
                 COMPONENT_INFO(application_main, "🎯 Kolosal Agent System is operational!");
-                COMPONENT_INFO(application_main, "   • LLM Inference Server: http://{}:{}", server_config.server_host, server_config.server_port);
-                COMPONENT_INFO(application_main, "   • Agent Management API: http://{}:{}/v1/agents", server_config.agent_api_host, server_config.agent_api_port);
-                COMPONENT_INFO(application_main, "   • System Status Endpoint: http://{}:{}/v1/system/status", server_config.agent_api_host, server_config.agent_api_port);
+                COMPONENT_INFO(application_main, "   * LLM Inference Server: http://{}:{}", server_config.server_host, server_config.server_port);
+                COMPONENT_INFO(application_main, "   * Agent Management API: http://{}:{}/v1/agents", server_config.agent_api_host, server_config.agent_api_port);
+                COMPONENT_INFO(application_main, "   * System Status Endpoint: http://{}:{}/v1/system/status", server_config.agent_api_host, server_config.agent_api_port);
                 COMPONENT_INFO(application_main, "Press Ctrl+C to initiate graceful shutdown...");
             } catch (const std::exception& e) {
                 std::cout << "🎯 Kolosal Agent System is operational!" << std::endl;
-                std::cout << "   • LLM Inference Server: http://" << server_configuration.server_host << ":" << server_configuration.server_port << std::endl;
-                std::cout << "   • Agent Management API: http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/agents" << std::endl;
-                std::cout << "   • System Status Endpoint: http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/system/status" << std::endl;
+                std::cout << "   * LLM Inference Server: http://" << server_configuration.server_host << ":" << server_configuration.server_port << std::endl;
+                std::cout << "   * Agent Management API: http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/agents" << std::endl;
+                std::cout << "   * System Status Endpoint: http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/system/status" << std::endl;
                 std::cout << "Press Ctrl+C to initiate graceful shutdown..." << std::endl;
             }
         } else {

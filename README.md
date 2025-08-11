@@ -17,6 +17,7 @@ A next-generation unified multi-agent AI system that seamlessly integrates advan
 - **⚡ Async Operations**: Full asynchronous support for non-blocking operations
 - **🔧 Hot Configuration**: Dynamic configuration reloading without system restart
 - **📈 Analytics**: Built-in performance analytics and optimization suggestions
+- **🔗 MCP Protocol Integration**: Full Model Context Protocol (MCP) support for standardized AI tool and resource interoperability
 
 ## 🚀 Quick Start
 
@@ -395,6 +396,7 @@ cmake --install . --config Debug
 | `BUILD_TESTS` | Build unit tests | OFF |
 | `BUILD_EXAMPLES` | Build example applications | OFF |
 | `BUILD_DOCS` | Build documentation (requires Doxygen) | OFF |
+| `MCP_PROTOCOL_ENABLED` | Enable Model Context Protocol integration | ON |
 | `ENABLE_CUDA` | Enable CUDA GPU acceleration | OFF |
 | `ENABLE_VULKAN` | Enable Vulkan support | OFF |
 | `USE_PODOFO` | Enable PDF processing support | OFF |

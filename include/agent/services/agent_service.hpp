@@ -18,6 +18,11 @@
 #include "../core/agent_core.hpp"
 #include "../core/multi_agent_system.hpp"
 #include "../../config/yaml_configuration_parser.hpp"
+
+#ifdef MCP_PROTOCOL_ENABLED
+#include "mcp_agent_adapter.hpp"
+#endif
+
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -160,6 +165,62 @@ public:
     std::vector<OptimizationSuggestion> analyzeSystem_Optimization();
     bool applyOptimization_Suggestion(const OptimizationSuggestion& suggestion);
 
+#ifdef MCP_PROTOCOL_ENABLED
+    // MCP Integration methods
+    
+    /**
+     * @brief Create MCP adapter for an agent
+     * @param agent_id Agent ID to create adapter for
+     * @param config MCP configuration (optional)
+     * @return true if adapter created successfully
+     */
+    bool createMCPAdapter(const std::string& agent_id, 
+                         const kolosal::services::MCPAgentAdapter::MCPConfig& config = {});
+    
+    /**
+     * @brief Start MCP server for an agent
+     * @param agent_id Agent ID
+     * @param transport_name Name of transport to use
+     * @return true if server started successfully
+     */
+    bool startAgentMCPServer(const std::string& agent_id, const std::string& transport_name = "stdio");
+    
+    /**
+     * @brief Stop MCP server for an agent
+     * @param agent_id Agent ID
+     * @return true if server stopped successfully
+     */
+    bool stopAgentMCPServer(const std::string& agent_id);
+    
+    /**
+     * @brief Connect agent as MCP client to external server
+     * @param agent_id Agent ID
+     * @param server_endpoint Server endpoint/transport details
+     * @return Future with connection result
+     */
+    std::future<bool> connectAgentToMCPServer(const std::string& agent_id, const std::string& server_endpoint);
+    
+    /**
+     * @brief Get MCP adapter for an agent
+     * @param agent_id Agent ID
+     * @return Shared pointer to MCP adapter (nullptr if not found)
+     */
+    std::shared_ptr<kolosal::services::MCPAgentAdapter> getMCPAdapter(const std::string& agent_id);
+    
+    /**
+     * @brief List agents with MCP adapters
+     * @return Vector of agent IDs with MCP adapters
+     */
+    std::vector<std::string> getAgentsWithMCP() const;
+    
+    /**
+     * @brief Auto-setup MCP for all agents
+     * @param auto_register_functions Whether to auto-register agent functions as tools
+     * @return Number of agents successfully set up with MCP
+     */
+    size_t autoSetupMCPForAllAgents(bool auto_register_functions = true);
+#endif
+
 private:
     std::shared_ptr<kolosal::agents::YAMLConfigurableAgentManager> agent_manager_;
     std::unordered_map<std::string, kolosal::agents::AgentConfig> agent_templates_;
@@ -178,6 +239,12 @@ private:
     
     // Notification system
     mutable std::mutex callbacks_mutex_;
+
+#ifdef MCP_PROTOCOL_ENABLED
+    // MCP Integration
+    std::unordered_map<std::string, std::shared_ptr<kolosal::services::MCPAgentAdapter>> mcp_adapters_;
+    mutable std::mutex mcp_mutex_;
+#endif
 
     // Internal methods
     void healthMonitoringLoop(std::chrono::seconds interval);

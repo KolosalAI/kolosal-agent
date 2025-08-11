@@ -32,6 +32,11 @@
 #include "../agent/core/multi_agent_system.hpp"
 #include "../api/simple_http_server.hpp"
 #include "../api/agent_management_route.hpp"
+
+#ifdef MCP_PROTOCOL_ENABLED
+#include "mcp_server_integration.hpp"
+#endif
+
 #include <memory>
 #include <string>
 #include <atomic>
@@ -79,6 +84,18 @@ public:
     // API configuration
     bool enable_cors = true;
         std::vector<std::string> allowed_origins = {"*"};
+
+#ifdef MCP_PROTOCOL_ENABLED
+    // MCP Integration configuration
+    bool enable_mcp_integration = true;
+    bool auto_expose_all_agents_via_mcp = true;
+    std::string mcp_server_name = "kolosal-unified-server";
+    int mcp_server_port = 8082;
+    bool enable_mcp_stdio_transport = true;
+    bool enable_mcp_http_sse_transport = false;
+    bool enable_cross_agent_mcp_communication = true;
+    size_t max_mcp_connections = 100;
+#endif
     };
 
     struct SystemStatus {
@@ -137,6 +154,65 @@ public:
     ServerMetrics get_Metrics() const;
     void reset_Metrics();
 
+#ifdef MCP_PROTOCOL_ENABLED
+    // MCP Integration methods
+    
+    /**
+     * @brief Get MCP integration instance
+     * @return Shared pointer to MCP integration (nullptr if disabled)
+     */
+    std::shared_ptr<kolosal::server::MCPServerIntegration> getMCP_Integration() const;
+    
+    /**
+     * @brief Enable/disable MCP integration
+     * @param enable Whether to enable MCP integration
+     * @return true if operation succeeded
+     */
+    bool enableMCP_Integration(bool enable = true);
+    
+    /**
+     * @brief Expose agent via MCP protocol
+     * @param agent_id Agent ID to expose
+     * @param custom_name Custom MCP server name (optional)
+     * @return true if agent exposed successfully
+     */
+    bool exposeAgentViaMCP(const std::string& agent_id, const std::string& custom_name = "");
+    
+    /**
+     * @brief Remove agent from MCP exposure
+     * @param agent_id Agent ID to remove
+     * @return true if agent removed successfully
+     */
+    bool removeAgentFromMCP(const std::string& agent_id);
+    
+    /**
+     * @brief Auto-expose all agents via MCP
+     * @return Number of agents exposed
+     */
+    size_t autoExposeAllAgentsViaMCP();
+    
+    /**
+     * @brief Connect to external MCP server
+     * @param server_id Connection identifier
+     * @param endpoint Server endpoint/transport details
+     * @return true if connection established
+     */
+    bool connectToExternalMCP(const std::string& server_id, const std::string& endpoint);
+    
+    /**
+     * @brief Disconnect from external MCP server
+     * @param server_id Connection identifier
+     * @return true if disconnected successfully
+     */
+    bool disconnectFromExternalMCP(const std::string& server_id);
+    
+    /**
+     * @brief Get MCP integration status
+     * @return JSON object with MCP status information
+     */
+    std::string getMCPStatus_Json() const;
+#endif
+
 private:
     ServerConfig config_;
     mutable std::atomic<bool> running_ {false};
@@ -148,6 +224,11 @@ private:
     std::shared_ptr<kolosal::services::AgentService> agent_service_;
     std::unique_ptr<kolosal::api::SimpleHttpServer> agent_http_server_;
     std::shared_ptr<kolosal::api::AgentManagementRoute> agent_management_route_;
+
+#ifdef MCP_PROTOCOL_ENABLED
+    // MCP Integration
+    std::shared_ptr<kolosal::server::MCPServerIntegration> mcp_integration_;
+#endif
     
     // Health monitoring
     std::thread health_monitoring_thread_;
@@ -170,6 +251,13 @@ private:
     void stop_LLMServer();
     void stopAgent_System();
     void stop_AgentHttpServer();
+    
+#ifdef MCP_PROTOCOL_ENABLED
+    // MCP Integration internal methods
+    bool startMCP_Integration();
+    void stopMCP_Integration();
+    bool performMCPIntegrationHealth_Check();
+#endif
     
     void healthMonitoring_Loop();
     bool performLLMServerHealth_Check();
@@ -201,12 +289,12 @@ private:
  */
 class KOLOSAL_AGENT_API UnifiedServerFactory {
 public:
-    static std::unique_ptr<UnifiedKolosalServer> createDefault_Server();
+
     static std::unique_ptr<UnifiedKolosalServer> createFromConfig_File(const std::string& config_file);
     static std::unique_ptr<UnifiedKolosalServer> createProduction_Server(int port = 8080);
     static std::unique_ptr<UnifiedKolosalServer> createDevelopment_Server(const int port = 8080);
     // Configuration builders
-    static UnifiedKolosalServer::ServerConfig buildDefault_Config();
+
     static UnifiedKolosalServer::ServerConfig buildProduction_Config(int port);
     static UnifiedKolosalServer::ServerConfig buildDevelopment_Config(int port);
 };

@@ -17,6 +17,7 @@ Documentation generated on 2025-08-08 14:06:25
 - [Installation](guides/installation.md) - Installation instructions
 - [Usage Guide](guides/usage.md) - How to use the system
 - [Configuration](guides/configuration.md) - Configuration reference
+- [MCP Integration](MCP_INTEGRATION.md) - Model Context Protocol integration guide
 
 ## 📊 Statistics
 
