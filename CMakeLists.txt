@@ -285,66 +285,90 @@ endif()
 
 # Source files organization
 set(AGENT_CORE_SOURCES
-    src/agent/agent_core.cpp
-    src/agent/multi_agent_system.cpp
-    src/agent/agent_interfaces.cpp
-    src/agent/agent_roles.cpp
-    src/agent/agent_data.cpp
-    src/agent/agent_config_validator.cpp
-    src/agent/agent_factory.cpp
-    src/agent/agent_orchestrator.cpp
+    src/agent/core/agent_core.cpp
+    src/agent/core/multi_agent_system.cpp
+    src/agent/core/agent_interfaces.cpp
+    src/agent/core/agent_roles.cpp
+    src/agent/core/agent_data.cpp
+    src/agent/core/agent_config_validator.cpp
+    src/agent/core/agent_factory.cpp
+    src/agent/core/agent_orchestrator.cpp
 )
 
-set(ROUTES_SOURCES
-    src/routing/message_router.cpp
-    src/routing/http_client.cpp
+set(AGENT_MEMORY_SOURCES
+    src/agent/memory/agent_memory_manager.cpp
+)
+
+set(AGENT_PLANNING_SOURCES
+    src/agent/planning/agent_planning_system.cpp
+)
+
+set(AGENT_SERVICES_SOURCES
+    src/agent/services/agent_service.cpp
+    src/agent/services/document_agent_service.cpp
+    src/agent/services/workflow_agent_service.cpp
 )
 
 set(API_SOURCES
-    src/rest_api/agent_management_route.cpp
-    src/rest_api/simple_http_server.cpp
+    src/api/agent_management_route.cpp
+    src/api/simple_http_server.cpp
+    src/api/message_router.cpp
+    src/api/http_client.cpp
 )
 
-set(SERVICES_SOURCES
-    src/agent_services/agent_service.cpp
-)
-
-set(INTEGRATION_SOURCES
-    src/system_integration/unified_server.cpp
+set(CONFIG_SOURCES
+    src/config/yaml_configuration_parser.cpp
 )
 
 set(CORE_SOURCES
-    src/yaml_configuration_parser.cpp
-    src/function_execution_manager.cpp
-    src/task_job_manager.cpp
-    src/system_event_manager.cpp
-    src/system_tool_registry.cpp
-    src/agent_memory_manager.cpp
-    src/agent_planning_system.cpp
-    src/server_logger_integration.cpp
-    src/loading_animation_utils.cpp
-    src/server_client_interface.cpp
-    src/builtin_function_registry.cpp
-    src/document_agent_service.cpp
-    src/document_service_manager.cpp
-    src/workflow_agent_service.cpp
-    src/logger_system.cpp
+    # Main executables are handled separately
 )
 
-set(SEQUENTIAL_SOURCES
-    src/workflow_sequential/sequential_workflow.cpp
-    src/workflow_sequential/workflow_engine.cpp
+set(EXECUTION_SOURCES
+    src/execution/function_execution_manager.cpp
+    src/execution/task_job_manager.cpp
+)
+
+set(LOGGER_SOURCES
+    src/logger/logger_system.cpp
+    src/logger/server_logger_integration.cpp
+)
+
+set(SERVER_SOURCES
+    src/server/server_client_interface.cpp
+    src/server/unified_server.cpp
+)
+
+set(TOOLS_SOURCES
+    src/tools/system_event_manager.cpp
+    src/tools/system_tool_registry.cpp
+    src/tools/builtin_function_registry.cpp
+)
+
+set(UTILS_SOURCES
+    src/utils/document_service_manager.cpp
+    src/utils/loading_animation_utils.cpp
+)
+
+set(WORKFLOW_SOURCES
+    src/workflow/sequential_workflow.cpp
+    src/workflow/workflow_engine.cpp
 )
 
 # Combine all sources
 set(ALL_SOURCES
     ${AGENT_CORE_SOURCES}
-    ${ROUTES_SOURCES}
+    ${AGENT_MEMORY_SOURCES}
+    ${AGENT_PLANNING_SOURCES}
+    ${AGENT_SERVICES_SOURCES}
     ${API_SOURCES}
-    ${SERVICES_SOURCES}
-    ${INTEGRATION_SOURCES}
-    ${CORE_SOURCES}
-    ${SEQUENTIAL_SOURCES}
+    ${CONFIG_SOURCES}
+    ${EXECUTION_SOURCES}
+    ${LOGGER_SOURCES}
+    ${SERVER_SOURCES}
+    ${TOOLS_SOURCES}
+    ${UTILS_SOURCES}
+    ${WORKFLOW_SOURCES}
 )
 
 # Create the main library
@@ -702,13 +726,13 @@ add_dependencies(yaml_cpp_server ext_kolosal_server)
 set(KOLOSAL_SERVER_AVAILABLE TRUE)
 
 # Simple test executable for Windows dialog fixes
-add_executable(simple-test src/simple_test_main.cpp)
+add_executable(simple-test src/core/simple_test_main.cpp)
 if(WIN32)
     target_link_libraries(simple-test kernel32 user32)
 endif()
 
 # Main executable (unified v2.0)
-add_executable(kolosal-agent src/main.cpp)
+add_executable(kolosal-agent src/core/main.cpp)
 target_link_libraries(kolosal-agent kolosal_agent)
 set_target_properties(kolosal-agent PROPERTIES
     CXX_STANDARD ${CMAKE_CXX_STANDARD}
@@ -727,7 +751,7 @@ add_custom_target(ALL_BUILD_TARGETS ALL
 )
 
 # Launcher executable
-add_executable(kolosal-launcher src/kolosal_launcher.c)
+add_executable(kolosal-launcher src/core/kolosal_launcher.c)
 if(WIN32)
     target_link_libraries(kolosal-launcher kernel32 user32)
 endif()
@@ -890,6 +914,20 @@ if(PACKAGE_AFTER_BUILD)
     add_custom_command(TARGET kolosal-agent POST_BUILD
         COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target package
         COMMENT "Creating packages after build"
+    )
+endif()
+
+# Copy required DLLs for kolosal-agent
+if(WIN32)
+    add_custom_command(TARGET kolosal-agent POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_BINARY_DIR}/kolosal-server/bin/${CMAKE_BUILD_TYPE}/llama-cpu.dll
+            $<TARGET_FILE_DIR:kolosal-agent>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_BINARY_DIR}/kolosal-server/bin/${CMAKE_BUILD_TYPE}/libcurl.dll
+            $<TARGET_FILE_DIR:kolosal-agent>
+        COMMENT "Copying required DLLs for kolosal-agent.exe"
+        VERBATIM
     )
 endif()
 

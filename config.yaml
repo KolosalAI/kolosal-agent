@@ -65,11 +65,53 @@ database:
     embedding_batch_size: 5
 inference_engines:
   - name: llama-cpu
-    library_path: D:\Works\Genta\codes\kolosal-agent\build\kolosal-server\Debug/llama-cpu.dll
+    library_path: D:\Works\Genta\codes\kolosal-agent\build\Debug\llama-cpu.dll
     version: 1.0.0
     description: CPU inference engine
     load_on_startup: true
 default_inference_engine: llama-cpu
+
+# Model configurations using models from the models/ directory
+models:
+  - id: qwen3-0.6b-main
+    path: models/Qwen3-0.6B-UD-Q4_K_XL.gguf
+    type: llm
+    load_immediately: false
+    inference_engine: llama-cpu
+    load_params:
+      n_ctx: 2048
+      n_gpu_layers: 0
+      n_batch: 512
+      
+  - id: qwen3-embedding
+    path: models/Qwen3-Embedding-0.6B-Q8_0.gguf
+    type: embedding
+    load_immediately: false
+    inference_engine: llama-cpu
+    load_params:
+      n_ctx: 512
+      n_gpu_layers: 0
+      n_batch: 256
+      
+  - id: minilm-embedding
+    path: models/all-MiniLM-L6-v2-bf16-q4_k.gguf
+    type: embedding
+    load_immediately: false
+    inference_engine: llama-cpu
+    load_params:
+      n_ctx: 512
+      n_gpu_layers: 0
+      n_batch: 256
+      
+  - id: downloaded-model
+    path: models/downloaded_model.gguf
+    type: llm
+    load_immediately: false
+    inference_engine: llama-cpu
+    load_params:
+      n_ctx: 2048
+      n_gpu_layers: 0
+      n_batch: 512
 features:
   health_check: true
   metrics: false

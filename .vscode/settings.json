@@ -13,6 +13,7 @@
         "xlocale": "cpp",
         "future": "cpp",
         "system_error": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "filesystem": "cpp"
     }
 }
