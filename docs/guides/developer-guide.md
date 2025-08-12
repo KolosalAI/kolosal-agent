@@ -64,7 +64,6 @@ cmake .. \
   -DBUILD_DOCS=ON \
   -DENABLE_ASAN=ON \
   -DENABLE_UBSAN=ON \
-  -DMCP_PROTOCOL_ENABLED=ON \
   -DUSE_PODOFO=ON
 
 # Build with parallel processing
@@ -173,10 +172,6 @@ namespace kolosal {
         class AgentService;                 // High-level operations
         class WorkflowAgentService;         // Workflow services
         class DocumentAgentService;         // Document processing
-        
-        #ifdef MCP_PROTOCOL_ENABLED
-        class MCPAgentAdapter;              // MCP protocol integration
-        #endif
     }
     
     namespace integration {
@@ -201,9 +196,8 @@ namespace kolosal {
 3. **Strategy Pattern**: Different agent types, workflow patterns
 4. **Command Pattern**: Function execution, tool invocation
 5. **Singleton Pattern**: Logger, configuration manager
-6. **Bridge Pattern**: MCP protocol integration
-7. **Composite Pattern**: Complex workflows, nested agents
-8. **Template Method Pattern**: Base classes with specializations
+6. **Composite Pattern**: Complex workflows, nested agents
+7. **Template Method Pattern**: Base classes with specializations
 
 ## Code Structure
 
@@ -238,8 +232,7 @@ kolosal-agent/
 ├── external/                  # Third-party dependencies
 │   ├── curl/                  # HTTP client library
 │   ├── nlohmann/              # JSON library
-│   ├── yaml-cpp/              # YAML parsing
-│   └── mcp-cpp/               # MCP protocol (if enabled)
+│   └── yaml-cpp/              # YAML parsing
 │
 ├── examples/                  # Example code
 ├── tests/                     # Unit and integration tests

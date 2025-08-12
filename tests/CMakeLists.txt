@@ -27,7 +27,6 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/kolosal-server/include
     ${CMAKE_SOURCE_DIR}/external/nlohmann
     ${CMAKE_SOURCE_DIR}/external/yaml-cpp/include
-    ${CMAKE_SOURCE_DIR}/external/mcp-cpp/include
     ${CMAKE_SOURCE_DIR}/tests/mocks
 )
 
@@ -66,7 +65,6 @@ target_include_directories(test_utils
         ${CMAKE_SOURCE_DIR}/kolosal-server/include
         ${CMAKE_SOURCE_DIR}/external/nlohmann
         ${CMAKE_SOURCE_DIR}/external/yaml-cpp/include
-        ${CMAKE_SOURCE_DIR}/external/mcp-cpp/include
         ${CMAKE_SOURCE_DIR}/tests/mocks
         ${CMAKE_SOURCE_DIR}/tests/fixtures
 )
@@ -168,7 +166,6 @@ if(BUILD_INTEGRATION_TESTS)
         # integration/test_multi_agent_workflows.cpp
         # integration/test_configuration_loading.cpp
         # integration/test_api_endpoints.cpp
-        # integration/test_mcp_integration.cpp
     )
 
     # Check which integration test files actually exist

@@ -37,6 +37,63 @@ A next-generation unified multi-agent AI system that seamlessly integrates advan
 - **🔧 Hot Configuration**: Dynamic configuration reloading without system restart
 - **📈 Analytics**: Built-in performance analytics and optimization suggestions
 - **🔗 MCP Protocol Integration**: Full Model Context Protocol (MCP) support for standardized AI tool and resource interoperability
+- **🔍 Web Search Integration (NEW!)**: Real-time internet search with SearXNG backend
+- **📚 Enhanced Document Retrieval (NEW!)**: Advanced semantic search through vector databases
+- **🧠 Hybrid Knowledge System (NEW!)**: Combines web search with document retrieval for comprehensive knowledge gathering
+
+## 🌐 Web Search & Retrieval Features (NEW!)
+
+The Kolosal Agent System now includes powerful web search and document retrieval capabilities that enable agents to access real-time information and comprehensive knowledge bases.
+
+### 🔍 Internet Search
+- **Real-time Web Search**: Live internet searches using SearXNG backend
+- **Multiple Search Engines**: Support for Google, Bing, DuckDuckGo, and more
+- **Advanced Filtering**: Content quality assessment, safe search, and result optimization
+- **Multilingual Support**: Search in multiple languages with localization
+- **Category Search**: Specialized searches for news, images, academic content, etc.
+
+### 📚 Document Retrieval
+- **Semantic Search**: Vector-based similarity search through document collections
+- **Multiple Formats**: Support for PDF, DOCX, HTML, and plain text documents
+- **Intelligent Chunking**: Smart document segmentation for better retrieval
+- **Metadata Support**: Rich metadata extraction and filtering
+- **Collection Management**: Organize documents in separate collections
+
+### 🧠 Hybrid Knowledge System
+- **Comprehensive Retrieval**: Combines web search with local document retrieval
+- **Smart Prioritization**: Automatically balances web vs. local content based on query
+- **Result Fusion**: Intelligent merging and ranking of diverse knowledge sources
+- **Context Awareness**: Maintains context across multiple knowledge sources
+
+### ⚡ Quick Web Search Example
+
+```cpp
+#include "tools/enhanced_function_registry.hpp"
+
+// Create agent with web search capabilities
+auto agent = std::make_unique<AgentCore>("WebSearchAgent");
+
+// Enable enhanced functions with kolosal-server integration
+agent->enable_enhanced_functions("http://localhost:8080");
+
+// Perform real internet search
+AgentData search_params;
+search_params.set("query", "latest AI developments 2025");
+search_params.set("results", 5);
+
+auto result = agent->get_function_manager()->execute__function("internet_search", search_params);
+
+if (result.success) {
+    auto titles = result.result_data.get_array_string("titles");
+    auto urls = result.result_data.get_array_string("urls");
+    // Process search results...
+}
+```
+
+### 📖 Documentation
+- **[Web Search Integration Guide](docs/WEB_SEARCH_INTEGRATION_GUIDE.md)**: Complete guide to web search functions
+- **[Function Registry Guide](docs/FUNCTION_REGISTRY_GUIDE.md)**: How to register and manage functions
+- **[Examples](examples/web_search_demo.cpp)**: Working examples of web search integration
 
 ## 🚀 Quick Start
 

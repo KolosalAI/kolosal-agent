@@ -63,6 +63,11 @@ private:
     // Instance mutexes to prevent deadlocks
     mutable std::mutex capabilities_mutex;
     mutable std::mutex message_mutex;
+    
+    // Enhanced function support
+    std::shared_ptr<class EnhancedFunctionRegistry> enhanced_registry;
+    std::string server_url;
+    bool server_integration_enabled;
 
 public:
     AgentCore(const std::string& name = "", const std::string& type = "generic", 
@@ -107,6 +112,12 @@ public:
     std::vector<std::string> discover_tools(const ToolFilter& filter = ToolFilter());
     bool register_custom_tool(std::unique_ptr<Tool> tool);
     ToolSchema get__tool_schema(const std::string& tool_name);
+    
+    // Enhanced function registration with kolosal-server integration
+    void enable_enhanced_functions(const std::string& server_url = "http://localhost:8080", 
+                                  bool test_connection = true);
+    void set_server_url(const std::string& url);
+    bool is_server_integration_enabled() const;
 
     // Getters
     const std::string& get__agent_id() const { return agent_id; }

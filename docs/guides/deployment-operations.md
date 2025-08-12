@@ -60,8 +60,7 @@ mkdir build && cd build
 # Configure with CMake (Debug)
 cmake .. -DCMAKE_BUILD_TYPE=Debug \
          -DBUILD_TESTS=ON \
-         -DBUILD_EXAMPLES=ON \
-         -DMCP_PROTOCOL_ENABLED=ON
+         -DBUILD_EXAMPLES=ON
 
 # Build the project
 cmake --build . --config Debug --parallel

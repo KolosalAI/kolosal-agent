@@ -14,6 +14,7 @@
         "future": "cpp",
         "system_error": "cpp",
         "valarray": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "expected": "cpp"
     }
 }

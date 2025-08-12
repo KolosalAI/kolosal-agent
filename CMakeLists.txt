@@ -75,7 +75,6 @@ option(ENABLE_CUDA "Enable CUDA support for GPU acceleration" OFF)
 option(ENABLE_VULKAN "Enable Vulkan support" OFF)
 option(ENABLE_METAL "Enable Metal support (macOS)" OFF)
 option(ENABLE_NATIVE_OPTS "Enable native CPU optimizations" OFF)
-option(MCP_PROTOCOL_ENABLED "Enable Model Context Protocol integration" ON)
 
 # Development options
 option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
@@ -205,27 +204,6 @@ endif()
 
 if(NOT nlohmann_json_FOUND)
     include_directories(${EXTERNAL_DIR}/nlohmann)
-endif()
-
-# mcp-cpp integration
-if(FALSE AND MCP_PROTOCOL_ENABLED AND EXISTS "${EXTERNAL_DIR}/mcp-cpp/CMakeLists.txt")
-    message(STATUS "Using mcp-cpp from external directory for MCP protocol support")
-    set(MCP_BUILD_TESTS OFF CACHE BOOL "disable mcp tests")
-    set(MCP_BUILD_EXAMPLES OFF CACHE BOOL "disable mcp examples")
-    set(MCP_BUILD_DOCS OFF CACHE BOOL "disable mcp docs")
-    set(MCP_USE_LIBCURL OFF CACHE BOOL "disable libcurl for mcp temporarily")
-    set(MCP_USE_SYSTEM_DEPS ${USE_SYSTEM_LIBS} CACHE BOOL "use system deps for mcp")
-    add_subdirectory(${EXTERNAL_DIR}/mcp-cpp EXCLUDE_FROM_ALL)
-    set(MCP_CPP_AVAILABLE TRUE)
-    set(MCP_CPP_LIBRARIES mcp)
-elseif(MCP_PROTOCOL_ENABLED)
-    message(WARNING "mcp-cpp not found in external directory - MCP protocol support disabled")
-    set(MCP_CPP_AVAILABLE FALSE)
-    set(MCP_CPP_LIBRARIES "")
-else()
-    message(STATUS "MCP protocol support disabled by user option")
-    set(MCP_CPP_AVAILABLE FALSE)
-    set(MCP_CPP_LIBRARIES "")
 endif()
 
 # yaml-cpp (prioritize main external for this project; kolosal-server builds its own in an isolated external build)
@@ -395,7 +373,6 @@ set(AGENT_SERVICES_SOURCES
     src/agent/services/agent_service.cpp
     src/agent/services/document_agent_service.cpp
     src/agent/services/workflow_agent_service.cpp
-    src/agent/services/mcp_agent_adapter.cpp
 )
 
 set(API_SOURCES
@@ -426,13 +403,14 @@ set(LOGGER_SOURCES
 set(SERVER_SOURCES
     src/server/server_client_interface.cpp
     src/server/unified_server.cpp
-    src/server/mcp_server_integration.cpp
 )
 
 set(TOOLS_SOURCES
     src/tools/system_event_manager.cpp
     src/tools/system_tool_registry.cpp
     src/tools/builtin_function_registry.cpp
+    src/tools/kolosal_server_functions.cpp
+    src/tools/enhanced_function_registry.cpp
 )
 
 set(UTILS_SOURCES
@@ -488,7 +466,6 @@ target_include_directories(kolosal_agent
         ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/nlohmann
         ${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann
         ${CMAKE_CURRENT_SOURCE_DIR}/external/yaml-cpp/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/external/mcp-cpp/include
 )
 
 # Preprocessor definitions
@@ -531,14 +508,6 @@ if(ENABLE_HEALTH_MONITORING)
     target_compile_definitions(kolosal_agent PRIVATE ENABLE_HEALTH_MONITORING)
 endif()
 
-# MCP protocol support
-if(MCP_CPP_AVAILABLE)
-    target_compile_definitions(kolosal_agent PRIVATE MCP_PROTOCOL_ENABLED)
-    message(STATUS "MCP protocol support enabled")
-else()
-    message(STATUS "MCP protocol support disabled")
-endif()
-
 # Link libraries
 target_link_libraries(kolosal_agent
     PUBLIC
@@ -550,7 +519,6 @@ target_link_libraries(kolosal_agent
         minizip_static
         zlib_static
         yaml_cpp_server
-        ${MCP_CPP_LIBRARIES}
 )
 
 # Add PoDoFo libraries conditionally

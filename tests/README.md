@@ -40,7 +40,6 @@ End-to-end system testing with multiple components:
 - `test_multi_agent_workflows.cpp` - Multi-agent workflow scenarios
 - `test_server_integration.cpp` - Server integration testing
 - `test_configuration_loading.cpp` - Configuration system integration
-- `test_mcp_integration.cpp` - Model Context Protocol integration
 - `test_api_endpoints.cpp` - API endpoint integration
 
 ### 3. Performance Tests (`tests/performance/`)

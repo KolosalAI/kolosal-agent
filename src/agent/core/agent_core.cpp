@@ -1,5 +1,11 @@
 /**
- * @file agent_core.cpp
+ * @file agent_corAgentCore::AgentCore(const std::string& name, const std::string& type, const AgentRole role)
+    : agent_id(UUIDGenerator::generate()), 
+      agent_name(name.empty() ? "Agent-" + agent_id.substr(0, 8) : name), 
+      agent_type(type),
+      current_role(role),
+      server_url("http://localhost:8080"),
+      server_integration_enabled(false) {
  * @brief Core agent functionality and lifecycle management
  * @version 2.0.0
  * @author Kolosal AI Team
@@ -12,6 +18,7 @@
 #include "agent/core/agent_core.hpp"
 #include "agent/core/agent_data.hpp"
 #include "tools/builtin_function_registry.hpp"
+#include "tools/enhanced_function_registry.hpp"
 #include "logger/server_logger_integration.hpp"
 #include <mutex>
 #include <chrono>
@@ -429,4 +436,53 @@ std::string AgentCore::execute_function_async(const std::string& name, const Age
         throw;
     }
 }
+
+// Enhanced function registration methods
+void AgentCore::enable_enhanced_functions(const std::string& server_endpoint, bool test_connection) {
+    server_url = server_endpoint;
+    
+    // Create enhanced registry if not exists
+    if (!enhanced_registry) {
+        enhanced_registry = std::make_shared<EnhancedFunctionRegistry>(server_url);
+    } else {
+        enhanced_registry->set_server_url(server_url);
+    }
+    
+    // Test connection if requested
+    if (test_connection) {
+        bool connected = enhanced_registry->test_server_connection();
+        if (connected) {
+            server_integration_enabled = true;
+            logger->info("Enhanced functions enabled with server integration at: " + server_url);
+            
+            // Register all functions including server-integrated ones
+            enhanced_registry->register_all_functions(function_manager, true);
+            
+        } else {
+            server_integration_enabled = false;
+            logger->warn("Server connection failed, enhanced functions in simulation mode only");
+            
+            // Register only built-in functions
+            enhanced_registry->register_builtin_functions(function_manager);
+        }
+    } else {
+        // Enable without testing
+        server_integration_enabled = true;
+        enhanced_registry->register_all_functions(function_manager, true);
+        logger->info("Enhanced functions enabled (connection not tested): " + server_url);
+    }
+}
+
+void AgentCore::set_server_url(const std::string& url) {
+    server_url = url;
+    if (enhanced_registry) {
+        enhanced_registry->set_server_url(url);
+        logger->info("Updated server URL to: " + url);
+    }
+}
+
+bool AgentCore::is_server_integration_enabled() const {
+    return server_integration_enabled;
+}
+
 } // namespace kolosal::agents

@@ -799,7 +799,6 @@ graph TB
 ### 5. Extensibility and Integration
 - **Plugin Architecture**: Easy integration of new tools and functions
 - **REST API**: Comprehensive management interface
-- **MCP Protocol**: Standardized AI tool interoperability
 - **External Service Integration**: Document processing, web search, databases
 
 ### 6. Reliability and Monitoring

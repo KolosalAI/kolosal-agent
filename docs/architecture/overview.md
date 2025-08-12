@@ -26,7 +26,6 @@ The Kolosal Agent System v2.0 represents a next-generation unified multi-agent A
 - **⚡ Async-First Design**: Non-blocking operations with Future-based patterns
 - **🔧 Dynamic Configuration**: Hot-reloading and runtime configuration updates
 - **💓 Health Monitoring**: Comprehensive monitoring with auto-recovery mechanisms
-- **🔗 MCP Protocol Integration**: Standardized AI tool and resource interoperability
 
 ## Core Architecture
 

@@ -28,7 +28,6 @@ Documentation generated on 2025-08-12
 - **[Configuration](guides/configuration.md)** - Configuration reference and examples
 - **[Deployment & Operations](guides/deployment-operations.md)** - Production deployment, monitoring, and operations
 - **[Developer Guide](guides/developer-guide.md)** - Complete guide for developers extending or contributing to the system
-- **[MCP Integration](MCP_INTEGRATION.md)** - Model Context Protocol integration guide
 
 ## 🚀 Quick Start
 
@@ -64,7 +63,6 @@ The Kolosal Agent System v2.0 is built on a unified architecture that seamlessly
 - **⚡ Async-First Design**: Non-blocking operations with Future-based patterns
 - **🔧 Dynamic Configuration**: Hot-reloading configuration without system restart
 - **💓 Health Monitoring**: Comprehensive monitoring with auto-recovery mechanisms
-- **🔗 MCP Protocol Integration**: Standardized AI tool and resource interoperability
 
 ### Basic Setup
 
