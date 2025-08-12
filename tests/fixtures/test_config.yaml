@@ -1,0 +1,45 @@
+# Test configuration for Kolosal Agent System
+# This is a minimal configuration file used for testing purposes
+
+# System Configuration
+system:
+  name: "KolosalAgent-Test"
+  version: "2.0.0-test"
+  debug: true
+  log_level: "DEBUG"
+
+# Server Configuration
+server:
+  host: "localhost"
+  port: 8080
+  max_connections: 10
+  timeout: 30
+
+# Agent Configuration
+agents:
+  default_agent:
+    name: "TestAgent"
+    role: "assistant"
+    model: "test-model"
+    temperature: 0.7
+    max_tokens: 1000
+
+# Testing Configuration
+testing:
+  enable_verbose_logging: true
+  test_data_path: "./fixtures"
+  mock_responses: true
+  timeout_seconds: 60
+
+# Performance Settings
+performance:
+  max_concurrent_agents: 5
+  memory_limit_mb: 512
+  cache_size: 100
+
+# Features
+features:
+  enable_logging: true
+  enable_metrics: true
+  enable_health_monitoring: true
+  enable_mcp: false  # Disabled for basic tests

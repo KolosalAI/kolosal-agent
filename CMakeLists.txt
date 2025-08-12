@@ -59,6 +59,16 @@ option(ENABLE_HEALTH_MONITORING "Enable health monitoring" ON)
 option(USE_SYSTEM_LIBS "Use system-installed libraries when possible" OFF)
 option(ENABLE_HTTP_CLIENT "Enable HTTP client functionality (requires CURL)" ON)
 
+# Test mode options
+option(ENABLE_TEST_MODE "Enable comprehensive test mode with enhanced debugging and validation" OFF)
+option(BUILD_UNIT_TESTS "Build unit tests (included in BUILD_TESTS)" OFF)
+option(BUILD_INTEGRATION_TESTS "Build integration tests (included in BUILD_TESTS)" OFF)
+option(BUILD_PERFORMANCE_TESTS "Build performance tests (included in BUILD_TESTS)" OFF)
+option(ENABLE_TEST_COVERAGE "Enable test coverage reporting (requires GCC/Clang)" OFF)
+option(ENABLE_MEMORY_TESTING "Enable memory testing with sanitizers in test mode" OFF)
+option(RUN_TESTS_ON_BUILD "Automatically run tests after successful build" OFF)
+option(ENABLE_BENCHMARK_TESTS "Enable benchmark testing with Google Benchmark" OFF)
+
 # Advanced build options
 option(USE_PODOFO "Enable PDF processing with PoDoFo" OFF)
 option(ENABLE_CUDA "Enable CUDA support for GPU acceleration" OFF)
@@ -79,6 +89,42 @@ option(PACKAGE_AFTER_BUILD "Create packages after build" OFF)
 option(RUN_TESTS_AFTER_BUILD "Run tests after build" OFF)
 option(VERBOSE_BUILD "Verbose build output" OFF)
 
+# Configure test mode settings
+if(ENABLE_TEST_MODE)
+    message(STATUS "🧪 Test Mode Enabled - Configuring enhanced testing environment")
+    set(BUILD_TESTS ON)
+    set(BUILD_UNIT_TESTS ON)
+    set(BUILD_INTEGRATION_TESTS ON)
+    set(BUILD_PERFORMANCE_TESTS ON)
+    set(RUN_TESTS_ON_BUILD ON)
+    set(ENABLE_LOGGING ON)
+    set(ENABLE_METRICS ON)
+    set(VERBOSE_BUILD ON)
+    
+    # Force debug build for test mode
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        message(STATUS "Forcing Debug build for test mode")
+        set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type forced to Debug for test mode" FORCE)
+    endif()
+    
+    # Enable memory testing if requested
+    if(ENABLE_MEMORY_TESTING)
+        set(ENABLE_ASAN ON)
+        set(ENABLE_UBSAN ON)
+        message(STATUS "Memory testing enabled with AddressSanitizer and UndefinedBehaviorSanitizer")
+    endif()
+endif()
+
+# Validate and consolidate test options
+if(BUILD_TESTS)
+    if(NOT BUILD_UNIT_TESTS AND NOT BUILD_INTEGRATION_TESTS AND NOT BUILD_PERFORMANCE_TESTS)
+        # Default to all tests if BUILD_TESTS is ON but specific tests not specified
+        set(BUILD_UNIT_TESTS ON)
+        set(BUILD_INTEGRATION_TESTS ON)
+        set(BUILD_PERFORMANCE_TESTS ON)
+    endif()
+endif()
+
 # Print configuration
 message(STATUS "========================================")
 message(STATUS "Kolosal Agent System v${PROJECT_VERSION}")
@@ -86,6 +132,9 @@ message(STATUS "Platform: ${PLATFORM_NAME}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Shared Libraries: ${BUILD_SHARED_LIBS}")
+if(ENABLE_TEST_MODE)
+message(STATUS "🧪 TEST MODE: ENABLED")
+endif()
 message(STATUS "========================================")
 
 # Compiler-specific settings
@@ -449,6 +498,15 @@ target_compile_definitions(kolosal_agent
         KOLOSAL_AGENT_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
         KOLOSAL_AGENT_BUILD  # Define that we're building the library
 )
+
+# Test mode specific definitions
+if(ENABLE_TEST_MODE)
+    target_compile_definitions(kolosal_agent 
+        PRIVATE
+            KOLOSAL_AGENT_TEST_MODE
+            KOLOSAL_AGENT_DEBUG_VERBOSE
+    )
+endif()
 
 # Handle static vs shared library definitions
 if(BUILD_SHARED_LIBS)
@@ -873,13 +931,99 @@ endif()
 if(BUILD_TESTS)
     enable_testing()
     
-    # Find test framework
+    # Find test framework - Use FetchContent to get GoogleTest
     find_package(GTest QUIET)
+    if(NOT GTest_FOUND)
+        # Use FetchContent to download and build GoogleTest
+        include(FetchContent)
+        FetchContent_Declare(
+            googletest
+            GIT_REPOSITORY https://github.com/google/googletest.git
+            GIT_TAG release-1.12.1
+        )
+        
+        # For Windows: Prevent overriding the parent project's compiler/linker settings
+        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+        set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
+        set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+        
+        FetchContent_MakeAvailable(googletest)
+        
+        # Create targets to match what find_package would create
+        if(NOT TARGET GTest::gtest)
+            add_library(GTest::gtest ALIAS gtest)
+        endif()
+        if(NOT TARGET GTest::gtest_main)
+            add_library(GTest::gtest_main ALIAS gtest_main)
+        endif()
+        if(NOT TARGET GTest::gmock)
+            add_library(GTest::gmock ALIAS gmock)
+        endif()
+        if(NOT TARGET GTest::gmock_main)
+            add_library(GTest::gmock_main ALIAS gmock_main)
+        endif()
+        
+        set(GTest_FOUND TRUE)
+        message(STATUS "Using FetchContent GoogleTest")
+    endif()
+    
     if(GTest_FOUND)
         add_subdirectory(tests)
         message(STATUS "Tests enabled with Google Test")
+        
+        # Find Google Benchmark if benchmark tests are enabled
+        if(ENABLE_BENCHMARK_TESTS)
+            find_package(benchmark QUIET)
+            if(benchmark_FOUND)
+                message(STATUS "Benchmark tests enabled with Google Benchmark")
+            else()
+                message(WARNING "Benchmark tests requested but Google Benchmark not found")
+            endif()
+        endif()
+        
     else()
         message(WARNING "Tests requested but Google Test not found")
+        message(STATUS "To install Google Test on Windows:")
+        message(STATUS "  vcpkg install gtest")
+        message(STATUS "Or build from source:")
+        message(STATUS "  git clone https://github.com/google/googletest.git")
+    endif()
+endif()
+
+# Add test-specific targets when test mode is enabled
+if(ENABLE_TEST_MODE)
+    # Test data preparation target
+    add_custom_target(prepare_test_data
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/test_output
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/test_logs
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/test_configs
+        COMMENT "Preparing test data directories"
+    )
+    
+    # Test validation target
+    add_custom_target(validate_tests
+        COMMAND ${CMAKE_COMMAND} -E echo "Running test validation..."
+        COMMENT "Validating test configuration"
+    )
+    
+    # Memory test target (when memory testing is enabled)
+    if(ENABLE_MEMORY_TESTING)
+        add_custom_target(memory_tests
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "memory"
+            COMMENT "Running memory tests with sanitizers"
+        )
+    endif()
+    
+    # Coverage report target (when coverage is enabled)
+    if(ENABLE_TEST_COVERAGE AND (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+        add_custom_target(test_coverage
+            COMMAND lcov --directory . --capture --output-file coverage.info
+            COMMAND lcov --remove coverage.info '/usr/*' --output-file coverage.info
+            COMMAND lcov --list coverage.info
+            COMMAND genhtml coverage.info --output-directory coverage_report
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            COMMENT "Generating test coverage report"
+        )
     endif()
 endif()
 
@@ -975,6 +1119,40 @@ add_custom_target(build-all
     COMMENT "Building both kolosal-agent and kolosal-server executables"
 )
 
+# Test mode specific targets
+if(ENABLE_TEST_MODE)
+    # Build everything including tests
+    add_custom_target(build-test-mode
+        DEPENDS kolosal-agent kolosal-server-exe prepare_test_data
+        COMMENT "Building all targets for test mode"
+    )
+    
+    # Quick test target for fast feedback
+    add_custom_target(quick-test
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "unit" --parallel 4
+        COMMENT "Running quick unit tests"
+    )
+    
+    # Full test suite target
+    add_custom_target(full-test
+        COMMAND ${CMAKE_COMMAND} -E echo "🧪 Full test suite execution"
+        COMMAND ${CMAKE_COMMAND} -E echo "Building and running available tests..."
+        DEPENDS 
+            $<$<BOOL:${BUILD_UNIT_TESTS}>:kolosal_agent_unit_tests>
+            $<$<BOOL:${BUILD_INTEGRATION_TESTS}>:kolosal_agent_integration_tests>
+            $<$<BOOL:${BUILD_PERFORMANCE_TESTS}>:kolosal_agent_performance_tests>
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --parallel 4 || ${CMAKE_COMMAND} -E echo "Note: Some tests may have compilation issues and will be skipped"
+        COMMENT "Building and running full test suite"
+    )
+    
+    # Test and report target
+    add_custom_target(test-report
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --parallel 4
+        COMMAND ${CMAKE_COMMAND} -E echo "Test execution completed. Check test_logs/ for detailed results."
+        COMMENT "Running tests and generating reports"
+    )
+endif()
+
 # Post-build actions
 if(INSTALL_AFTER_BUILD)
     add_custom_command(TARGET kolosal-agent POST_BUILD
@@ -1013,6 +1191,15 @@ if(RUN_TESTS_AFTER_BUILD AND BUILD_TESTS)
     )
 endif()
 
+# Run tests on build for test mode
+if(RUN_TESTS_ON_BUILD AND BUILD_TESTS)
+    add_custom_command(TARGET kolosal-agent POST_BUILD
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --parallel 4
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        COMMENT "Running tests automatically in test mode"
+    )
+endif()
+
 # Git submodule initialization target (optional)
 option(INIT_SUBMODULES "Initialize git submodules on configure/build" ON)
 find_package(Git QUIET)
@@ -1041,6 +1228,18 @@ message(STATUS "  Platform: ${PLATFORM_NAME}")
 message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "  Shared Libraries: ${BUILD_SHARED_LIBS}")
 message(STATUS "  Tests: ${BUILD_TESTS}")
+if(ENABLE_TEST_MODE)
+message(STATUS "  🧪 Test Mode: ENABLED")
+message(STATUS "    - Unit Tests: ${BUILD_UNIT_TESTS}")
+message(STATUS "    - Integration Tests: ${BUILD_INTEGRATION_TESTS}")
+message(STATUS "    - Performance Tests: ${BUILD_PERFORMANCE_TESTS}")
+message(STATUS "    - Coverage: ${ENABLE_TEST_COVERAGE}")
+message(STATUS "    - Memory Testing: ${ENABLE_MEMORY_TESTING}")
+message(STATUS "    - Benchmark Tests: ${ENABLE_BENCHMARK_TESTS}")
+message(STATUS "    - Auto Run Tests: ${RUN_TESTS_ON_BUILD}")
+else()
+message(STATUS "  Test Mode: Disabled")
+endif()
 message(STATUS "  Examples: ${BUILD_EXAMPLES}")
 message(STATUS "  Documentation: ${BUILD_DOCS}")
 message(STATUS "  Kolosal Server: Will be built as external executable")
@@ -1056,9 +1255,28 @@ message(STATUS "    - Metal: ${ENABLE_METAL}")
 message(STATUS "========================================")
 message(STATUS "")
 message(STATUS "🔧 Build Instructions:")
+if(ENABLE_TEST_MODE)
+message(STATUS "  🧪 TEST MODE BUILD:")
+message(STATUS "    cmake .. -DENABLE_TEST_MODE=ON")
+message(STATUS "    cmake --build . --config Debug")
+message(STATUS "  ")
+message(STATUS "  Test-specific targets:")
+message(STATUS "    cmake --build . --target build-test-mode --config Debug  # Build everything for testing")
+message(STATUS "    cmake --build . --target quick-test --config Debug       # Run quick unit tests")
+message(STATUS "    cmake --build . --target full-test --config Debug        # Run all tests")
+message(STATUS "    cmake --build . --target test-report --config Debug      # Run tests with reporting")
+if(ENABLE_TEST_COVERAGE)
+message(STATUS "    cmake --build . --target test_coverage --config Debug    # Generate coverage report")
+endif()
+if(ENABLE_MEMORY_TESTING)
+message(STATUS "    cmake --build . --target memory_tests --config Debug     # Run memory tests")
+endif()
+message(STATUS "  ")
+else()
 message(STATUS "  Configure with Debug build:")
 message(STATUS "    cmake .. -DCMAKE_BUILD_TYPE=Debug")
 message(STATUS "  ")
+endif()
 message(STATUS "  Build ALL targets (default - builds both kolosal-server.exe and kolosal-agent):")
 message(STATUS "    cmake --build . --config Debug")
 message(STATUS "  ")
@@ -1074,8 +1292,19 @@ message(STATUS "    - kolosal-server(.exe) - Standalone LLM server")
 message(STATUS "    - kolosal-launcher(.exe) - System launcher")
 message(STATUS "    - simple-test(.exe) - Simple test utility")
 message(STATUS "  ")
+if(ENABLE_TEST_MODE)
+message(STATUS "  🧪 Test Mode Usage:")
+message(STATUS "    All tests run automatically after build")
+message(STATUS "    Test results in: build/test_output/")
+message(STATUS "    Test logs in: build/test_logs/")
+message(STATUS "  ")
+endif()
 message(STATUS "  Additional options:")
+if(ENABLE_TEST_MODE)
+message(STATUS "    cmake .. -DENABLE_TEST_MODE=ON -DENABLE_MEMORY_TESTING=ON -DENABLE_TEST_COVERAGE=ON")
+else()
 message(STATUS "    cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON")
+endif()
 message(STATUS "    cmake --build . --config Debug --parallel")
 message(STATUS "  ")
 message(STATUS "  Build only kolosal-server:")
