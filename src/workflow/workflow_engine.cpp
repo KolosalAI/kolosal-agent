@@ -24,6 +24,9 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <future>
+#include <set>
+#include <yaml-cpp/yaml.h>
 
 using json = nlohmann::json;
 
@@ -451,20 +454,127 @@ void WorkflowEngine::execute_workflow_internal(const std::string& execution_id) 
                 }
                 break;
                 
-            case WorkflowType::PARALLEL:
-                // TODO: Implement parallel execution
+            case WorkflowType::PARALLEL: {
+                // Execute all steps in parallel
+                std::vector<std::string> all_steps;
+                for (const auto& step : workflow.steps) {
+                    all_steps.push_back(step.step_id);
+                }
+                execute_parallel_steps(context, all_steps);
                 break;
+            }
                 
-            case WorkflowType::PIPELINE:
-                // TODO: Implement pipeline execution
+            case WorkflowType::PIPELINE: {
+                // Group steps that can run in parallel (based on dependencies)
+                auto parallel_groups = group_parallel_steps(workflow);
+                
+                for (const auto& group : parallel_groups) {
+                    if (!engine_running.load()) break;
+                    
+                    lock.lock();
+                    if (context.current_status != WorkflowStatus::RUNNING) {
+                        lock.unlock();
+                        break;
+                    }
+                    lock.unlock();
+                    
+                    if (group.size() == 1) {
+                        // Single step execution
+                        auto step_it = std::find_if(workflow.steps.begin(), workflow.steps.end(),
+                            [&group](const WorkflowStep& s) { return s.step_id == group[0]; });
+                        if (step_it != workflow.steps.end()) {
+                            execute_step(context, *step_it);
+                        }
+                    } else {
+                        // Parallel execution
+                        execute_parallel_steps(context, group);
+                    }
+                    
+                    // Check for failures
+                    lock.lock();
+                    bool has_failures = false;
+                    for (const auto& step_id : group) {
+                        if (context.step_statuses[step_id] == StepStatus::FAILED && 
+                            !workflow.error_handling.continue_on_error) {
+                            has_failures = true;
+                            break;
+                        }
+                    }
+                    if (has_failures) {
+                        context.current_status = WorkflowStatus::FAILED;
+                        lock.unlock();
+                        break;
+                    }
+                    lock.unlock();
+                }
                 break;
+            }
                 
             case WorkflowType::CONSENSUS:
-                // TODO: Implement consensus execution
+                // Execute voting steps in parallel, then consensus step
+                {
+                    std::vector<std::string> voting_steps;
+                    std::string consensus_step;
+                    
+                    for (const auto& step : workflow.steps) {
+                        if (step.step_id == "consensus") {
+                            consensus_step = step.step_id;
+                        } else {
+                            voting_steps.push_back(step.step_id);
+                        }
+                    }
+                    
+                    if (!voting_steps.empty()) {
+                        execute_parallel_steps(context, voting_steps);
+                    }
+                    
+                    if (!consensus_step.empty()) {
+                        auto consensus_it = std::find_if(workflow.steps.begin(), workflow.steps.end(),
+                            [&consensus_step](const WorkflowStep& s) { return s.step_id == consensus_step; });
+                        if (consensus_it != workflow.steps.end()) {
+                            execute_step(context, *consensus_it);
+                        }
+                    }
+                }
                 break;
                 
             case WorkflowType::CONDITIONAL:
-                // TODO: Implement conditional execution
+                // Execute steps based on conditions and dependencies
+                for (const auto& step_id : execution_order) {
+                    if (!engine_running.load()) break;
+                    
+                    auto step_it = std::find_if(workflow.steps.begin(), workflow.steps.end(),
+                        [&step_id](const WorkflowStep& s) { return s.step_id == step_id; });
+                    
+                    if (step_it != workflow.steps.end()) {
+                        // Check conditions before execution
+                        if (!step_it->conditions.empty() && !evaluate_conditions(step_it->conditions, context)) {
+                            lock.lock();
+                            context.step_statuses[step_id] = StepStatus::SKIPPED;
+                            lock.unlock();
+                            continue;
+                        }
+                        
+                        lock.lock();
+                        if (context.current_status != WorkflowStatus::RUNNING) {
+                            lock.unlock();
+                            break;
+                        }
+                        context.current_step_id = step_id;
+                        lock.unlock();
+                        
+                        execute_step(context, *step_it);
+                        
+                        lock.lock();
+                        if (context.step_statuses[step_id] == StepStatus::FAILED && 
+                            !workflow.error_handling.continue_on_error) {
+                            context.current_status = WorkflowStatus::FAILED;
+                            lock.unlock();
+                            break;
+                        }
+                        lock.unlock();
+                    }
+                }
                 break;
         }
         
@@ -604,12 +714,29 @@ bool WorkflowEngine::check_step_dependencies(const WorkflowExecutionContext& con
 }
 
 bool WorkflowEngine::evaluate_conditions(const json& conditions, const WorkflowExecutionContext& context) {
-    // Simple condition evaluation - can be expanded
     try {
         if (conditions.contains("expression")) {
-            // TODO: Implement expression evaluation
-            return true;
+            std::string expression = conditions["expression"].get<std::string>();
+            return evaluate_expression(expression, context);
         }
+        
+        // Legacy simple conditions
+        if (conditions.is_object()) {
+            // All conditions must be true (AND logic)
+            for (const auto& [key, value] : conditions.items()) {
+                if (key == "expression") continue;
+                
+                // Simple key-value conditions
+                if (context.global_variables.count(key) > 0) {
+                    if (context.global_variables[key] != value) {
+                        return false;
+                    }
+                } else {
+                    return false; // Variable not found
+                }
+            }
+        }
+        
         return true;
     } catch (const std::exception& e) {
         ServerLogger::logError("Error evaluating conditions: %s", e.what());
@@ -981,6 +1108,388 @@ Workflow WorkflowEngine::create_consensus_workflow(const std::string& name,
     workflow.steps.push_back(consensus_step);
     
     return workflow;
+}
+
+// YAML Configuration Loading
+bool WorkflowEngine::load_workflow_from_yaml(const std::string& yaml_file) {
+    try {
+        YAML::Node yaml_config = YAML::LoadFile(yaml_file);
+        
+        // Convert YAML to JSON for processing
+        json config;
+        
+        // Helper function to convert YAML node to JSON
+        std::function<json(const YAML::Node&)> yaml_to_json = [&](const YAML::Node& node) -> json {
+            if (node.IsScalar()) {
+                try {
+                    // Try to parse as different types
+                    if (node.as<std::string>() == "true") return true;
+                    if (node.as<std::string>() == "false") return false;
+                    
+                    // Try integer
+                    try {
+                        return node.as<int>();
+                    } catch (...) {}
+                    
+                    // Try double
+                    try {
+                        return node.as<double>();
+                    } catch (...) {}
+                    
+                    // Default to string
+                    return node.as<std::string>();
+                } catch (...) {
+                    return node.as<std::string>();
+                }
+            } else if (node.IsSequence()) {
+                json array = json::array();
+                for (const auto& item : node) {
+                    array.push_back(yaml_to_json(item));
+                }
+                return array;
+            } else if (node.IsMap()) {
+                json object = json::object();
+                for (const auto& pair : node) {
+                    object[pair.first.as<std::string>()] = yaml_to_json(pair.second);
+                }
+                return object;
+            }
+            return json();
+        };
+        
+        config = yaml_to_json(yaml_config);
+        
+        auto workflow = create_workflow_from_config(config);
+        create_workflow(workflow);
+        
+        ServerLogger::logInfo("Loaded workflow from YAML: %s", yaml_file.c_str());
+        return true;
+        
+    } catch (const std::exception& e) {
+        ServerLogger::logError("Error loading workflow from YAML %s: %s", yaml_file.c_str(), e.what());
+        return false;
+    }
+}
+
+Workflow WorkflowEngine::create_workflow_from_config(const json& config) {
+    Workflow workflow;
+    
+    // Basic workflow properties
+    workflow.workflow_id = config.value("id", "");
+    workflow.name = config.value("name", "");
+    workflow.description = config.value("description", "");
+    workflow.created_by = config.value("created_by", "system");
+    
+    // Workflow type
+    std::string type_str = config.value("type", "sequential");
+    if (type_str == "parallel") {
+        workflow.type = WorkflowType::PARALLEL;
+    } else if (type_str == "pipeline") {
+        workflow.type = WorkflowType::PIPELINE;
+    } else if (type_str == "consensus") {
+        workflow.type = WorkflowType::CONSENSUS;
+    } else if (type_str == "conditional") {
+        workflow.type = WorkflowType::CONDITIONAL;
+    } else {
+        workflow.type = WorkflowType::SEQUENTIAL;
+    }
+    
+    // Global context
+    if (config.contains("global_context")) {
+        workflow.global_context = config["global_context"];
+    }
+    
+    // Settings
+    if (config.contains("settings")) {
+        const auto& settings = config["settings"];
+        workflow.max_execution_time_seconds = settings.value("max_execution_time", 300);
+        workflow.max_concurrent_steps = settings.value("max_concurrent_steps", 4);
+        workflow.auto_cleanup = settings.value("auto_cleanup", true);
+        workflow.persist_state = settings.value("persist_state", true);
+    }
+    
+    // Error handling
+    if (config.contains("error_handling")) {
+        const auto& eh = config["error_handling"];
+        workflow.error_handling.retry_on_failure = eh.value("retry_on_failure", true);
+        workflow.error_handling.max_retries = eh.value("max_retries", 3);
+        workflow.error_handling.retry_delay_seconds = eh.value("retry_delay_seconds", 1);
+        workflow.error_handling.continue_on_error = eh.value("continue_on_error", false);
+        workflow.error_handling.use_fallback_agent = eh.value("use_fallback_agent", false);
+        workflow.error_handling.fallback_agent_id = eh.value("fallback_agent_id", "");
+        if (eh.contains("fallback_parameters")) {
+            workflow.error_handling.fallback_parameters = eh["fallback_parameters"];
+        }
+    }
+    
+    // Steps
+    if (config.contains("steps")) {
+        for (const auto& step_config : config["steps"]) {
+            WorkflowStep step;
+            
+            step.step_id = step_config.value("id", "");
+            step.name = step_config.value("name", "");
+            step.description = step_config.value("description", "");
+            step.agent_id = step_config.value("agent_id", "");
+            step.function_name = step_config.value("function", "");
+            
+            // Parameters
+            if (step_config.contains("parameters")) {
+                step.parameters = step_config["parameters"];
+            }
+            
+            // Dependencies
+            if (step_config.contains("depends_on")) {
+                for (const auto& dep_config : step_config["depends_on"]) {
+                    StepDependency dep;
+                    if (dep_config.is_string()) {
+                        dep.step_id = dep_config.get<std::string>();
+                        dep.condition = "success";
+                        dep.required = true;
+                    } else {
+                        dep.step_id = dep_config.value("step", "");
+                        dep.condition = dep_config.value("condition", "success");
+                        dep.required = dep_config.value("required", true);
+                    }
+                    step.dependencies.push_back(dep);
+                }
+            }
+            
+            // Conditions
+            if (step_config.contains("conditions")) {
+                step.conditions = step_config["conditions"];
+            }
+            
+            // Execution settings
+            step.parallel_allowed = step_config.value("parallel_allowed", true);
+            step.timeout_seconds = step_config.value("timeout", 30);
+            step.max_retries = step_config.value("max_retries", 3);
+            step.retry_delay_seconds = step_config.value("retry_delay", 1);
+            step.continue_on_error = step_config.value("continue_on_error", false);
+            
+            workflow.steps.push_back(step);
+        }
+    }
+    
+    return workflow;
+}
+
+// Parallel execution support
+void WorkflowEngine::execute_parallel_steps(WorkflowExecutionContext& context, const std::vector<std::string>& step_ids) {
+    std::vector<std::future<void>> futures;
+    std::mutex step_mutex;
+    
+    auto workflow_it = workflows.find(context.workflow_id);
+    if (workflow_it == workflows.end()) {
+        return;
+    }
+    
+    for (const auto& step_id : step_ids) {
+        auto step_it = std::find_if(workflow_it->second.steps.begin(), workflow_it->second.steps.end(),
+            [&step_id](const WorkflowStep& s) { return s.step_id == step_id; });
+        
+        if (step_it != workflow_it->second.steps.end()) {
+            auto future = std::async(std::launch::async, [this, &context, step_it, &step_mutex]() {
+                std::lock_guard<std::mutex> lock(step_mutex);
+                auto step_copy = *step_it;
+                lock.~lock_guard();
+                
+                execute_step(context, step_copy);
+                
+                std::lock_guard<std::mutex> lock2(step_mutex);
+                // Update the original step with results
+                *step_it = step_copy;
+            });
+            
+            futures.push_back(std::move(future));
+        }
+    }
+    
+    // Wait for all steps to complete
+    for (auto& future : futures) {
+        try {
+            future.get();
+        } catch (const std::exception& e) {
+            ServerLogger::logError("Error in parallel step execution: %s", e.what());
+        }
+    }
+}
+
+std::vector<std::vector<std::string>> WorkflowEngine::group_parallel_steps(const Workflow& workflow) {
+    std::vector<std::vector<std::string>> groups;
+    std::set<std::string> processed;
+    std::map<std::string, std::set<std::string>> dependencies;
+    
+    // Build dependency map
+    for (const auto& step : workflow.steps) {
+        for (const auto& dep : step.dependencies) {
+            dependencies[step.step_id].insert(dep.step_id);
+        }
+    }
+    
+    while (processed.size() < workflow.steps.size()) {
+        std::vector<std::string> current_group;
+        
+        for (const auto& step : workflow.steps) {
+            if (processed.find(step.step_id) != processed.end()) {
+                continue; // Already processed
+            }
+            
+            // Check if all dependencies are satisfied
+            bool can_execute = true;
+            for (const auto& dep_id : dependencies[step.step_id]) {
+                if (processed.find(dep_id) == processed.end()) {
+                    can_execute = false;
+                    break;
+                }
+            }
+            
+            if (can_execute && step.parallel_allowed) {
+                current_group.push_back(step.step_id);
+            }
+        }
+        
+        if (current_group.empty()) {
+            // Find any step that can be executed (even if not parallel allowed)
+            for (const auto& step : workflow.steps) {
+                if (processed.find(step.step_id) != processed.end()) {
+                    continue;
+                }
+                
+                bool can_execute = true;
+                for (const auto& dep_id : dependencies[step.step_id]) {
+                    if (processed.find(dep_id) == processed.end()) {
+                        can_execute = false;
+                        break;
+                    }
+                }
+                
+                if (can_execute) {
+                    current_group.push_back(step.step_id);
+                    break; // Only add one non-parallel step
+                }
+            }
+        }
+        
+        if (current_group.empty()) {
+            break; // No more steps can be executed
+        }
+        
+        groups.push_back(current_group);
+        for (const auto& step_id : current_group) {
+            processed.insert(step_id);
+        }
+    }
+    
+    return groups;
+}
+
+// Load multiple workflows from directory
+bool WorkflowEngine::load_workflows_from_directory(const std::string& directory_path) {
+    try {
+        if (!std::filesystem::exists(directory_path)) {
+            ServerLogger::logError("Workflow directory does not exist: %s", directory_path.c_str());
+            return false;
+        }
+        
+        int loaded_count = 0;
+        for (const auto& entry : std::filesystem::directory_iterator(directory_path)) {
+            if (entry.is_regular_file()) {
+                auto extension = entry.path().extension();
+                if (extension == ".yaml" || extension == ".yml") {
+                    try {
+                        if (load_workflow_from_yaml(entry.path().string())) {
+                            loaded_count++;
+                        }
+                    } catch (const std::exception& e) {
+                        ServerLogger::logError("Error loading workflow file %s: %s", 
+                            entry.path().string().c_str(), e.what());
+                    }
+                }
+            }
+        }
+        
+        ServerLogger::logInfo("Loaded %d workflows from directory: %s", loaded_count, directory_path.c_str());
+        return loaded_count > 0;
+        
+    } catch (const std::exception& e) {
+        ServerLogger::logError("Error scanning workflow directory %s: %s", directory_path.c_str(), e.what());
+        return false;
+    }
+}
+
+// Enhanced expression evaluation
+bool WorkflowEngine::evaluate_expression(const std::string& expression, const WorkflowExecutionContext& context) {
+    try {
+        std::string expr = expression;
+        
+        // Simple expression evaluation
+        // Replace global variables
+        std::regex global_pattern(R"(global\.(\w+))");
+        std::smatch matches;
+        while (std::regex_search(expr, matches, global_pattern)) {
+            std::string var_name = matches[1].str();
+            if (context.global_variables.count(var_name) > 0) {
+                std::string value;
+                if (context.global_variables[var_name].is_number()) {
+                    value = std::to_string(context.global_variables[var_name].get<double>());
+                } else if (context.global_variables[var_name].is_boolean()) {
+                    value = context.global_variables[var_name].get<bool>() ? "true" : "false";
+                } else {
+                    value = "\"" + context.global_variables[var_name].get<std::string>() + "\"";
+                }
+                expr = std::regex_replace(expr, std::regex("global\\." + var_name), value);
+            }
+        }
+        
+        // Replace step output variables
+        std::regex step_pattern(R"(steps\.(\w+)\.output\.(\w+))");
+        while (std::regex_search(expr, matches, step_pattern)) {
+            std::string step_id = matches[1].str();
+            std::string field = matches[2].str();
+            if (context.step_outputs.count(step_id) > 0) {
+                const auto& output = context.step_outputs.at(step_id);
+                if (output.count(field) > 0) {
+                    std::string value;
+                    if (output[field].is_number()) {
+                        value = std::to_string(output[field].get<double>());
+                    } else if (output[field].is_boolean()) {
+                        value = output[field].get<bool>() ? "true" : "false";
+                    } else {
+                        value = "\"" + output[field].get<std::string>() + "\"";
+                    }
+                    expr = std::regex_replace(expr, 
+                        std::regex("steps\\." + step_id + "\\.output\\." + field), value);
+                }
+            }
+        }
+        
+        // Simple boolean expression evaluation
+        if (expr == "true") return true;
+        if (expr == "false") return false;
+        
+        // Basic comparison operators
+        std::regex comparison_pattern(R"(([0-9.]+)\s*(>=|<=|>|<|==|!=)\s*([0-9.]+))");
+        if (std::regex_search(expr, matches, comparison_pattern)) {
+            double left = std::stod(matches[1].str());
+            std::string op = matches[2].str();
+            double right = std::stod(matches[3].str());
+            
+            if (op == ">=") return left >= right;
+            if (op == "<=") return left <= right;
+            if (op == ">") return left > right;
+            if (op == "<") return left < right;
+            if (op == "==") return std::abs(left - right) < 1e-9;
+            if (op == "!=") return std::abs(left - right) >= 1e-9;
+        }
+        
+        ServerLogger::logWarning("Could not evaluate expression: %s", expression.c_str());
+        return false;
+        
+    } catch (const std::exception& e) {
+        ServerLogger::logError("Error evaluating expression '%s': %s", expression.c_str(), e.what());
+        return false;
+    }
 }
 
 } // namespace kolosal::agents

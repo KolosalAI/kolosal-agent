@@ -1,0 +1,114 @@
+# Consensus Workflow Configuration
+# This demonstrates consensus decision making among multiple agents
+
+id: "consensus_decision_workflow"
+name: "Multi-Agent Consensus Decision"
+description: "Multiple agents vote on a decision and reach consensus"
+type: "consensus"
+created_by: "system"
+
+global_context:
+  decision_topic: "Best AI Development Strategy"
+  voting_criteria: ["technical_feasibility", "business_value", "ethical_implications"]
+  consensus_threshold: 0.7
+
+settings:
+  max_execution_time: 600
+  max_concurrent_steps: 3  # All voting steps run in parallel
+  auto_cleanup: true
+  persist_state: true
+
+error_handling:
+  retry_on_failure: true
+  max_retries: 2
+  retry_delay_seconds: 1
+  continue_on_error: true  # Allow consensus even if some votes fail
+  use_fallback_agent: false
+
+steps:
+  # Voting Phase - All run in parallel
+  - id: "vote_technical"
+    name: "Technical Vote"
+    description: "Technical evaluation and vote"
+    agent_id: "research_analyst"
+    function: "analyze_data"
+    parameters:
+      data_source: "${global.decision_topic}"
+      analysis_type: "technical_assessment"
+      criteria: "${global.voting_criteria}"
+      focus: "technical_feasibility"
+    timeout: 180
+    parallel_allowed: true
+
+  - id: "vote_business"
+    name: "Business Vote"
+    description: "Business evaluation and vote"
+    agent_id: "task_executor"
+    function: "execute_task"
+    parameters:
+      task_definition:
+        action: "analyze"
+        subject: "${global.decision_topic}"
+        perspective: "business_value"
+        criteria: "${global.voting_criteria}"
+    timeout: 180
+    parallel_allowed: true
+
+  - id: "vote_ethics"
+    name: "Ethics Vote"
+    description: "Ethical evaluation and vote"
+    agent_id: "research_analyst"
+    function: "research_topic"
+    parameters:
+      topic: "${global.decision_topic} - Ethical Analysis"
+      depth: "thorough"
+      sources: ["academic", "ethics"]
+      focus: "ethical_implications"
+    timeout: 180
+    parallel_allowed: true
+
+  # Consensus Phase - Depends on all votes
+  - id: "consensus"
+    name: "Consensus Decision"
+    description: "Aggregate all votes and make consensus decision"
+    agent_id: "research_analyst"
+    function: "synthesize_information"
+    parameters:
+      input_data:
+        technical_vote: "${steps.vote_technical.output}"
+        business_vote: "${steps.vote_business.output}"
+        ethics_vote: "${steps.vote_ethics.output}"
+      synthesis_method: "consensus_building"
+      threshold: "${global.consensus_threshold}"
+      output_format: "decision_report"
+    depends_on:
+      - step: "vote_technical"
+        condition: "completion"  # Allow even if failed
+        required: false
+      - step: "vote_business"
+        condition: "completion"
+        required: false
+      - step: "vote_ethics"
+        condition: "completion"
+        required: false
+    timeout: 120
+    max_retries: 1
+    parallel_allowed: false
+
+  # Final Action Phase
+  - id: "implement_decision"
+    name: "Implement Decision"
+    description: "Execute actions based on consensus decision"
+    agent_id: "task_executor"
+    function: "execute_task"
+    parameters:
+      task_definition:
+        action: "implement"
+        decision: "${steps.consensus.output}"
+        create_action_plan: true
+        notify_stakeholders: true
+    depends_on:
+      - "consensus"
+    timeout: 240
+    max_retries: 2
+    parallel_allowed: false

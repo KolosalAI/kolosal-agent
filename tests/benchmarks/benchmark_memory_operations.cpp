@@ -3,6 +3,9 @@
  * @brief Benchmark tests for memory management operations
  */
 
+// Only compile benchmark tests if Google Benchmark is available
+#ifdef BENCHMARK_FOUND
+
 #include <benchmark/benchmark.h>
 #include "agent/memory/agent_memory_manager.hpp"
 
@@ -39,3 +42,10 @@ BENCHMARK(BM_MemoryAllocationDeallocation)->Range(1, 1000);
 #endif // KOLOSAL_AGENT_TEST_MODE
 
 BENCHMARK_MAIN();
+
+#else // BENCHMARK_FOUND
+
+// Fallback implementation when Google Benchmark is not available
+// Note: Only one benchmark file should define main() - handled in benchmark_agent_operations.cpp
+
+#endif // BENCHMARK_FOUND

@@ -1430,7 +1430,217 @@ cat build/test_output/performance_results.json
 ```
 
 For more detailed testing information, see the [Test Mode Guide](tests/TEST_MODE_GUIDE.md).
+
+---
+
+## 📝 CMake Configuration Reference
+
+### Quick Reference
+
+#### Test Mode (Recommended for Development)
+```bash
+cmake .. -DENABLE_TEST_MODE=ON
 ```
+
+#### Production Build  
+```bash
+cmake .. -DCMAKE_BUILD_TYPE=Release
+```
+
+#### Full Development Build
+```bash
+cmake .. -DENABLE_TEST_MODE=ON -DENABLE_MEMORY_TESTING=ON -DENABLE_TEST_COVERAGE=ON -DBUILD_EXAMPLES=ON
+```
+
+### Core Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `CMAKE_BUILD_TYPE` | STRING | Debug | Build configuration: Debug, Release, RelWithDebInfo, MinSizeRel |
+| `BUILD_SHARED_LIBS` | BOOL | OFF | Build shared libraries instead of static |
+| `BUILD_TESTS` | BOOL | OFF | Build unit tests |
+| `BUILD_EXAMPLES` | BOOL | OFF | Build example applications |
+| `BUILD_DOCS` | BOOL | OFF | Build documentation |
+| `ENABLE_TEST_MODE` | BOOL | OFF | **Enable comprehensive test mode with enhanced debugging** |
+| `ENABLE_LOGGING` | BOOL | ON | Enable logging support |
+| `ENABLE_METRICS` | BOOL | ON | Enable metrics collection |
+| `ENABLE_HEALTH_MONITORING` | BOOL | ON | Enable health monitoring |
+| `USE_SYSTEM_LIBS` | BOOL | OFF | Use system-installed libraries when possible |
+| `ENABLE_HTTP_CLIENT` | BOOL | ON | Enable HTTP client functionality (requires CURL) |
+
+### Test Mode Behavior
+
+When `ENABLE_TEST_MODE=ON` is set, the following happens automatically:
+- Sets `BUILD_TESTS=ON`
+- Sets `BUILD_UNIT_TESTS=ON` 
+- Sets `BUILD_INTEGRATION_TESTS=ON`
+- Sets `BUILD_PERFORMANCE_TESTS=ON`
+- Sets `RUN_TESTS_ON_BUILD=ON`
+- Sets `ENABLE_LOGGING=ON`
+- Sets `ENABLE_METRICS=ON`
+- Sets `VERBOSE_BUILD=ON`
+- Forces Debug build type if Release was selected
+
+### Common Build Configurations
+
+#### Development with Full Testing
+```bash
+cmake .. \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DENABLE_TEST_MODE=ON \
+  -DENABLE_MEMORY_TESTING=ON \
+  -DENABLE_TEST_COVERAGE=ON \
+  -DENABLE_BENCHMARK_TESTS=ON \
+  -DBUILD_EXAMPLES=ON
+```
+
+#### CI/CD Build
+```bash
+cmake .. \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DBUILD_TESTS=ON \
+  -DENABLE_TEST_COVERAGE=ON \
+  -DRUN_TESTS_AFTER_BUILD=ON
+```
+
+#### Minimal Build (Fastest)
+```bash
+cmake .. \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DBUILD_TESTS=OFF \
+  -DBUILD_EXAMPLES=OFF \
+  -DBUILD_DOCS=OFF
+```
+
+---
+
+## 🔍 Web Search & Document Retrieval Implementation
+
+The Kolosal Agent System includes powerful web search and document retrieval capabilities that enable agents to access real-time information and comprehensive knowledge bases.
+
+### New Function Classes
+
+#### Web Search Functions
+1. **`InternetSearchFunction`** - Real internet search using kolosal-server's SearXNG integration
+2. **`EnhancedWebSearchFunction`** - Advanced web search with content filtering and summarization
+
+#### Document Retrieval Functions  
+3. **`ServerDocumentRetrievalFunction`** - Server-based document retrieval using vector similarity
+4. **`ServerDocumentAddFunction`** - Add documents to server knowledge base
+5. **`ServerDocumentParserFunction`** - Parse various document formats via server endpoints
+6. **`ServerEmbeddingFunction`** - Generate embeddings using server-side models
+
+#### Hybrid Functions
+7. **`KnowledgeRetrievalFunction`** - Combines web search + document retrieval for comprehensive knowledge gathering
+
+### Enhanced AgentCore Integration
+
+#### New Methods Added to AgentCore:
+- **`enable_enhanced_functions(server_url, test_connection)`** - Enable server-integrated functions
+- **`set_server_url(url)`** - Update server endpoint  
+- **`is_server_integration_enabled()`** - Check integration status
+
+#### Simple Integration Example:
+```cpp
+// Enable enhanced functions on existing agent
+agent->enable_enhanced_functions("http://localhost:8080");
+
+// Perform real web search
+AgentData search_params;
+search_params.set("query", "latest AI developments 2025");
+search_params.set("results", 5);
+
+auto result = agent->get_function_manager()->execute__function("internet_search", search_params);
+```
+
+### Key Features
+- **Automatic Fallback**: Tests server connection automatically and falls back to simulation mode if server unavailable
+- **Backward Compatible**: Existing agents continue to work unchanged
+- **Role-Based Functions**: Automatic function selection based on agent roles
+- **Production Ready**: Error handling, logging, performance monitoring
+
+---
+
+## ⚙️ Workflow Engine Implementation
+
+The Kolosal Agent System now includes a sophisticated workflow engine that enables orchestration of multiple agents in complex execution patterns.
+
+### Workflow Execution Types
+
+#### 1. Sequential Workflow
+- Executes steps one after another in defined order
+- Each step waits for the previous step to complete successfully
+- Example: Research → Analysis → Report → Execution
+
+#### 2. Parallel Workflow  
+- Executes all steps simultaneously for maximum throughput
+- All steps start at the same time
+- Useful for independent tasks or data collection from multiple sources
+
+#### 3. Pipeline Workflow
+- Intelligent dependency resolution with parallel execution where possible
+- Groups steps into execution phases based on dependencies
+- Allows maximum parallelization while respecting data flow requirements
+
+#### 4. Consensus Workflow
+- Multiple agents vote on decisions
+- Consensus step aggregates all votes
+- Supports configurable consensus thresholds
+
+#### 5. Conditional Workflow
+- Dynamic execution based on conditions and previous step results
+- Supports branching logic and adaptive processing
+- Advanced expression evaluation for complex conditions
+
+### Configuration Examples
+
+#### Advanced Configuration Features
+```yaml
+# Variable Interpolation
+parameters:
+  input: "${global.topic}"
+  previous_result: "${steps.research_step.output}"
+  computed: "${steps.analysis.output.score >= 0.8}"
+
+# Dependency Management  
+depends_on:
+  - step: "previous_step"
+    condition: "success"  # success|completion|failure
+    required: true        # true|false
+
+# Error Handling
+error_handling:
+  retry_on_failure: true
+  max_retries: 3
+  retry_delay_seconds: 2
+  continue_on_error: false
+  use_fallback_agent: true
+  fallback_agent_id: "backup_agent"
+```
+
+### Usage Example
+```cpp
+// Initialize workflow engine
+WorkflowEngine workflow_engine(agent_manager);
+workflow_engine.start();
+
+// Load workflow from YAML
+workflow_engine.load_workflow_from_yaml("sequential.yaml");
+
+// Execute workflow
+json input = {{"topic", "AI Research"}, {"urgency", "high"}};
+std::string execution_id = workflow_engine.execute_workflow("workflow_id", input);
+
+// Monitor execution
+auto status = workflow_engine.get_execution_status(execution_id);
+```
+
+### Workflow Benefits
+- **Flexibility**: Five different execution patterns for various use cases
+- **Reliability**: Advanced error handling and retry mechanisms  
+- **Scalability**: Parallel execution capabilities with configurable concurrency
+- **Monitoring**: Real-time execution status and comprehensive metrics
+- **Ease of Use**: Simple YAML configuration format with intuitive dependency specification
 
 ## 🔒 Security Features
 

@@ -26,8 +26,8 @@
 #include <memory>
 #include <string>
 #include <fstream>
-#include <yaml-cpp/yaml.h>
-#include "json.hpp" // Use direct path to nlohmann json
+#include "../../../external/yaml-cpp/include/yaml-cpp/yaml.h"
+#include "../../../external/nlohmann/json.hpp"
 #include "agent/core/agent_core.hpp"
 #include "agent/core/agent_roles.hpp"
 #include "config/yaml_configuration_parser.hpp"
@@ -133,7 +133,7 @@ protected:
         KolosalAgentTestFixture::SetUp();
         
         // Create test agent
-        test_agent_ = std::make_shared<AgentCore>("test_agent", "generic", AgentRole::ASSISTANT);
+        test_agent_ = std::make_shared<AgentCore>("test_agent", "generic", AgentRole::GENERIC);
         
         // Setup test functions
         setupTestFunctions();
@@ -165,10 +165,15 @@ protected:
         KolosalAgentTestFixture::SetUp();
         
         // Create test agent manager
+        // Note: Commented out until YAMLConfigurableAgentManager is available
         // test_agent_manager_ = std::make_shared<YAMLConfigurableAgentManager>();
         
         // Create workflow engine
+        // Note: Commented out until proper agent manager is available
         // test_workflow_engine_ = std::make_shared<WorkflowEngine>(test_agent_manager_);
+        
+        // For now, create a nullptr to avoid compilation issues
+        test_workflow_engine_ = nullptr;
         
         // Setup test workflows
         setupTestWorkflows();

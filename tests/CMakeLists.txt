@@ -140,10 +140,10 @@ if(BUILD_UNIT_TESTS)
         if(WIN32)
             add_custom_command(TARGET kolosal_agent_unit_tests POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    ${CMAKE_BINARY_DIR}/Debug/libcurl.dll
+                    ${CMAKE_BINARY_DIR}/kolosal-server/bin/${CMAKE_BUILD_TYPE}/libcurl.dll
                     $<TARGET_FILE_DIR:kolosal_agent_unit_tests>
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    ${CMAKE_BINARY_DIR}/Debug/llama-cpu.dll
+                    ${CMAKE_BINARY_DIR}/kolosal-server/bin/${CMAKE_BUILD_TYPE}/llama-cpu.dll
                     $<TARGET_FILE_DIR:kolosal_agent_unit_tests>
                 COMMENT "Copying required DLLs for unit tests"
                 VERBATIM
@@ -256,7 +256,7 @@ if(BUILD_PERFORMANCE_TESTS)
 endif()
 
 # Benchmark Tests (if Google Benchmark is available)
-if(ENABLE_BENCHMARK_TESTS AND BENCHMARK_AVAILABLE)
+if(ENABLE_BENCHMARK_TESTS)
     set(BENCHMARK_TEST_SOURCES
         benchmarks/benchmark_agent_operations.cpp
         benchmarks/benchmark_workflow_execution.cpp
@@ -264,30 +264,56 @@ if(ENABLE_BENCHMARK_TESTS AND BENCHMARK_AVAILABLE)
         benchmarks/benchmark_api_performance.cpp
     )
 
-    add_executable(kolosal_agent_benchmark_tests ${BENCHMARK_TEST_SOURCES})
+    # Check which benchmark test files actually exist
+    set(EXISTING_BENCHMARK_TEST_SOURCES)
+    foreach(source ${BENCHMARK_TEST_SOURCES})
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${source}")
+            list(APPEND EXISTING_BENCHMARK_TEST_SOURCES ${source})
+        else()
+            message(STATUS "Benchmark test file not found, skipping: ${source}")
+        endif()
+    endforeach()
 
-    target_link_libraries(kolosal_agent_benchmark_tests
-        PRIVATE
-            test_utils
-            benchmark::benchmark
-            kolosal_agent
-            Threads::Threads
-    )
+    # Only create executable if we have existing sources
+    if(EXISTING_BENCHMARK_TEST_SOURCES)
+        add_executable(kolosal_agent_benchmark_tests ${EXISTING_BENCHMARK_TEST_SOURCES})
 
-    set_target_properties(kolosal_agent_benchmark_tests PROPERTIES
-        CXX_STANDARD 17
-        CXX_STANDARD_REQUIRED ON
-        CXX_EXTENSIONS OFF
-    )
+        # Configure target based on whether Google Benchmark is available
+        if(BENCHMARK_AVAILABLE)
+            target_link_libraries(kolosal_agent_benchmark_tests
+                PRIVATE
+                    test_utils
+                    benchmark::benchmark
+                    kolosal_agent
+                    Threads::Threads
+            )
+            
+            # Define that benchmark library is found
+            target_compile_definitions(kolosal_agent_benchmark_tests PRIVATE BENCHMARK_FOUND)
+            
+            message(STATUS "Benchmark tests configured with Google Benchmark")
+        else()
+            target_link_libraries(kolosal_agent_benchmark_tests
+                PRIVATE
+                    kolosal_agent
+                    Threads::Threads
+            )
+            
+            message(STATUS "Benchmark tests configured without Google Benchmark (fallback mode)")
+        endif()
 
-    message(STATUS "Benchmark tests configured")
+        set_target_properties(kolosal_agent_benchmark_tests PROPERTIES
+            CXX_STANDARD 17
+            CXX_STANDARD_REQUIRED ON
+            CXX_EXTENSIONS OFF
+        )
+    else()
+        message(WARNING "No benchmark test sources found - benchmark tests disabled")
+    endif()
 endif()
 
 # Register tests with CTest
 include(GoogleTest)
-
-# Temporarily disable test registration until compilation issues are fixed
-# This prevents the MSB8066 error from _NOT_BUILT placeholder tests
 
 # Register unit tests
 if(BUILD_UNIT_TESTS AND TARGET kolosal_agent_unit_tests)
@@ -323,7 +349,7 @@ if(BUILD_PERFORMANCE_TESTS AND TARGET kolosal_agent_performance_tests)
 endif()
 
 # Register benchmark tests
-if(ENABLE_BENCHMARK_TESTS AND BENCHMARK_AVAILABLE)
+if(ENABLE_BENCHMARK_TESTS AND TARGET kolosal_agent_benchmark_tests)
     # Benchmark tests are registered differently
     add_test(NAME kolosal_agent_benchmarks
         COMMAND kolosal_agent_benchmark_tests
@@ -365,7 +391,7 @@ if(BUILD_PERFORMANCE_TESTS)
     )
 endif()
 
-if(ENABLE_BENCHMARK_TESTS AND BENCHMARK_AVAILABLE)
+if(ENABLE_BENCHMARK_TESTS AND TARGET kolosal_agent_benchmark_tests)
     add_custom_target(run_benchmark_tests
         COMMAND kolosal_agent_benchmark_tests
         DEPENDS kolosal_agent_benchmark_tests
@@ -380,7 +406,7 @@ add_custom_target(run_all_tests
         $<$<BOOL:${BUILD_UNIT_TESTS}>:kolosal_agent_unit_tests>
         $<$<BOOL:${BUILD_INTEGRATION_TESTS}>:kolosal_agent_integration_tests>
         $<$<BOOL:${BUILD_PERFORMANCE_TESTS}>:kolosal_agent_performance_tests>
-        $<$<AND:$<BOOL:${ENABLE_BENCHMARK_TESTS}>,$<BOOL:${BENCHMARK_AVAILABLE}>>:kolosal_agent_benchmark_tests>
+        $<$<BOOL:${ENABLE_BENCHMARK_TESTS}>:kolosal_agent_benchmark_tests>
     COMMENT "Running all configured tests"
 )
 

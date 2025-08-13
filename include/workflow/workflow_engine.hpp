@@ -250,6 +250,18 @@ public:
     Workflow create_pipeline_workflow(const std::string& name, const std::vector<std::pair<std::string, std::string>>& agent_functions);
     Workflow create_consensus_workflow(const std::string& name, const std::vector<std::string>& agent_ids, const std::string& decision_function);
     
+    // Configuration loading
+    bool load_workflow_from_yaml(const std::string& yaml_file);
+    bool load_workflows_from_directory(const std::string& directory_path);
+    Workflow create_workflow_from_config(const nlohmann::json& config);
+    
+    // Agent graph execution
+    void execute_parallel_steps(WorkflowExecutionContext& context, const std::vector<std::string>& step_ids);
+    std::vector<std::vector<std::string>> group_parallel_steps(const Workflow& workflow);
+    
+    // Enhanced condition evaluation
+    bool evaluate_expression(const std::string& expression, const WorkflowExecutionContext& context);
+    
     // Error handling
     void set_error_handling_strategy(const std::string& workflow_id, const ErrorHandlingStrategy& strategy);
     std::vector<std::string> get_failed_workflows() const;

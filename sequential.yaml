@@ -1,0 +1,115 @@
+# Sequential Workflow Configuration
+# This configuration demonstrates a simple agent workflow execution
+
+# Workflow metadata
+id: "research_analysis_workflow"
+name: "Research and Analysis Workflow"
+description: "A sequential workflow that performs research, analysis, and report generation"
+type: "sequential"  # Options: sequential, parallel, pipeline, consensus, conditional
+created_by: "system"
+
+# Global context variables available to all steps
+global_context:
+  project_name: "Kolosal Agent Research"
+  output_format: "markdown"
+  max_tokens: 2048
+
+# Workflow execution settings
+settings:
+  max_execution_time: 600  # Maximum workflow execution time in seconds
+  max_concurrent_steps: 2  # Maximum steps that can run concurrently
+  auto_cleanup: true       # Automatically clean up completed workflows
+  persist_state: true      # Save workflow state for recovery
+
+# Error handling strategy
+error_handling:
+  retry_on_failure: true      # Retry failed steps
+  max_retries: 3              # Maximum retry attempts per step
+  retry_delay_seconds: 2      # Delay between retries
+  continue_on_error: false    # Stop workflow on step failure
+  use_fallback_agent: false   # Use fallback agent if primary fails
+  fallback_agent_id: ""      # ID of fallback agent
+
+# Workflow steps
+steps:
+  # Step 1: Research Phase
+  - id: "research_step"
+    name: "Research Topic"
+    description: "Conduct initial research on the given topic"
+    agent_id: "research_analyst"
+    function: "research_topic"
+    parameters:
+      topic: "${global.topic}"
+      depth: "comprehensive"
+      sources: ["academic", "industry", "news"]
+      max_results: 10
+    timeout: 60
+    max_retries: 3
+    retry_delay: 2
+    parallel_allowed: false
+    continue_on_error: false
+
+  # Step 2: Data Analysis Phase  
+  - id: "analysis_step"
+    name: "Analyze Research Data"
+    description: "Analyze the research data and extract key insights"
+    agent_id: "research_analyst"
+    function: "analyze_data"
+    parameters:
+      data_source: "${steps.research_step.output}"
+      analysis_type: "comprehensive"
+      output_format: "${global.output_format}"
+      focus_areas: ["trends", "patterns", "insights"]
+    depends_on:
+      - "research_step"  # Simple dependency - wait for research step to complete successfully
+    timeout: 120
+    max_retries: 2
+    retry_delay: 3
+    parallel_allowed: false
+    continue_on_error: false
+
+  # Step 3: Report Generation Phase
+  - id: "report_step"
+    name: "Generate Report"
+    description: "Generate a comprehensive report based on analysis"
+    agent_id: "research_analyst"
+    function: "generate_report"
+    parameters:
+      data: "${steps.analysis_step.output}"
+      format: "${global.output_format}"
+      template: "research_summary"
+      include_charts: true
+      include_recommendations: true
+    depends_on:
+      - step: "analysis_step"
+        condition: "success"  # Wait for analysis step to succeed
+        required: true
+    timeout: 90
+    max_retries: 2
+    retry_delay: 2
+    parallel_allowed: false
+    continue_on_error: false
+
+  # Step 4: Task Execution Phase
+  - id: "execute_step"
+    name: "Execute Final Tasks"
+    description: "Execute any final tasks based on the report"
+    agent_id: "task_executor"
+    function: "execute_task"
+    parameters:
+      task_definition:
+        action: "finalize"
+        input: "${steps.report_step.output}"
+        output_location: "./reports/"
+        notify_completion: true
+      priority: 1
+      timeout: 300
+    depends_on:
+      - step: "report_step"
+        condition: "success"
+        required: true
+    timeout: 300
+    max_retries: 1
+    retry_delay: 5
+    parallel_allowed: false
+    continue_on_error: true  # Allow workflow to complete even if this step fails

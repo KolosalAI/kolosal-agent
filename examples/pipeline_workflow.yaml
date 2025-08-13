@@ -1,0 +1,131 @@
+# Pipeline Workflow Configuration
+# This demonstrates a data pipeline where output flows from step to step
+
+id: "data_pipeline_workflow"
+name: "Data Processing Pipeline"
+description: "A pipeline workflow that processes data through multiple stages"
+type: "pipeline"
+created_by: "system"
+
+global_context:
+  input_source: "user_input"
+  quality_threshold: 0.8
+  final_format: "report"
+
+settings:
+  max_execution_time: 900
+  max_concurrent_steps: 2
+  auto_cleanup: true
+  persist_state: true
+
+error_handling:
+  retry_on_failure: true
+  max_retries: 3
+  retry_delay_seconds: 2
+  continue_on_error: false
+  use_fallback_agent: true
+  fallback_agent_id: "task_executor"
+
+steps:
+  # Stage 1: Data Collection
+  - id: "collect_data"
+    name: "Data Collection"
+    description: "Collect raw data from various sources"
+    agent_id: "research_analyst"
+    function: "research_topic"
+    parameters:
+      topic: "${global.input_source}"
+      depth: "comprehensive"
+      sources: ["all"]
+    timeout: 180
+    max_retries: 3
+    parallel_allowed: false
+
+  # Stage 2: Data Validation (depends on collection)
+  - id: "validate_data"
+    name: "Data Validation"
+    description: "Validate and clean the collected data"
+    agent_id: "task_executor"
+    function: "execute_task"
+    parameters:
+      task_definition:
+        action: "validate"
+        input: "${steps.collect_data.output}"
+        quality_threshold: "${global.quality_threshold}"
+        clean_data: true
+    depends_on:
+      - "collect_data"
+    timeout: 120
+    max_retries: 2
+    parallel_allowed: false
+
+  # Stage 3: Data Analysis (depends on validation)
+  - id: "analyze_data"
+    name: "Data Analysis"
+    description: "Perform comprehensive analysis on validated data"
+    agent_id: "research_analyst"
+    function: "analyze_data"
+    parameters:
+      data_source: "${steps.validate_data.output}"
+      analysis_type: "comprehensive"
+      output_format: "structured"
+    depends_on:
+      - step: "validate_data"
+        condition: "success"
+        required: true
+    timeout: 240
+    max_retries: 2
+    parallel_allowed: false
+
+  # Stage 4: Synthesis (depends on analysis)
+  - id: "synthesize_results"
+    name: "Results Synthesis"
+    description: "Synthesize analysis results into coherent insights"
+    agent_id: "research_analyst"
+    function: "synthesize_information"
+    parameters:
+      input_data: "${steps.analyze_data.output}"
+      synthesis_method: "comprehensive"
+      output_structure: "hierarchical"
+    depends_on:
+      - "analyze_data"
+    timeout: 180
+    max_retries: 2
+    parallel_allowed: false
+
+  # Stage 5: Report Generation (depends on synthesis)
+  - id: "generate_final_report"
+    name: "Final Report Generation"
+    description: "Generate final report with all insights"
+    agent_id: "research_analyst"
+    function: "generate_report"
+    parameters:
+      data: "${steps.synthesize_results.output}"
+      format: "${global.final_format}"
+      template: "comprehensive_analysis"
+      include_methodology: true
+      include_recommendations: true
+    depends_on:
+      - "synthesize_results"
+    timeout: 120
+    max_retries: 1
+    parallel_allowed: false
+
+  # Stage 6: Final Execution (depends on report)
+  - id: "finalize_output"
+    name: "Finalize Output"
+    description: "Execute final tasks and prepare deliverables"
+    agent_id: "task_executor"
+    function: "execute_task"
+    parameters:
+      task_definition:
+        action: "finalize"
+        input: "${steps.generate_final_report.output}"
+        output_location: "./pipeline_results/"
+        create_summary: true
+        notify_completion: true
+    depends_on:
+      - "generate_final_report"
+    timeout: 60
+    max_retries: 1
+    parallel_allowed: false

@@ -3,6 +3,9 @@
  * @brief Benchmark tests for API performance
  */
 
+// Only compile benchmark tests if Google Benchmark is available
+#ifdef BENCHMARK_FOUND
+
 #include <benchmark/benchmark.h>
 #include "api/simple_http_server.hpp"
 #include "api/message_router.hpp"
@@ -48,3 +51,10 @@ BENCHMARK(BM_HttpClientOperations);
 #endif // KOLOSAL_AGENT_TEST_MODE
 
 BENCHMARK_MAIN();
+
+#else // BENCHMARK_FOUND
+
+// Fallback implementation when Google Benchmark is not available
+// Note: Only one benchmark file should define main() - handled in benchmark_agent_operations.cpp
+
+#endif // BENCHMARK_FOUND

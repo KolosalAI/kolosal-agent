@@ -6,6 +6,9 @@
  * agent operations including initialization, task execution, and cleanup.
  */
 
+// Only compile benchmark tests if Google Benchmark is available
+#ifdef BENCHMARK_FOUND
+
 #include <benchmark/benchmark.h>
 #include "agent/core/agent_core.hpp"
 #include "agent/core/multi_agent_system.hpp"
@@ -85,3 +88,16 @@ BENCHMARK(BM_MemoryAllocation)->Range(1, 100);
 #endif // KOLOSAL_AGENT_TEST_MODE
 
 BENCHMARK_MAIN();
+
+#else // BENCHMARK_FOUND
+
+// Fallback implementation when Google Benchmark is not available
+#include <iostream>
+
+int main() {
+    std::cout << "Benchmark tests are not available. Google Benchmark library is required.\n";
+    std::cout << "To enable benchmark tests, install Google Benchmark and set ENABLE_BENCHMARK_TESTS=ON\n";
+    return 0;
+}
+
+#endif // BENCHMARK_FOUND();

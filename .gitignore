@@ -33,7 +33,7 @@
 
 
 # Build Files
-build
+build*
 *.cmake
 *.ninja
 *.make
