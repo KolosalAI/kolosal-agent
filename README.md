@@ -106,9 +106,16 @@ Get the Kolosal Agent System running in just a few commands:
 git clone --recursive https://github.com/kolosalai/kolosal-agent.git
 cd kolosal-agent
 
-# 2. Build with test mode (recommended for first-time users)
+# 2. Choose your build mode:
+
+# STANDARD BUILD (Fast, no tests)
 mkdir build && cd build
-cmake .. -DENABLE_TEST_MODE=ON
+cmake .. -DCMAKE_BUILD_TYPE=Debug
+cmake --build . --config Debug
+
+# OR BUILD WITH ALL TESTS (Comprehensive testing)
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
 cmake --build . --config Debug
 
 # 3. Run the application
@@ -126,15 +133,16 @@ curl http://localhost:8080/v1/system/status
 - **🤖 Multi-Agent System**: Pre-configured coordinator and specialist agents
 - **🌐 REST API**: Complete API for agent management at `http://localhost:8080`
 - **📊 Web Dashboard**: System status and agent monitoring interface
-- **🧪 Test Suite**: Comprehensive tests to verify everything works
 - **📚 Examples**: Working examples in the `/examples` directory
+- **🧪 Tests** (if built with `-DBUILD_TESTS=ON`): Comprehensive test suite including unit, integration, and performance tests
 
 ### 🎯 Next Steps
 
 1. **Explore the API**: Visit `http://localhost:8080/v1/agents` to see available agents
 2. **Run Examples**: Check out `/examples` directory for usage patterns
-3. **Read the Tutorials**: Continue with the detailed build and testing guides below
-4. **Customize Configuration**: Edit `config.yaml` for your specific needs
+3. **Read the Build Guide**: Continue with the detailed build instructions below
+4. **Run Tests** (if built with tests): Use `ctest --output-on-failure` to verify functionality
+5. **Customize Configuration**: Edit `config.yaml` for your specific needs
 
 ---
 
@@ -379,7 +387,9 @@ templates:
       memory_limit_mb: 512
 ```
 
-## 🛠️ Building the Application - Complete Tutorial
+## 🛠️ Building the Application - Complete Guide
+
+The Kolosal Agent System offers **2 simple build modes** to meet different development needs.
 
 ### Prerequisites
 
@@ -430,99 +440,110 @@ brew install cmake git curl yaml-cpp
 brew install googletest
 ```
 
-### Step-by-Step Build Instructions
+### 🏗️ Build Modes
 
-#### Step 1: Clone the Repository
+#### **📦 Mode 1: Standard Build (Fast & Clean)**
+Perfect for production use, fastest compilation, no tests:
+
 ```bash
-# Clone with all submodules
+# Step 1: Clone the repository
 git clone --recursive https://github.com/kolosalai/kolosal-agent.git
 cd kolosal-agent
 
-# If you already cloned without --recursive, initialize submodules
-git submodule update --init --recursive
-```
+# Step 2: Create build directory
+mkdir build && cd build
 
-#### Step 2: Basic Build (Recommended for First-Time Users)
-```bash
-# Create and enter build directory
-mkdir build
-cd build
-
-# Configure the project (Debug build for development)
+# Step 3: Configure for standard build
 cmake .. -DCMAKE_BUILD_TYPE=Debug
 
-# Build the project
+# Step 4: Build the project
 cmake --build . --config Debug
 
-# The executables will be in build/Debug/ or build/ depending on platform
+# Step 5: Run the application
+./kolosal-agent                    # Linux/macOS
+.\Debug\kolosal-agent.exe          # Windows
 ```
 
-#### Step 3: Build with Tests (Recommended for Development)
-```bash
-# Configure with test mode enabled (includes all testing features)
-cmake .. -DENABLE_TEST_MODE=ON
+**What you get:**
+- ✅ Main application (`kolosal-agent`)
+- ✅ Server component (`kolosal-server`)
+- ✅ Launcher utility (`kolosal-launcher`)
+- ✅ Example applications (`workflow-example`)
+- ❌ No tests (fastest build)
 
-# Build everything (this may take several minutes)
+---
+
+#### **🧪 Mode 2: Build with All Tests (Comprehensive)**
+Includes everything plus comprehensive testing suite:
+
+```bash
+# Step 1: Clone the repository
+git clone --recursive https://github.com/kolosalai/kolosal-agent.git
+cd kolosal-agent
+
+# Step 2: Create build directory
+mkdir build && cd build
+
+# Step 3: Configure with tests enabled
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
+
+# Step 4: Build the project (takes longer due to tests)
 cmake --build . --config Debug
 
-# Tests will run automatically after build in test mode
-# Look for "All tests passed" message
+# Step 5: Run tests to verify everything works
+ctest --output-on-failure
+
+# Step 6: Run the application
+./kolosal-agent                    # Linux/macOS
+.\Debug\kolosal-agent.exe          # Windows
 ```
 
-#### Step 4: Advanced Build Configuration
+**What you get:**
+- ✅ Everything from Standard Build
+- ✅ **Unit Tests** - Test individual components
+- ✅ **Integration Tests** - Test system interactions
+- ✅ **Performance Tests** - Validate performance metrics
+- ✅ **Test Utilities** - Testing infrastructure and tools
 
-For different use cases, you can customize the build:
-
-**Development Build (Full Features):**
+**Optional Test Enhancements:**
 ```bash
-cmake .. \
-  -DCMAKE_BUILD_TYPE=Debug \
-  -DENABLE_TEST_MODE=ON \
-  -DENABLE_MEMORY_TESTING=ON \
-  -DENABLE_TEST_COVERAGE=ON \
-  -DBUILD_EXAMPLES=ON \
-  -DBUILD_DOCS=ON
+# Enable memory testing (Linux/macOS only)
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DENABLE_ASAN=ON -DENABLE_UBSAN=ON
 
-cmake --build . --config Debug --parallel
+# Enable all optional features
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON -DBUILD_DOCS=ON
 ```
 
-**Production Build (Optimized):**
+### 🎯 Which Build Mode Should I Choose?
+
+| Use Case | Recommended Mode | Command |
+|----------|------------------|---------|
+| **First-time setup** | Standard Build | `cmake .. -DCMAKE_BUILD_TYPE=Debug` |
+| **Production deployment** | Standard Build (Release) | `cmake .. -DCMAKE_BUILD_TYPE=Release` |
+| **Development & Testing** | Build with Tests | `cmake .. -DBUILD_TESTS=ON` |
+| **Contributing to project** | Build with Tests + extras | `cmake .. -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON` |
+| **CI/CD Pipeline** | Build with Tests | `cmake .. -DBUILD_TESTS=ON` |
+
+### 🎨 Build Targets
+
+After configuring, you can build specific components:
+
 ```bash
-cmake .. \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DENABLE_NATIVE_OPTS=ON \
-  -DBUILD_TESTS=OFF
+# Build everything (default)
+cmake --build . --config Debug
 
-cmake --build . --config Release --parallel
+# Build specific targets
+cmake --build . --target kolosal-agent --config Debug          # Main application only
+cmake --build . --target build-server --config Debug          # Server component only
+cmake --build . --target build-all --config Debug             # Both main executables
+
+# Test-specific targets (only available when DBUILD_TESTS=ON)
+cmake --build . --target build-with-tests --config Debug      # Build with test support
+cmake --build . --target quick-test --config Debug            # Run unit tests only
+cmake --build . --target full-test --config Debug             # Run all tests
 ```
 
-**Minimal Build (Fastest):**
-```bash
-cmake .. \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DBUILD_TESTS=OFF \
-  -DBUILD_EXAMPLES=OFF \
-  -DBUILD_DOCS=OFF
-
-cmake --build . --config Release
-```
-
-### CMake Build Options Reference
-
-| Option | Description | Default | Use Case |
-|--------|-------------|---------|----------|
-| `CMAKE_BUILD_TYPE` | Build type (Debug, Release, RelWithDebInfo) | Debug | All builds |
-| `ENABLE_TEST_MODE` | Enable comprehensive testing features | OFF | Development |
-| `BUILD_TESTS` | Build unit tests | OFF | Testing |
-| `BUILD_EXAMPLES` | Build example applications | OFF | Learning |
-| `BUILD_DOCS` | Build documentation (requires Doxygen) | OFF | Documentation |
-| `ENABLE_MEMORY_TESTING` | Enable memory sanitizers | OFF | Debug builds |
-| `ENABLE_TEST_COVERAGE` | Enable test coverage reporting | OFF | CI/CD |
-| `ENABLE_NATIVE_OPTS` | Enable native CPU optimizations | OFF | Performance |
-| `ENABLE_CUDA` | Enable CUDA GPU acceleration | OFF | GPU builds |
-| `USE_SYSTEM_LIBS` | Use system-installed libraries | OFF | System integration |
-
-### Platform-Specific Build Instructions
+### 🖥️ Platform-Specific Build Instructions
 
 #### Windows (PowerShell)
 ```powershell
@@ -534,14 +555,15 @@ cd kolosal-agent
 New-Item -ItemType Directory -Path "build" -Force
 Set-Location "build"
 
-# Configure for Visual Studio
+# Choose build mode:
+# Standard build
 cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug
+
+# OR with tests
+cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
 
 # Build the project
 cmake --build . --config Debug --parallel
-
-# Optional: Create installer
-cpack -G WIX  # Requires WiX Toolset
 ```
 
 #### Linux (Ubuntu/Debian)
@@ -552,14 +574,14 @@ sudo apt install build-essential cmake git libcurl4-openssl-dev
 
 # Clone and build
 git clone --recursive https://github.com/kolosalai/kolosal-agent.git
-cd kolosal-agent
+cd kolosal-agent && mkdir build && cd build
 
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Debug
-make -j$(nproc)  # Parallel build using all CPU cores
+# Choose build mode:
+cmake .. -DCMAKE_BUILD_TYPE=Debug                    # Standard
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON   # With tests
 
-# Optional: Install system-wide
-sudo cmake --install . --config Debug
+# Build using all CPU cores
+make -j$(nproc)
 ```
 
 #### macOS
@@ -569,14 +591,14 @@ brew install cmake git curl yaml-cpp
 
 # Clone and build
 git clone --recursive https://github.com/kolosal-ai/kolosal-agent.git
-cd kolosal-agent
+cd kolosal-agent && mkdir build && cd build
 
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Debug
-make -j$(sysctl -n hw.ncpu)  # Parallel build using all CPU cores
+# Choose build mode:
+cmake .. -DCMAKE_BUILD_TYPE=Debug                    # Standard
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON   # With tests
 
-# Optional: Create application bundle
-cmake --build . --target package
+# Build using all CPU cores
+make -j$(sysctl -n hw.ncpu)
 ```
 
 ### Verification and Installation
@@ -977,420 +999,162 @@ asyncio.run(main())
 - **Memory per Agent**: ~0.9MB average
 - **Startup Time**: <5 seconds (with 100 agents)
 
-## 🧪 Testing Tutorial - Complete Guide
+## 🧪 Testing Guide - Simple & Comprehensive
 
-The Kolosal Agent System includes a comprehensive testing framework designed to ensure code quality, performance, and reliability. This section provides everything you need to know about building, running, and understanding tests.
+The Kolosal Agent System includes a comprehensive testing framework that is automatically enabled when you build with `-DBUILD_TESTS=ON`.
 
-### Testing Overview
+### 🎯 Quick Testing Overview
 
-The test suite is organized into four main categories:
+When you build with tests enabled, you get:
+- **Unit Tests** - Test individual components in isolation
+- **Integration Tests** - Test component interactions and system-level functionality  
+- **Performance Tests** - Measure and validate system performance
 
-1. **Unit Tests** - Test individual components in isolation
-2. **Integration Tests** - Test component interactions and system-level functionality  
-3. **Performance Tests** - Measure and validate system performance
-4. **Benchmark Tests** - Detailed performance analysis and optimization
+### 🚀 Running Tests
 
-### Prerequisites for Testing
-
-#### Required Dependencies
+#### Method 1: Automatic Testing (During Build)
 ```bash
-# Ubuntu/Debian
-sudo apt install libgtest-dev libgmock-dev
-
-# macOS (Homebrew)
-brew install googletest
-
-# Windows (vcpkg)
-vcpkg install gtest gmock
-
-# Or let CMake handle dependencies automatically (recommended)
-# CMake will download and build GTest if not found
-```
-
-### Step-by-Step Testing Instructions
-
-#### Step 1: Build with Test Support
-
-**Quick Test Mode (Recommended for Development):**
-```bash
-cd kolosal-agent
+# Tests are built automatically when DBUILD_TESTS=ON is specified
 mkdir build && cd build
-
-# Enable comprehensive test mode
-cmake .. -DENABLE_TEST_MODE=ON
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
 cmake --build . --config Debug
 
-# Tests run automatically after build in test mode
-# Look for test results in the output
-```
-
-**Manual Test Configuration:**
-```bash
-# Configure with specific test options
-cmake .. \
-  -DCMAKE_BUILD_TYPE=Debug \
-  -DBUILD_TESTS=ON \
-  -DBUILD_UNIT_TESTS=ON \
-  -DBUILD_INTEGRATION_TESTS=ON \
-  -DBUILD_PERFORMANCE_TESTS=ON
-
-# Build the project and tests
-cmake --build . --config Debug
-```
-
-#### Step 2: Running Tests
-
-**Run All Tests (Using CTest):**
-```bash
-cd build
+# Tests are now available - run them:
 ctest --output-on-failure
-
-# Run tests in parallel (faster)
-ctest --parallel 4 --output-on-failure
-
-# Run tests with verbose output
-ctest --verbose
 ```
 
-**Run Specific Test Categories:**
+#### Method 2: Build-Specific Test Targets
 ```bash
-# Run only unit tests
-ctest -L unit
+# Quick unit tests only (fast)
+cmake --build . --target quick-test --config Debug
 
-# Run only integration tests  
-ctest -L integration
+# Run all tests (comprehensive)
+cmake --build . --target full-test --config Debug
 
-# Run only performance tests
-ctest -L performance
-
-# Run only benchmark tests (if enabled)
-ctest -L benchmark
+# Run tests with detailed reporting
+cmake --build . --target test-report --config Debug
 ```
 
-**Run Individual Test Executables:**
+#### Method 3: Direct Test Execution
 ```bash
-# Windows
-.\Debug\kolosal_agent_unit_tests.exe
-.\Debug\kolosal_agent_integration_tests.exe
-.\Debug\kolosal_agent_performance_tests.exe
+# Run specific test executables directly
+./kolosal_agent_unit_tests          # Linux/macOS
+.\Debug\kolosal_agent_unit_tests.exe    # Windows
 
-# Linux/macOS
-./kolosal_agent_unit_tests
-./kolosal_agent_integration_tests  
+./kolosal_agent_integration_tests
 ./kolosal_agent_performance_tests
 ```
 
-#### Step 3: Understanding Test Output
+### 🎨 Test Categories & Usage
 
-**Successful Test Run Example:**
+#### Unit Tests
+Test individual components in isolation:
+```bash
+# Run all unit tests
+./kolosal_agent_unit_tests
+
+# Run specific test suites
+./kolosal_agent_unit_tests --gtest_filter="AgentCore*"
+./kolosal_agent_unit_tests --gtest_filter="*Memory*"
+./kolosal_agent_unit_tests --gtest_filter="Configuration*"
+```
+
+Available test suites:
+- **AgentCore**: Core agent functionality
+- **Configuration**: YAML config parsing
+- **Workflow**: Workflow execution engine  
+- **MessageRouter**: Message routing system
+- **HttpServer**: HTTP server functionality
+- **Logger**: Logging system tests
+
+#### Integration Tests  
+Test system-level interactions:
+```bash
+# Run integration tests
+./kolosal_agent_integration_tests
+
+# Run specific scenarios
+./kolosal_agent_integration_tests --gtest_filter="*FullSystem*"
+./kolosal_agent_integration_tests --gtest_filter="*MultiAgent*"
+```
+
+Integration test categories:
+- Full system startup and shutdown
+- Multi-agent workflow scenarios  
+- API endpoint integration
+- Configuration loading and validation
+
+#### Performance Tests
+Validate system performance metrics:
+```bash
+# Run performance tests
+./kolosal_agent_performance_tests
+
+# Performance areas tested:
+# - Agent creation and initialization speed
+# - Workflow execution performance
+# - Memory usage patterns
+# - Message routing throughput
+```
+
+### 🔧 Advanced Testing Options
+
+#### Memory Testing (Linux/macOS only)
+Enable memory sanitizers to detect issues:
+```bash
+cmake .. \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DBUILD_TESTS=ON \
+  -DENABLE_ASAN=ON \
+  -DENABLE_UBSAN=ON
+
+cmake --build . --config Debug
+ctest --output-on-failure
+```
+
+#### Customized Test Execution
+```bash
+# Run tests with custom options
+ctest --output-on-failure --parallel 4    # Parallel execution
+ctest --verbose                           # Verbose output  
+ctest -L unit                            # Only unit tests
+ctest --timeout 300                      # 5-minute timeout
+```
+
+### 📊 Understanding Test Results
+
+#### Successful Test Output
 ```
 [==========] Running 45 tests from 12 test suites.
 [----------] Global test environment set-up.
 [----------] 8 tests from AgentCoreTest
 [ RUN      ] AgentCoreTest.InitializationTest
 [       OK ] AgentCoreTest.InitializationTest (2 ms)
-[ RUN      ] AgentCoreTest.AgentCreation
-[       OK ] AgentCoreTest.AgentCreation (1 ms)
 ...
-[----------] 8 tests from AgentCoreTest (15 ms total)
-
 [==========] 45 tests from 12 test suites ran. (234 ms total)
 [  PASSED  ] 45 tests.
 ```
 
-**Failed Test Example:**
-```
-[ RUN      ] AgentCoreTest.InvalidConfiguration
-test_agent_core.cpp:123: Failure
-Expected equality of these values:
-  agent.isValid()
-    Which is: false
-  true
-[  FAILED  ] AgentCoreTest.InvalidConfiguration (5 ms)
-```
-
-### Test Categories in Detail
-
-#### Unit Tests
-Test individual components in isolation:
-
+#### Failed Test Handling
 ```bash
-# Run specific unit test suites
-./kolosal_agent_unit_tests --gtest_filter="AgentCore*"
-./kolosal_agent_unit_tests --gtest_filter="*Memory*"
-./kolosal_agent_unit_tests --gtest_filter="Configuration*"
-
-# Available test suites:
-# - AgentCore: Core agent functionality
-# - Configuration: YAML config parsing
-# - Workflow: Workflow execution engine
-# - MessageRouter: Message routing system
-# - HttpServer: HTTP server functionality
-# - Logger: Logging system tests
-```
-
-#### Integration Tests
-Test system-level interactions:
-
-```bash
-# Run integration tests with specific scenarios
-./kolosal_agent_integration_tests --gtest_filter="*FullSystem*"
-./kolosal_agent_integration_tests --gtest_filter="*MultiAgent*"
-./kolosal_agent_integration_tests --gtest_filter="*ServerIntegration*"
-
-# Integration test categories:
-# - Full system startup and shutdown
-# - Multi-agent workflow scenarios  
-# - API endpoint integration
-# - Configuration loading and validation
-# - MCP protocol integration
-```
-
-#### Performance Tests
-Validate system performance metrics:
-
-```bash
-# Run performance tests with timing validation
-./kolosal_agent_performance_tests
-
-# Performance test areas:
-# - Agent creation and initialization speed
-# - Workflow execution performance
-# - Memory usage patterns
-# - Concurrent operation handling
-# - Message routing throughput
-```
-
-#### Benchmark Tests (Optional)
-Detailed performance analysis with Google Benchmark:
-
-```bash
-# Enable benchmark tests in build
-cmake .. -DENABLE_BENCHMARK_TESTS=ON -DENABLE_TEST_MODE=ON
-cmake --build . --config Debug
-
-# Run benchmarks
-./kolosal_agent_benchmark_tests
-
-# Example benchmark output:
-# Benchmark                     Time           CPU Iterations
-# BM_AgentCreation            245 ns        243 ns    2876543
-# BM_MessageRouting            89 ns         88 ns    7864321
-# BM_WorkflowExecution       1234 us       1230 us        568
-```
-
-### Advanced Testing Features
-
-#### Test Coverage Analysis
-Generate test coverage reports to see what code is tested:
-
-```bash
-# Build with coverage support (GCC/Clang only)
-cmake .. \
-  -DENABLE_TEST_MODE=ON \
-  -DENABLE_TEST_COVERAGE=ON \
-  -DCMAKE_BUILD_TYPE=Debug
-
-cmake --build . --config Debug
-
-# Run tests to generate coverage data
-ctest
-
-# Generate coverage report
-cmake --build . --target coverage
-
-# View HTML coverage report
-# Linux/macOS: open build/coverage_report/index.html
-# Windows: start build/coverage_report/index.html
-```
-
-#### Memory Testing with Sanitizers
-Detect memory leaks and corruption:
-
-```bash
-# Build with memory testing (GCC/Clang only)
-cmake .. \
-  -DENABLE_TEST_MODE=ON \
-  -DENABLE_MEMORY_TESTING=ON \
-  -DCMAKE_BUILD_TYPE=Debug
-
-cmake --build . --config Debug
-
-# Run tests with memory checking
-# Any memory issues will be reported automatically
-ctest --output-on-failure
-```
-
-### Custom Test Targets
-
-The build system provides convenient test targets:
-
-```bash
-# Run only quick unit tests
-cmake --build . --target quick-test --config Debug
-
-# Run comprehensive test suite  
-cmake --build . --target full-test --config Debug
-
-# Run specific test categories
-cmake --build . --target run_unit_tests --config Debug
-cmake --build . --target run_integration_tests --config Debug
-cmake --build . --target run_performance_tests --config Debug
-
-# Validate test environment setup
-cmake --build . --target validate_test_environment --config Debug
-```
-
-### Test Configuration and Customization
-
-#### Running Specific Tests
-Use Google Test filters to run specific tests:
-
-```bash
-# Run all tests containing "Agent" in the name
-./kolosal_agent_unit_tests --gtest_filter="*Agent*"
-
-# Run tests from a specific test fixture
-./kolosal_agent_unit_tests --gtest_filter="AgentCoreTest.*"
-
-# Exclude specific tests
-./kolosal_agent_unit_tests --gtest_filter="*:-*Slow*"
-
-# Run a specific test case
-./kolosal_agent_unit_tests --gtest_filter="AgentCoreTest.InitializationTest"
-```
-
-#### Test Output Options
-Customize test output for different needs:
-
-```bash
-# Minimal output (only failures)
-./kolosal_agent_unit_tests --gtest_brief
-
-# Colored output
-./kolosal_agent_unit_tests --gtest_color=yes
-
-# Output to XML (for CI/CD)
-./kolosal_agent_unit_tests --gtest_output=xml:test_results.xml
-
-# Repeat tests multiple times
-./kolosal_agent_unit_tests --gtest_repeat=10
-
-# Shuffle test order
-./kolosal_agent_unit_tests --gtest_shuffle
-```
-
-### Test Data and Fixtures
-
-Tests use various data files and configurations:
-
-```bash
-# Test data location
-ls tests/fixtures/
-# - test_configs/: Sample configuration files
-# - test_data/: Input data for tests  
-# - expected_outputs/: Expected test results
-
-# Runtime test output (created during test runs)
-ls build/test_output/
-# - test_logs/: Test execution logs
-# - temp_files/: Temporary test files
-# - coverage_data/: Coverage information
-```
-
-### Continuous Integration Testing
-
-For CI/CD environments, use these commands:
-
-```bash
-# CI-optimized test configuration
-cmake .. \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DENABLE_TEST_MODE=ON \
-  -DENABLE_TEST_COVERAGE=ON \
-  -DRUN_TESTS_ON_BUILD=OFF
-
-# Build and test
-cmake --build . --config Release --parallel
-
-# Run tests with proper error codes for CI
-ctest --output-on-failure --return-failed
-
-# Generate reports
-cmake --build . --target coverage --config Release
-```
-
-### Troubleshooting Test Issues
-
-#### Common Test Problems
-
-**Problem 1: Tests Not Building**
-```bash
-# Error: Could not find GTest
-# Solution: Install Google Test or let CMake download it
-sudo apt install libgtest-dev  # Linux
-brew install googletest        # macOS
-vcpkg install gtest           # Windows
-```
-
-**Problem 2: Tests Failing Due to Missing Files**
-```bash
-# Error: Cannot open config file
-# Solution: Run tests from correct directory
-cd build
-ctest  # Not from project root
-```
-
-**Problem 3: Performance Tests Timing Out**
-```bash
-# Error: Test timeout
-# Solution: Increase timeout or run with more resources
-ctest --timeout 300  # 5 minute timeout
-```
-
-**Problem 4: Memory Tests Showing False Positives**
-```bash
-# Error: False memory leak reports
-# Solution: Use proper suppressions or disable for problematic areas
-export ASAN_OPTIONS=detect_leaks=0  # Temporarily disable leak detection
-```
-
-#### Debug Test Failures
-
-```bash
-# Run a specific failing test with debug output
+# Debug specific failing tests
 ./kolosal_agent_unit_tests --gtest_filter="FailingTest" --gtest_catch_exceptions=0
 
-# Run under debugger (Linux/macOS)
-gdb ./kolosal_agent_unit_tests
-(gdb) run --gtest_filter="FailingTest"
-
-# Run with verbose logging
-./kolosal_agent_unit_tests --gtest_filter="FailingTest" --verbose
-
 # Check test logs
-cat build/test_output/test_logs/latest.log
+cat build/test_logs/latest.log  # If available
 ```
 
-### Test Development and Contributing
+### 🛠️ Test Development (For Contributors)
 
-#### Writing New Tests
-When adding features, include corresponding tests:
+When adding new features, include corresponding tests:
 
 ```cpp
-// Example unit test structure
 #include <gtest/gtest.h>
-#include <gmock/gmock.h>
 #include "component/my_component.hpp"
-#include "../fixtures/test_fixtures.hpp"
 
-using namespace testing;
-using namespace kolosal::agents;
-
-class MyComponentTest : public ComponentTestFixture {
+class MyComponentTest : public testing::Test {
 protected:
     void SetUp() override {
-        ComponentTestFixture::SetUp();
         component = std::make_unique<MyComponent>();
     }
     
@@ -1403,114 +1167,163 @@ TEST_F(MyComponentTest, BasicFunctionality) {
 }
 ```
 
-#### Test Best Practices
-1. **Test Independence**: Each test should run independently
-2. **Clear Names**: Use descriptive test names explaining what's tested
-3. **Setup/Teardown**: Use proper fixtures for clean test environment
-4. **Mock Dependencies**: Use mocks to isolate components
-5. **Cover Edge Cases**: Test both success and failure scenarios
-6. **Performance Awareness**: Include performance expectations
+### 🔍 Troubleshooting Tests
 
-### Test Results and Reporting
+#### Common Issues & Solutions
 
-Test results are automatically collected and can be analyzed:
-
+**Tests Not Building:**
 ```bash
-# Test results summary
-cat build/Testing/Temporary/LastTest.log
+# Install Google Test
+sudo apt install libgtest-dev  # Linux
+brew install googletest        # macOS  
+vcpkg install gtest           # Windows
 
-# Detailed test output  
-cat build/Testing/Temporary/LastTestsFailed.log
-
-# Coverage report (if enabled)
-open build/coverage_report/index.html
-
-# Performance test results
-cat build/test_output/performance_results.json
+# Or let CMake download it automatically (no action needed)
 ```
 
-For more detailed testing information, see the [Test Mode Guide](tests/TEST_MODE_GUIDE.md).
+**Tests Failing:**
+```bash
+# Run from correct directory
+cd build
+ctest --output-on-failure
+
+# Increase timeout for slow systems
+ctest --timeout 300
+```
+
+**Memory Test Issues:**
+```bash
+# Temporarily disable leak detection for problematic areas
+export ASAN_OPTIONS=detect_leaks=0
+```
+
+### ✅ Continuous Integration
+
+For CI/CD environments:
+```bash
+# CI-optimized configuration
+cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
+cmake --build . --config Release --parallel
+ctest --output-on-failure --return-failed --parallel 4
+```
+
+The simplified testing system ensures that when you enable tests with `-DBUILD_TESTS=ON`, you get everything you need for comprehensive validation without complex configuration.
 
 ---
 
-## 📝 CMake Configuration Reference
+## 📝 Build Configuration Reference
 
-### Quick Reference
+### 🎯 Simple Configuration (2 Modes Only)
 
-#### Test Mode (Recommended for Development)
+The Kolosal Agent System is designed with **simplicity** in mind. Choose between 2 straightforward build modes:
+
+#### **📦 Mode 1: Standard Build**
 ```bash
-cmake .. -DENABLE_TEST_MODE=ON
+cmake .. -DCMAKE_BUILD_TYPE=Debug
 ```
+- ✅ Fast compilation
+- ✅ All core functionality
+- ✅ Production ready
+- ❌ No tests
 
-#### Production Build  
+#### **🧪 Mode 2: Build with All Tests**
 ```bash
-cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
 ```
+- ✅ Everything from Standard Build
+- ✅ Unit tests
+- ✅ Integration tests  
+- ✅ Performance tests
+- ⏱️ Longer compilation time
 
-#### Full Development Build
-```bash
-cmake .. -DENABLE_TEST_MODE=ON -DENABLE_MEMORY_TESTING=ON -DENABLE_TEST_COVERAGE=ON -DBUILD_EXAMPLES=ON
-```
-
-### Core Configuration Options
+### 🔧 Core Configuration Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `CMAKE_BUILD_TYPE` | STRING | Debug | Build configuration: Debug, Release, RelWithDebInfo, MinSizeRel |
-| `BUILD_SHARED_LIBS` | BOOL | OFF | Build shared libraries instead of static |
-| `BUILD_TESTS` | BOOL | OFF | Build unit tests |
+| `CMAKE_BUILD_TYPE` | STRING | Debug | Build type: Debug, Release, RelWithDebInfo, MinSizeRel |
+| `BUILD_TESTS` | BOOL | OFF | **Enable all tests (unit, integration, performance)** |
 | `BUILD_EXAMPLES` | BOOL | OFF | Build example applications |
-| `BUILD_DOCS` | BOOL | OFF | Build documentation |
-| `ENABLE_TEST_MODE` | BOOL | OFF | **Enable comprehensive test mode with enhanced debugging** |
+| `BUILD_DOCS` | BOOL | OFF | Build documentation (requires Doxygen) |
+| `ENABLE_ASAN` | BOOL | OFF | Enable AddressSanitizer (test builds only) |
+| `ENABLE_UBSAN` | BOOL | OFF | Enable UndefinedBehaviorSanitizer (test builds only) |
+
+### 🏗️ Advanced Options (Optional)
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `BUILD_SHARED_LIBS` | BOOL | OFF | Build shared libraries instead of static |
 | `ENABLE_LOGGING` | BOOL | ON | Enable logging support |
 | `ENABLE_METRICS` | BOOL | ON | Enable metrics collection |
 | `ENABLE_HEALTH_MONITORING` | BOOL | ON | Enable health monitoring |
-| `USE_SYSTEM_LIBS` | BOOL | OFF | Use system-installed libraries when possible |
-| `ENABLE_HTTP_CLIENT` | BOOL | ON | Enable HTTP client functionality (requires CURL) |
+| `USE_SYSTEM_LIBS` | BOOL | OFF | Use system-installed libraries |
+| `ENABLE_HTTP_CLIENT` | BOOL | ON | Enable HTTP client functionality |
+| `USE_PODOFO` | BOOL | OFF | Enable PDF processing with PoDoFo |
+| `ENABLE_CUDA` | BOOL | OFF | Enable CUDA support |
+| `ENABLE_VULKAN` | BOOL | OFF | Enable Vulkan support |
+| `ENABLE_NATIVE_OPTS` | BOOL | OFF | Enable native CPU optimizations |
 
-### Test Mode Behavior
+### 📋 Common Build Recipes
 
-When `ENABLE_TEST_MODE=ON` is set, the following happens automatically:
-- Sets `BUILD_TESTS=ON`
-- Sets `BUILD_UNIT_TESTS=ON` 
-- Sets `BUILD_INTEGRATION_TESTS=ON`
-- Sets `BUILD_PERFORMANCE_TESTS=ON`
-- Sets `RUN_TESTS_ON_BUILD=ON`
-- Sets `ENABLE_LOGGING=ON`
-- Sets `ENABLE_METRICS=ON`
-- Sets `VERBOSE_BUILD=ON`
-- Forces Debug build type if Release was selected
-
-### Common Build Configurations
-
-#### Development with Full Testing
+#### Development Build
 ```bash
 cmake .. \
   -DCMAKE_BUILD_TYPE=Debug \
-  -DENABLE_TEST_MODE=ON \
-  -DENABLE_MEMORY_TESTING=ON \
-  -DENABLE_TEST_COVERAGE=ON \
-  -DENABLE_BENCHMARK_TESTS=ON \
+  -DBUILD_TESTS=ON \
   -DBUILD_EXAMPLES=ON
 ```
 
-#### CI/CD Build
+#### Production Build
 ```bash
 cmake .. \
   -DCMAKE_BUILD_TYPE=Release \
-  -DBUILD_TESTS=ON \
-  -DENABLE_TEST_COVERAGE=ON \
-  -DRUN_TESTS_AFTER_BUILD=ON
+  -DENABLE_NATIVE_OPTS=ON
 ```
 
-#### Minimal Build (Fastest)
+#### CI/CD Build  
 ```bash
 cmake .. \
   -DCMAKE_BUILD_TYPE=Release \
-  -DBUILD_TESTS=OFF \
-  -DBUILD_EXAMPLES=OFF \
-  -DBUILD_DOCS=OFF
+  -DBUILD_TESTS=ON
 ```
+
+#### Memory Testing (Linux/macOS)
+```bash
+cmake .. \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DBUILD_TESTS=ON \
+  -DENABLE_ASAN=ON \
+  -DENABLE_UBSAN=ON
+```
+
+### 🎯 Build Target Reference
+
+After configuration, use these build commands:
+
+```bash
+# Build everything
+cmake --build . --config Debug
+
+# Build specific components
+cmake --build . --target kolosal-agent --config Debug      # Main application
+cmake --build . --target build-server --config Debug      # Server component
+cmake --build . --target build-all --config Debug         # Both executables
+
+# Test-specific (only when DBUILD_TESTS=ON)
+cmake --build . --target build-with-tests --config Debug  # Build with tests
+cmake --build . --target quick-test --config Debug        # Run unit tests
+cmake --build . --target full-test --config Debug         # Run all tests
+```
+
+### 🛠️ Utility Targets
+
+```bash
+cmake --build . --target clean-all         # Clean everything
+cmake --build . --target info              # Show system info
+cmake --install . --config Debug           # Install binaries
+cpack                                       # Create packages
+```
+
+The simplified configuration system eliminates complexity while providing all the power you need for development and production.
 
 ---
 

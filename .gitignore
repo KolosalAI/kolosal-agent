@@ -47,3 +47,8 @@ build*
 
 # model for testing
 models/*
+
+# python codes
+*.py
+pythons/*
+.venv*

@@ -59,6 +59,11 @@ std::string AgentRoleManager::role_to_string(AgentRole role) const {
         case AgentRole::COORDINATOR: return "coordinator";
         case AgentRole::SPECIALIST: return "specialist";
         case AgentRole::ASSISTANT: return "assistant";
+        case AgentRole::RESEARCH_COORDINATOR: return "research_coordinator";
+        case AgentRole::RESEARCH_ANALYST: return "research_analyst";
+        case AgentRole::KNOWLEDGE_CURATOR: return "knowledge_curator";
+        case AgentRole::SOURCE_ANALYST: return "source_analyst";
+        case AgentRole::SYNTHESIS_SPECIALIST: return "synthesis_specialist";
         default: return "unknown";
     }
 }
@@ -73,6 +78,11 @@ AgentRole AgentRoleManager::string_to_role(const std::string& role_str) const {
     if (role_str == "coordinator") return AgentRole::COORDINATOR;
     if (role_str == "specialist") return AgentRole::SPECIALIST;
     if (role_str == "assistant") return AgentRole::ASSISTANT;
+    if (role_str == "research_coordinator") return AgentRole::RESEARCH_COORDINATOR;
+    if (role_str == "research_analyst") return AgentRole::RESEARCH_ANALYST;
+    if (role_str == "knowledge_curator") return AgentRole::KNOWLEDGE_CURATOR;
+    if (role_str == "source_analyst") return AgentRole::SOURCE_ANALYST;
+    if (role_str == "synthesis_specialist") return AgentRole::SYNTHESIS_SPECIALIST;
     return AgentRole::GENERIC;
 }
 
@@ -87,6 +97,16 @@ std::string AgentRoleManager::specialization_to_string(AgentSpecialization spec)
         case AgentSpecialization::REASONING: return "reasoning";
         case AgentSpecialization::PLANNING: return "planning";
         case AgentSpecialization::EXECUTION: return "execution";
+        case AgentSpecialization::RESEARCH_PLANNING: return "research_planning";
+        case AgentSpecialization::QUERY_DECOMPOSITION: return "query_decomposition";
+        case AgentSpecialization::METHODOLOGY_SELECTION: return "methodology_selection";
+        case AgentSpecialization::SOURCE_ANALYSIS: return "source_analysis";
+        case AgentSpecialization::CREDIBILITY_ASSESSMENT: return "credibility_assessment";
+        case AgentSpecialization::INFORMATION_SYNTHESIS: return "information_synthesis";
+        case AgentSpecialization::FACT_VERIFICATION: return "fact_verification";
+        case AgentSpecialization::KNOWLEDGE_GRAPH_MANAGEMENT: return "knowledge_graph_management";
+        case AgentSpecialization::RESEARCH_REPORTING: return "research_reporting";
+        case AgentSpecialization::CITATION_MANAGEMENT: return "citation_management";
         default: return "unknown";
     }
 }
@@ -101,6 +121,16 @@ AgentSpecialization AgentRoleManager::string_to_specialization(const std::string
     if (spec_str == "reasoning") return AgentSpecialization::REASONING;
     if (spec_str == "planning") return AgentSpecialization::PLANNING;
     if (spec_str == "execution") return AgentSpecialization::EXECUTION;
+    if (spec_str == "research_planning") return AgentSpecialization::RESEARCH_PLANNING;
+    if (spec_str == "query_decomposition") return AgentSpecialization::QUERY_DECOMPOSITION;
+    if (spec_str == "methodology_selection") return AgentSpecialization::METHODOLOGY_SELECTION;
+    if (spec_str == "source_analysis") return AgentSpecialization::SOURCE_ANALYSIS;
+    if (spec_str == "credibility_assessment") return AgentSpecialization::CREDIBILITY_ASSESSMENT;
+    if (spec_str == "information_synthesis") return AgentSpecialization::INFORMATION_SYNTHESIS;
+    if (spec_str == "fact_verification") return AgentSpecialization::FACT_VERIFICATION;
+    if (spec_str == "knowledge_graph_management") return AgentSpecialization::KNOWLEDGE_GRAPH_MANAGEMENT;
+    if (spec_str == "research_reporting") return AgentSpecialization::RESEARCH_REPORTING;
+    if (spec_str == "citation_management") return AgentSpecialization::CITATION_MANAGEMENT;
     return AgentSpecialization::NONE;
 }
 
@@ -211,6 +241,123 @@ void AgentRoleManager::initialize_default_roles() {
         coordinator.default_functions = {"tool_discovery"};
         
         role_definitions[AgentRole::COORDINATOR] = std::move(coordinator);
+    }
+
+    // RESEARCH_COORDINATOR role
+    {
+        AgentRoleDefinition research_coordinator(AgentRole::RESEARCH_COORDINATOR, "Research Coordinator", 
+            "Coordinates research projects and manages research workflows");
+        
+        research_coordinator.capabilities = {
+            AgentCapability("research_planning", "Plan and decompose research projects", CapabilityLevel::EXPERT),
+            AgentCapability("query_decomposition", "Break down complex research queries", CapabilityLevel::EXPERT),
+            AgentCapability("methodology_selection", "Select appropriate research methodologies", CapabilityLevel::ADVANCED),
+            AgentCapability("project_management", "Manage research project lifecycle", CapabilityLevel::ADVANCED),
+            AgentCapability("workflow_orchestration", "Orchestrate multi-step research processes", CapabilityLevel::EXPERT)
+        };
+        
+        research_coordinator.specializations = {
+            AgentSpecialization::RESEARCH_PLANNING, 
+            AgentSpecialization::QUERY_DECOMPOSITION,
+            AgentSpecialization::METHODOLOGY_SELECTION
+        };
+        research_coordinator.default_functions = {"research_query_planning", "methodology_selection", "project_coordination"};
+        
+        role_definitions[AgentRole::RESEARCH_COORDINATOR] = std::move(research_coordinator);
+    }
+
+    // RESEARCH_ANALYST role
+    {
+        AgentRoleDefinition research_analyst(AgentRole::RESEARCH_ANALYST, "Research Analyst", 
+            "Analyzes research data and assesses source credibility");
+        
+        research_analyst.capabilities = {
+            AgentCapability("source_analysis", "Analyze and evaluate information sources", CapabilityLevel::EXPERT),
+            AgentCapability("credibility_assessment", "Assess source credibility and reliability", CapabilityLevel::EXPERT),
+            AgentCapability("information_synthesis", "Synthesize information from multiple sources", CapabilityLevel::ADVANCED),
+            AgentCapability("data_analysis", "Analyze research data and findings", CapabilityLevel::ADVANCED),
+            AgentCapability("conflict_detection", "Identify contradictions between sources", CapabilityLevel::INTERMEDIATE)
+        };
+        
+        research_analyst.specializations = {
+            AgentSpecialization::SOURCE_ANALYSIS,
+            AgentSpecialization::CREDIBILITY_ASSESSMENT,
+            AgentSpecialization::INFORMATION_SYNTHESIS,
+            AgentSpecialization::DATA_ANALYSIS
+        };
+        research_analyst.default_functions = {"source_credibility_analysis", "information_synthesis", "data_analysis"};
+        
+        role_definitions[AgentRole::RESEARCH_ANALYST] = std::move(research_analyst);
+    }
+
+    // KNOWLEDGE_CURATOR role
+    {
+        AgentRoleDefinition knowledge_curator(AgentRole::KNOWLEDGE_CURATOR, "Knowledge Curator", 
+            "Manages knowledge graphs and verifies factual information");
+        
+        knowledge_curator.capabilities = {
+            AgentCapability("knowledge_graph_management", "Build and maintain knowledge graphs", CapabilityLevel::EXPERT),
+            AgentCapability("fact_verification", "Cross-reference and verify facts", CapabilityLevel::EXPERT),
+            AgentCapability("entity_extraction", "Extract entities and relationships from text", CapabilityLevel::ADVANCED),
+            AgentCapability("relationship_mapping", "Map relationships between entities", CapabilityLevel::ADVANCED),
+            AgentCapability("semantic_querying", "Perform semantic queries on knowledge graphs", CapabilityLevel::INTERMEDIATE)
+        };
+        
+        knowledge_curator.specializations = {
+            AgentSpecialization::KNOWLEDGE_GRAPH_MANAGEMENT,
+            AgentSpecialization::FACT_VERIFICATION,
+            AgentSpecialization::DOCUMENT_ANALYSIS
+        };
+        knowledge_curator.default_functions = {"knowledge_graph_query", "fact_verification", "entity_extraction"};
+        
+        role_definitions[AgentRole::KNOWLEDGE_CURATOR] = std::move(knowledge_curator);
+    }
+
+    // SOURCE_ANALYST role
+    {
+        AgentRoleDefinition source_analyst(AgentRole::SOURCE_ANALYST, "Source Analyst", 
+            "Specializes in evaluating and validating information sources");
+        
+        source_analyst.capabilities = {
+            AgentCapability("source_evaluation", "Evaluate source quality and bias", CapabilityLevel::EXPERT),
+            AgentCapability("author_credibility", "Assess author credentials and expertise", CapabilityLevel::ADVANCED),
+            AgentCapability("publication_analysis", "Analyze publication quality and peer review", CapabilityLevel::ADVANCED),
+            AgentCapability("bias_detection", "Identify potential bias in sources", CapabilityLevel::INTERMEDIATE),
+            AgentCapability("citation_analysis", "Analyze citation patterns and impact", CapabilityLevel::INTERMEDIATE)
+        };
+        
+        source_analyst.specializations = {
+            AgentSpecialization::SOURCE_ANALYSIS,
+            AgentSpecialization::CREDIBILITY_ASSESSMENT,
+            AgentSpecialization::DOCUMENT_ANALYSIS
+        };
+        source_analyst.default_functions = {"source_credibility_analysis", "bias_detection", "citation_analysis"};
+        
+        role_definitions[AgentRole::SOURCE_ANALYST] = std::move(source_analyst);
+    }
+
+    // SYNTHESIS_SPECIALIST role
+    {
+        AgentRoleDefinition synthesis_specialist(AgentRole::SYNTHESIS_SPECIALIST, "Synthesis Specialist", 
+            "Synthesizes information and generates comprehensive research reports");
+        
+        synthesis_specialist.capabilities = {
+            AgentCapability("information_integration", "Integrate information from diverse sources", CapabilityLevel::EXPERT),
+            AgentCapability("research_synthesis", "Synthesize research findings and insights", CapabilityLevel::EXPERT),
+            AgentCapability("report_generation", "Generate structured research reports", CapabilityLevel::ADVANCED),
+            AgentCapability("citation_management", "Manage and format citations properly", CapabilityLevel::ADVANCED),
+            AgentCapability("evidence_presentation", "Present evidence clearly and convincingly", CapabilityLevel::INTERMEDIATE)
+        };
+        
+        synthesis_specialist.specializations = {
+            AgentSpecialization::INFORMATION_SYNTHESIS,
+            AgentSpecialization::RESEARCH_REPORTING,
+            AgentSpecialization::CITATION_MANAGEMENT,
+            AgentSpecialization::TEXT_PROCESSING
+        };
+        synthesis_specialist.default_functions = {"research_report_generation", "information_synthesis", "citation_management"};
+        
+        role_definitions[AgentRole::SYNTHESIS_SPECIALIST] = std::move(synthesis_specialist);
     }
     
     // GENERIC role (default)

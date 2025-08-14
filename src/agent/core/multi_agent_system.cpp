@@ -11,6 +11,7 @@
 
 #include "agent/core/multi_agent_system.hpp"
 #include "tools/builtin_function_registry.hpp"
+#include "tools/research_functions.hpp"
 #include "logger/server_logger_integration.hpp"
 #include "agent/core/agent_core.hpp"
 #include "api/message_router.hpp"
@@ -122,6 +123,28 @@ std::unique_ptr<AgentFunction> ConfigurableAgentFactory::create__builtin_functio
         return std::make_unique<GetEmbeddingFunction>();
     } else if (config.name == "test_document_service") {
         return std::make_unique<TestDocumentServiceFunction>();
+    
+    // Research-specific functions
+    } else if (config.name == "research_query_planning") {
+        return std::make_unique<ResearchQueryPlanningFunction>();
+    } else if (config.name == "methodology_selection") {
+        return std::make_unique<MethodologySelectionFunction>();
+    } else if (config.name == "source_credibility_analysis") {
+        return std::make_unique<SourceCredibilityAnalysisFunction>();
+    } else if (config.name == "information_synthesis") {
+        return std::make_unique<InformationSynthesisFunction>();
+    } else if (config.name == "fact_verification") {
+        return std::make_unique<FactVerificationFunction>();
+    } else if (config.name == "knowledge_graph_query") {
+        return std::make_unique<KnowledgeGraphQueryFunction>();
+    } else if (config.name == "research_report_generation") {
+        return std::make_unique<ResearchReportGenerationFunction>();
+    } else if (config.name == "entity_extraction") {
+        return std::make_unique<EntityExtractionFunction>();
+    } else if (config.name == "relationship_mapping") {
+        return std::make_unique<RelationshipMappingFunction>();
+    } else if (config.name == "citation_management") {
+        return std::make_unique<CitationManagementFunction>();
     }
     
     logger->warn("Unknown builtin function: " + config.name);

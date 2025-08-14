@@ -48,9 +48,9 @@ else()
     add_definitions(-DPLATFORM_LINUX)
 endif()
 
-# Feature options
+# Build mode options (Simplified to 2 modes)
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
-option(BUILD_TESTS "Build unit tests" OFF)
+option(BUILD_TESTS "Build with all tests (unit, integration, performance)" OFF)
 option(BUILD_EXAMPLES "Build example applications" OFF)
 option(BUILD_DOCS "Build documentation" OFF)
 option(ENABLE_LOGGING "Enable logging support" ON)
@@ -59,16 +59,6 @@ option(ENABLE_HEALTH_MONITORING "Enable health monitoring" ON)
 option(USE_SYSTEM_LIBS "Use system-installed libraries when possible" OFF)
 option(ENABLE_HTTP_CLIENT "Enable HTTP client functionality (requires CURL)" ON)
 
-# Test mode options
-option(ENABLE_TEST_MODE "Enable comprehensive test mode with enhanced debugging and validation" OFF)
-option(BUILD_UNIT_TESTS "Build unit tests (included in BUILD_TESTS)" OFF)
-option(BUILD_INTEGRATION_TESTS "Build integration tests (included in BUILD_TESTS)" OFF)
-option(BUILD_PERFORMANCE_TESTS "Build performance tests (included in BUILD_TESTS)" OFF)
-option(ENABLE_TEST_COVERAGE "Enable test coverage reporting (requires GCC/Clang)" OFF)
-option(ENABLE_MEMORY_TESTING "Enable memory testing with sanitizers in test mode" OFF)
-option(RUN_TESTS_ON_BUILD "Automatically run tests after successful build" OFF)
-option(ENABLE_BENCHMARK_TESTS "Enable benchmark testing with Google Benchmark" OFF)
-
 # Advanced build options
 option(USE_PODOFO "Enable PDF processing with PoDoFo" OFF)
 option(ENABLE_CUDA "Enable CUDA support for GPU acceleration" OFF)
@@ -76,52 +66,36 @@ option(ENABLE_VULKAN "Enable Vulkan support" OFF)
 option(ENABLE_METAL "Enable Metal support (macOS)" OFF)
 option(ENABLE_NATIVE_OPTS "Enable native CPU optimizations" OFF)
 
-# Development options
-option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
-option(ENABLE_TSAN "Enable ThreadSanitizer" OFF)
-option(ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
+# Development options (only used when BUILD_TESTS=ON)
+option(ENABLE_ASAN "Enable AddressSanitizer (test mode only)" OFF)
+option(ENABLE_TSAN "Enable ThreadSanitizer (test mode only)" OFF)
+option(ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer (test mode only)" OFF)
 
 # Build configuration options
-option(CLEAN_BUILD "Perform clean build" OFF)
-option(INSTALL_AFTER_BUILD "Install after build" OFF)
-option(PACKAGE_AFTER_BUILD "Create packages after build" OFF)
-option(RUN_TESTS_AFTER_BUILD "Run tests after build" OFF)
 option(VERBOSE_BUILD "Verbose build output" OFF)
 
-# Configure test mode settings
-if(ENABLE_TEST_MODE)
-    message(STATUS "🧪 Test Mode Enabled - Configuring enhanced testing environment")
-    set(BUILD_TESTS ON)
+# Configure build mode (Simplified - only 2 modes)
+if(BUILD_TESTS)
+    message(STATUS "🧪 Test Mode Enabled - Building with all tests")
     set(BUILD_UNIT_TESTS ON)
     set(BUILD_INTEGRATION_TESTS ON)
     set(BUILD_PERFORMANCE_TESTS ON)
-    set(RUN_TESTS_ON_BUILD ON)
     set(ENABLE_LOGGING ON)
     set(ENABLE_METRICS ON)
-    set(VERBOSE_BUILD ON)
     
-    # Force debug build for test mode
-    if(CMAKE_BUILD_TYPE STREQUAL "Release")
-        message(STATUS "Forcing Debug build for test mode")
-        set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type forced to Debug for test mode" FORCE)
+    # Enable sanitizers if requested in test mode
+    if(ENABLE_ASAN AND NOT MSVC)
+        message(STATUS "AddressSanitizer enabled for testing")
     endif()
     
-    # Enable memory testing if requested
-    if(ENABLE_MEMORY_TESTING)
-        set(ENABLE_ASAN ON)
-        set(ENABLE_UBSAN ON)
-        message(STATUS "Memory testing enabled with AddressSanitizer and UndefinedBehaviorSanitizer")
+    if(ENABLE_UBSAN AND NOT MSVC)
+        message(STATUS "UndefinedBehaviorSanitizer enabled for testing")
     endif()
-endif()
-
-# Validate and consolidate test options
-if(BUILD_TESTS)
-    if(NOT BUILD_UNIT_TESTS AND NOT BUILD_INTEGRATION_TESTS AND NOT BUILD_PERFORMANCE_TESTS)
-        # Default to all tests if BUILD_TESTS is ON but specific tests not specified
-        set(BUILD_UNIT_TESTS ON)
-        set(BUILD_INTEGRATION_TESTS ON)
-        set(BUILD_PERFORMANCE_TESTS ON)
-    endif()
+else()
+    message(STATUS "Standard Build Mode - No tests")
+    set(BUILD_UNIT_TESTS OFF)
+    set(BUILD_INTEGRATION_TESTS OFF)
+    set(BUILD_PERFORMANCE_TESTS OFF)
 endif()
 
 # Print configuration
@@ -131,8 +105,11 @@ message(STATUS "Platform: ${PLATFORM_NAME}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Shared Libraries: ${BUILD_SHARED_LIBS}")
-if(ENABLE_TEST_MODE)
-message(STATUS "🧪 TEST MODE: ENABLED")
+message(STATUS "Build Mode: ${BUILD_TESTS}")
+if(BUILD_TESTS)
+message(STATUS "🧪 TEST MODE: ENABLED (All tests included)")
+else()
+message(STATUS "📦 STANDARD BUILD: No tests")
 endif()
 message(STATUS "========================================")
 
@@ -411,6 +388,7 @@ set(TOOLS_SOURCES
     src/tools/builtin_function_registry.cpp
     src/tools/kolosal_server_functions.cpp
     src/tools/enhanced_function_registry.cpp
+    src/tools/research_functions.cpp
 )
 
 set(UTILS_SOURCES
@@ -459,9 +437,9 @@ target_include_directories(kolosal_agent
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/include
         ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/ggml/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/common
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/external/llama.cpp/ggml/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/external/llama.cpp/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/external/llama.cpp/common
         ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/pugixml/src
         ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/nlohmann
         ${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann
@@ -477,7 +455,7 @@ target_compile_definitions(kolosal_agent
 )
 
 # Test mode specific definitions
-if(ENABLE_TEST_MODE)
+if(BUILD_TESTS)
     target_compile_definitions(kolosal_agent 
         PRIVATE
             KOLOSAL_AGENT_TEST_MODE
@@ -514,21 +492,22 @@ target_link_libraries(kolosal_agent
         Threads::Threads
         ${YAML_CPP_LIBRARIES}
         kolosal_server
-        llama_cpu
-        pugixml_static
-        minizip_static
-        zlib_static
-        yaml_cpp_server
+        # Commented out static libraries since we're using the shared kolosal_server.dll
+        # llama_cpu
+        # pugixml_static
+        # minizip_static
+        # zlib_static
+        # yaml_cpp_server
 )
 
-# Add PoDoFo libraries conditionally
-if(TARGET podofo_static)
-    target_link_libraries(kolosal_agent PUBLIC
-        podofo_static
-        podofo_private
-        podofo_3rd
-    )
-endif()
+# Add PoDoFo libraries conditionally - commented out since using shared kolosal_server.dll
+# if(TARGET podofo_static)
+#     target_link_libraries(kolosal_agent PUBLIC
+#         podofo_static
+#         podofo_private
+#         podofo_3rd
+#     )
+# endif()
 
 # Windows system libraries for PoDoFo and other dependencies
 if(WIN32)
@@ -625,70 +604,76 @@ add_custom_target(kolosal-server-exe
     COMMENT "Copying kolosal-server executable to output directory"
 )
 
-# Import the built kolosal_server static library for linking
+# Import the built kolosal_server library for linking  
 if(WIN32)
-    add_library(kolosal_server STATIC IMPORTED)
-    # Import library (.lib) for static linking
+    add_library(kolosal_server SHARED IMPORTED)
+    # Import library (.lib) for shared linking
     set_target_properties(kolosal_server PROPERTIES
-        IMPORTED_LOCATION_DEBUG         "${KOLOSAL_SERVER_BINARY_DIR}/Debug/kolosal_server.lib"
-        IMPORTED_LOCATION_RELEASE       "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.lib"
-        IMPORTED_LOCATION_RELWITHDEBINFO "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.lib"
-        IMPORTED_LOCATION_MINSIZEREL     "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.lib"
+        IMPORTED_LOCATION_DEBUG         "${KOLOSAL_SERVER_BINARY_DIR}/Debug/kolosal_server.dll"
+        IMPORTED_LOCATION_RELEASE       "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.dll"
+        IMPORTED_LOCATION_RELWITHDEBINFO "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.dll"
+        IMPORTED_LOCATION_MINSIZEREL     "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.dll"
+        IMPORTED_IMPLIB_DEBUG           "${KOLOSAL_SERVER_BINARY_DIR}/Debug/kolosal_server.lib"
+        IMPORTED_IMPLIB_RELEASE         "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.lib"
+        IMPORTED_IMPLIB_RELWITHDEBINFO  "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.lib"
+        IMPORTED_IMPLIB_MINSIZEREL      "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.lib"
     )
+    # Note: Since kolosal-server is built as a shared library (DLL), 
+    # most dependencies are already included in the DLL.
+    # Commenting out static library imports that may not be needed.
     
-    # Import kolosal-server dependencies (static libraries)
-    add_library(podofo_static STATIC IMPORTED)
-    set_target_properties(podofo_static PROPERTIES
-        IMPORTED_LOCATION_DEBUG         "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/Debug/podofo.lib"
-        IMPORTED_LOCATION_RELEASE       "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/Release/podofo.lib"
-        IMPORTED_LOCATION_RELWITHDEBINFO "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/Release/podofo.lib"
-        IMPORTED_LOCATION_MINSIZEREL     "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/Release/podofo.lib"
-    )
+    # add_library(podofo_static STATIC IMPORTED)
+    # set_target_properties(podofo_static PROPERTIES
+    #     IMPORTED_LOCATION_DEBUG         "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/Debug/podofo.lib"
+    #     IMPORTED_LOCATION_RELEASE       "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/Release/podofo.lib"
+    #     IMPORTED_LOCATION_RELWITHDEBINFO "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/Release/podofo.lib"
+    #     IMPORTED_LOCATION_MINSIZEREL     "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/Release/podofo.lib"
+    # )
     
-    add_library(pugixml_static STATIC IMPORTED)
-    set_target_properties(pugixml_static PROPERTIES
-        IMPORTED_LOCATION_DEBUG         "${KOLOSAL_SERVER_BINARY_DIR}/external/pugixml/Debug/pugixml.lib"
-        IMPORTED_LOCATION_RELEASE       "${KOLOSAL_SERVER_BINARY_DIR}/external/pugixml/Release/pugixml.lib"
-        IMPORTED_LOCATION_RELWITHDEBINFO "${KOLOSAL_SERVER_BINARY_DIR}/external/pugixml/Release/pugixml.lib"
-        IMPORTED_LOCATION_MINSIZEREL     "${KOLOSAL_SERVER_BINARY_DIR}/external/pugixml/Release/pugixml.lib"
-    )
+    # add_library(pugixml_static STATIC IMPORTED)
+    # set_target_properties(pugixml_static PROPERTIES
+    #     IMPORTED_LOCATION_DEBUG         "${KOLOSAL_SERVER_BINARY_DIR}/external/pugixml/Debug/pugixml.lib"
+    #     IMPORTED_LOCATION_RELEASE       "${KOLOSAL_SERVER_BINARY_DIR}/external/pugixml/Release/pugixml.lib"
+    #     IMPORTED_LOCATION_RELWITHDEBINFO "${KOLOSAL_SERVER_BINARY_DIR}/external/pugixml/Release/pugixml.lib"
+    #     IMPORTED_LOCATION_MINSIZEREL     "${KOLOSAL_SERVER_BINARY_DIR}/external/pugixml/Release/pugixml.lib"
+    # )
     
-    add_library(minizip_static STATIC IMPORTED)
-    set_target_properties(minizip_static PROPERTIES
-        IMPORTED_LOCATION_DEBUG         "${KOLOSAL_SERVER_BINARY_DIR}/Debug/minizip.lib"
-        IMPORTED_LOCATION_RELEASE       "${KOLOSAL_SERVER_BINARY_DIR}/Release/minizip.lib"
-        IMPORTED_LOCATION_RELWITHDEBINFO "${KOLOSAL_SERVER_BINARY_DIR}/Release/minizip.lib"
-        IMPORTED_LOCATION_MINSIZEREL     "${KOLOSAL_SERVER_BINARY_DIR}/Release/minizip.lib"
-    )
+    # add_library(minizip_static STATIC IMPORTED)
+    # set_target_properties(minizip_static PROPERTIES
+    #     IMPORTED_LOCATION_DEBUG         "${KOLOSAL_SERVER_BINARY_DIR}/Debug/minizip.lib"
+    #     IMPORTED_LOCATION_RELEASE       "${KOLOSAL_SERVER_BINARY_DIR}/Release/minizip.lib"
+    #     IMPORTED_LOCATION_RELWITHDEBINFO "${KOLOSAL_SERVER_BINARY_DIR}/Release/minizip.lib"
+    #     IMPORTED_LOCATION_MINSIZEREL     "${KOLOSAL_SERVER_BINARY_DIR}/Release/minizip.lib"
+    # )
     
-    add_library(zlib_static STATIC IMPORTED)
-    set_target_properties(zlib_static PROPERTIES
-        IMPORTED_LOCATION_DEBUG         "${KOLOSAL_SERVER_BINARY_DIR}/external/zlib/Debug/zsd.lib"
-        IMPORTED_LOCATION_RELEASE       "${KOLOSAL_SERVER_BINARY_DIR}/external/zlib/Release/zsd.lib"
-        IMPORTED_LOCATION_RELWITHDEBINFO "${KOLOSAL_SERVER_BINARY_DIR}/external/zlib/Release/zsd.lib"
-        IMPORTED_LOCATION_MINSIZEREL     "${KOLOSAL_SERVER_BINARY_DIR}/external/zlib/Release/zsd.lib"
-    )
+    # add_library(zlib_static STATIC IMPORTED)
+    # set_target_properties(zlib_static PROPERTIES
+    #     IMPORTED_LOCATION_DEBUG         "${KOLOSAL_SERVER_BINARY_DIR}/external/zlib/Debug/zsd.lib"
+    #     IMPORTED_LOCATION_RELEASE       "${KOLOSAL_SERVER_BINARY_DIR}/external/zlib/Release/zsd.lib"
+    #     IMPORTED_LOCATION_RELWITHDEBINFO "${KOLOSAL_SERVER_BINARY_DIR}/external/zlib/Release/zsd.lib"
+    #     IMPORTED_LOCATION_MINSIZEREL     "${KOLOSAL_SERVER_BINARY_DIR}/external/zlib/Release/zsd.lib"
+    # )
     
-    add_library(llama_cpu STATIC IMPORTED)
-    set_target_properties(llama_cpu PROPERTIES
-        IMPORTED_LOCATION_DEBUG         "${KOLOSAL_SERVER_BINARY_DIR}/lib/Debug/llama-cpu.lib"
-        IMPORTED_LOCATION_RELEASE       "${KOLOSAL_SERVER_BINARY_DIR}/lib/Release/llama-cpu.lib"
-        IMPORTED_LOCATION_RELWITHDEBINFO "${KOLOSAL_SERVER_BINARY_DIR}/lib/Release/llama-cpu.lib"
-        IMPORTED_LOCATION_MINSIZEREL     "${KOLOSAL_SERVER_BINARY_DIR}/lib/Release/llama-cpu.lib"
-    )
+    # add_library(llama_cpu STATIC IMPORTED)
+    # set_target_properties(llama_cpu PROPERTIES
+    #     IMPORTED_LOCATION_DEBUG         "${KOLOSAL_SERVER_BINARY_DIR}/lib/Debug/llama-cpu.lib"
+    #     IMPORTED_LOCATION_RELEASE       "${KOLOSAL_SERVER_BINARY_DIR}/lib/Release/llama-cpu.lib"
+    #     IMPORTED_LOCATION_RELWITHDEBINFO "${KOLOSAL_SERVER_BINARY_DIR}/lib/Release/llama-cpu.lib"
+    #     IMPORTED_LOCATION_MINSIZEREL     "${KOLOSAL_SERVER_BINARY_DIR}/lib/Release/llama-cpu.lib"
+    # )
     
-    add_library(podofo_3rd STATIC IMPORTED)
-    set_target_properties(podofo_3rd PROPERTIES
-        IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/3rdparty/Debug/podofo_3rdparty.lib"
-        IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/3rdparty/Release/podofo_3rdparty.lib"
-    )
+    # add_library(podofo_3rd STATIC IMPORTED)
+    # set_target_properties(podofo_3rd PROPERTIES
+    #     IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/3rdparty/Debug/podofo_3rdparty.lib"
+    #     IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/3rdparty/Release/podofo_3rdparty.lib"
+    # )
     
     # Add podofo_private library
-    add_library(podofo_private STATIC IMPORTED)
-    set_target_properties(podofo_private PROPERTIES
-        IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/private/Debug/podofo_private.lib"
-        IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/private/Release/podofo_private.lib"
-    )
+    # add_library(podofo_private STATIC IMPORTED)
+    # set_target_properties(podofo_private PROPERTIES
+    #     IMPORTED_LOCATION_DEBUG   "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/private/Debug/podofo_private.lib"
+    #     IMPORTED_LOCATION_RELEASE "${KOLOSAL_SERVER_BINARY_DIR}/external/podofo/src/podofo/private/Release/podofo_private.lib"
+    # )
     
     add_library(yaml_cpp_server STATIC IMPORTED)
     set_target_properties(yaml_cpp_server PROPERTIES
@@ -814,14 +799,15 @@ endif()
 
 # Ensure kolosal-server external build completes before building agent targets
 add_dependencies(kolosal_agent ext_kolosal_server)
-add_dependencies(podofo_static ext_kolosal_server)
-add_dependencies(podofo_3rd ext_kolosal_server)
-add_dependencies(podofo_private ext_kolosal_server)
-add_dependencies(pugixml_static ext_kolosal_server)
-add_dependencies(minizip_static ext_kolosal_server)
-add_dependencies(zlib_static ext_kolosal_server)
-add_dependencies(llama_cpu ext_kolosal_server)
-add_dependencies(yaml_cpp_server ext_kolosal_server)
+# Commented out dependencies for static libraries since we're using shared kolosal_server.dll
+# add_dependencies(podofo_static ext_kolosal_server)
+# add_dependencies(podofo_3rd ext_kolosal_server)
+# add_dependencies(podofo_private ext_kolosal_server)
+# add_dependencies(pugixml_static ext_kolosal_server)
+# add_dependencies(minizip_static ext_kolosal_server)
+# add_dependencies(zlib_static ext_kolosal_server)
+# add_dependencies(llama_cpu ext_kolosal_server)
+# add_dependencies(yaml_cpp_server ext_kolosal_server)
 set(KOLOSAL_SERVER_AVAILABLE TRUE)
 
 # Simple test executable for Windows dialog fixes
@@ -905,58 +891,56 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/README.md")
     )
 endif()
 
-# Tests configuration
+# Tests configuration (Simplified - only when BUILD_TESTS=ON)
 if(BUILD_TESTS)
     enable_testing()
     
-    # Find test framework - Use FetchContent to get GoogleTest
+    # Find test framework - Use local GoogleTest from external/googletest
     find_package(GTest QUIET)
     if(NOT GTest_FOUND)
-        # Use FetchContent to download and build GoogleTest
-        include(FetchContent)
-        FetchContent_Declare(
-            googletest
-            GIT_REPOSITORY https://github.com/google/googletest.git
-            GIT_TAG release-1.12.1
-        )
-        
-        # For Windows: Prevent overriding the parent project's compiler/linker settings
-        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-        set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
-        set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
-        
-        FetchContent_MakeAvailable(googletest)
-        
-        # Create targets to match what find_package would create
-        if(NOT TARGET GTest::gtest)
-            add_library(GTest::gtest ALIAS gtest)
+        # Use local GoogleTest from external directory
+        if(EXISTS "${CMAKE_SOURCE_DIR}/external/googletest/CMakeLists.txt")
+            message(STATUS "Using local GoogleTest from external/googletest")
+            
+            # For Windows: Prevent overriding the parent project's compiler/linker settings
+            set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+            set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
+            set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+            
+            # Add googletest subdirectory
+            add_subdirectory(${CMAKE_SOURCE_DIR}/external/googletest EXCLUDE_FROM_ALL)
+            
+            # Create targets to match what find_package would create
+            if(NOT TARGET GTest::gtest)
+                add_library(GTest::gtest ALIAS gtest)
+            endif()
+            if(NOT TARGET GTest::gtest_main)
+                add_library(GTest::gtest_main ALIAS gtest_main)
+            endif()
+            if(NOT TARGET GTest::gmock)
+                add_library(GTest::gmock ALIAS gmock)
+            endif()
+            if(NOT TARGET GTest::gmock_main)
+                add_library(GTest::gmock_main ALIAS gmock_main)
+            endif()
+            
+            set(GTest_FOUND TRUE)
+            message(STATUS "GoogleTest configured from external/googletest")
+        else()
+            message(WARNING "GoogleTest not found in external/googletest directory")
         endif()
-        if(NOT TARGET GTest::gtest_main)
-            add_library(GTest::gtest_main ALIAS gtest_main)
-        endif()
-        if(NOT TARGET GTest::gmock)
-            add_library(GTest::gmock ALIAS gmock)
-        endif()
-        if(NOT TARGET GTest::gmock_main)
-            add_library(GTest::gmock_main ALIAS gmock_main)
-        endif()
-        
-        set(GTest_FOUND TRUE)
-        message(STATUS "Using FetchContent GoogleTest")
     endif()
     
     if(GTest_FOUND)
         add_subdirectory(tests)
-        message(STATUS "Tests enabled with Google Test")
+        message(STATUS "🧪 All tests enabled with Google Test (unit, integration, performance)")
         
-        # Find Google Benchmark if benchmark tests are enabled
-        if(ENABLE_BENCHMARK_TESTS)
-            find_package(benchmark QUIET)
-            if(benchmark_FOUND)
-                message(STATUS "Benchmark tests enabled with Google Benchmark")
-            else()
-                message(WARNING "Benchmark tests requested but Google Benchmark not found")
-            endif()
+        # Find Google Benchmark for performance tests
+        find_package(benchmark QUIET)
+        if(benchmark_FOUND)
+            message(STATUS "Benchmark tests enabled with Google Benchmark")
+        else()
+            message(STATUS "Performance tests will use basic timing (Google Benchmark not found)")
         endif()
         
     else()
@@ -966,10 +950,12 @@ if(BUILD_TESTS)
         message(STATUS "Or build from source:")
         message(STATUS "  git clone https://github.com/google/googletest.git")
     endif()
+else()
+    message(STATUS "📦 Tests disabled - standard build mode")
 endif()
 
-# Add test-specific targets when test mode is enabled
-if(ENABLE_TEST_MODE)
+# Add test-specific targets when BUILD_TESTS is enabled
+if(BUILD_TESTS)
     # Test data preparation target
     add_custom_target(prepare_test_data
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/test_output
@@ -984,25 +970,30 @@ if(ENABLE_TEST_MODE)
         COMMENT "Validating test configuration"
     )
     
-    # Memory test target (when memory testing is enabled)
-    if(ENABLE_MEMORY_TESTING)
-        add_custom_target(memory_tests
-            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "memory"
-            COMMENT "Running memory tests with sanitizers"
-        )
-    endif()
+    # Full test suite target
+    add_custom_target(full-test
+        COMMAND ${CMAKE_COMMAND} -E echo "🧪 Full test suite execution"
+        COMMAND ${CMAKE_COMMAND} -E echo "Building and running all tests..."
+        DEPENDS 
+            kolosal_agent_unit_tests
+            kolosal_agent_integration_tests
+            kolosal_agent_performance_tests
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --parallel 4 || ${CMAKE_COMMAND} -E echo "Note: Some tests may have compilation issues and will be skipped"
+        COMMENT "Building and running full test suite"
+    )
     
-    # Coverage report target (when coverage is enabled)
-    if(ENABLE_TEST_COVERAGE AND (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
-        add_custom_target(test_coverage
-            COMMAND lcov --directory . --capture --output-file coverage.info
-            COMMAND lcov --remove coverage.info '/usr/*' --output-file coverage.info
-            COMMAND lcov --list coverage.info
-            COMMAND genhtml coverage.info --output-directory coverage_report
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-            COMMENT "Generating test coverage report"
-        )
-    endif()
+    # Quick test target for unit tests only
+    add_custom_target(quick-test
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "unit" --parallel 4
+        COMMENT "Running quick unit tests"
+    )
+    
+    # Test and report target
+    add_custom_target(test-report
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --parallel 4
+        COMMAND ${CMAKE_COMMAND} -E echo "Test execution completed. Check test_logs/ for detailed results."
+        COMMENT "Running tests and generating reports"
+    )
 endif()
 
 # Examples
@@ -1097,85 +1088,40 @@ add_custom_target(build-all
     COMMENT "Building both kolosal-agent and kolosal-server executables"
 )
 
-# Test mode specific targets
-if(ENABLE_TEST_MODE)
-    # Build everything including tests
-    add_custom_target(build-test-mode
+# Test build target (only available when BUILD_TESTS=ON)
+if(BUILD_TESTS)
+    add_custom_target(build-with-tests
         DEPENDS kolosal-agent kolosal-server-exe prepare_test_data
-        COMMENT "Building all targets for test mode"
-    )
-    
-    # Quick test target for fast feedback
-    add_custom_target(quick-test
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "unit" --parallel 4
-        COMMENT "Running quick unit tests"
-    )
-    
-    # Full test suite target
-    add_custom_target(full-test
-        COMMAND ${CMAKE_COMMAND} -E echo "🧪 Full test suite execution"
-        COMMAND ${CMAKE_COMMAND} -E echo "Building and running available tests..."
-        DEPENDS 
-            $<$<BOOL:${BUILD_UNIT_TESTS}>:kolosal_agent_unit_tests>
-            $<$<BOOL:${BUILD_INTEGRATION_TESTS}>:kolosal_agent_integration_tests>
-            $<$<BOOL:${BUILD_PERFORMANCE_TESTS}>:kolosal_agent_performance_tests>
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --parallel 4 || ${CMAKE_COMMAND} -E echo "Note: Some tests may have compilation issues and will be skipped"
-        COMMENT "Building and running full test suite"
-    )
-    
-    # Test and report target
-    add_custom_target(test-report
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --parallel 4
-        COMMAND ${CMAKE_COMMAND} -E echo "Test execution completed. Check test_logs/ for detailed results."
-        COMMENT "Running tests and generating reports"
+        COMMENT "Building all targets with test support"
     )
 endif()
 
-# Post-build actions
-if(INSTALL_AFTER_BUILD)
-    add_custom_command(TARGET kolosal-agent POST_BUILD
-        COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR}
-        COMMENT "Installing after build"
-    )
-endif()
-
-if(PACKAGE_AFTER_BUILD)
-    add_custom_command(TARGET kolosal-agent POST_BUILD
-        COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target package
-        COMMENT "Creating packages after build"
-    )
-endif()
+# Post-build actions (removed - keeping simple)
+# No automatic post-build actions to keep things simple
 
 # Copy required DLLs for kolosal-agent
 if(WIN32)
     add_custom_command(TARGET kolosal-agent POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_BINARY_DIR}/kolosal-server/bin/${CMAKE_BUILD_TYPE}/llama-cpu.dll
+            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/kolosal_server.dll
             $<TARGET_FILE_DIR:kolosal-agent>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_BINARY_DIR}/kolosal-server/bin/${CMAKE_BUILD_TYPE}/libcurl.dll
+            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/llama-cpu.dll
+            $<TARGET_FILE_DIR:kolosal-agent>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/libcurl.dll
             $<TARGET_FILE_DIR:kolosal-agent>
         COMMENT "Copying required DLLs for kolosal-agent.exe"
         VERBATIM
     )
 endif()
 
-# Run tests after build
-if(RUN_TESTS_AFTER_BUILD AND BUILD_TESTS)
+# Run tests after build (optional - only when BUILD_TESTS=ON)
+if(BUILD_TESTS)
     add_custom_command(TARGET kolosal-agent POST_BUILD
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+        COMMAND ${CMAKE_COMMAND} -E echo "Tests available. Run with: ctest --output-on-failure"
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        COMMENT "Running tests after build"
-    )
-endif()
-
-# Run tests on build for test mode (modified to be optional)
-if(RUN_TESTS_ON_BUILD AND BUILD_TESTS)
-    add_custom_command(TARGET kolosal-agent POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E echo "Tests configured but skipping automatic run to avoid build failures"
-        COMMAND ${CMAKE_COMMAND} -E echo "Run tests manually with: ctest --output-on-failure"
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        COMMENT "Test mode: Tests available but not running automatically"
+        COMMENT "Tests built successfully - run manually when needed"
     )
 endif()
 
@@ -1206,18 +1152,15 @@ message(STATUS "  Version: ${PROJECT_VERSION}")
 message(STATUS "  Platform: ${PLATFORM_NAME}")
 message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "  Shared Libraries: ${BUILD_SHARED_LIBS}")
-message(STATUS "  Tests: ${BUILD_TESTS}")
-if(ENABLE_TEST_MODE)
-message(STATUS "  🧪 Test Mode: ENABLED")
-message(STATUS "    - Unit Tests: ${BUILD_UNIT_TESTS}")
-message(STATUS "    - Integration Tests: ${BUILD_INTEGRATION_TESTS}")
-message(STATUS "    - Performance Tests: ${BUILD_PERFORMANCE_TESTS}")
-message(STATUS "    - Coverage: ${ENABLE_TEST_COVERAGE}")
-message(STATUS "    - Memory Testing: ${ENABLE_MEMORY_TESTING}")
-message(STATUS "    - Benchmark Tests: ${ENABLE_BENCHMARK_TESTS}")
-message(STATUS "    - Auto Run Tests: ${RUN_TESTS_ON_BUILD}")
+if(BUILD_TESTS)
+message(STATUS "  🧪 Build Mode: WITH ALL TESTS")
+message(STATUS "    - Unit Tests: YES")
+message(STATUS "    - Integration Tests: YES")
+message(STATUS "    - Performance Tests: YES")
+message(STATUS "    - AddressSanitizer: ${ENABLE_ASAN}")
+message(STATUS "    - UndefinedBehaviorSanitizer: ${ENABLE_UBSAN}")
 else()
-message(STATUS "  Test Mode: Disabled")
+message(STATUS "  📦 Build Mode: STANDARD (No Tests)")
 endif()
 message(STATUS "  Examples: ${BUILD_EXAMPLES}")
 message(STATUS "  Documentation: ${BUILD_DOCS}")
@@ -1234,87 +1177,74 @@ message(STATUS "    - Metal: ${ENABLE_METAL}")
 message(STATUS "========================================")
 message(STATUS "")
 message(STATUS "🔧 Build Instructions:")
-if(ENABLE_TEST_MODE)
-message(STATUS "  🧪 TEST MODE BUILD:")
-message(STATUS "    cmake .. -DENABLE_TEST_MODE=ON")
-message(STATUS "    cmake --build . --config Debug")
-message(STATUS "  ")
-message(STATUS "  Test-specific targets:")
-message(STATUS "    cmake --build . --target build-test-mode --config Debug  # Build everything for testing")
-message(STATUS "    cmake --build . --target quick-test --config Debug       # Run quick unit tests")
-message(STATUS "    cmake --build . --target full-test --config Debug        # Run all tests")
-message(STATUS "    cmake --build . --target test-report --config Debug      # Run tests with reporting")
-if(ENABLE_TEST_COVERAGE)
-message(STATUS "    cmake --build . --target test_coverage --config Debug    # Generate coverage report")
-endif()
-if(ENABLE_MEMORY_TESTING)
-message(STATUS "    cmake --build . --target memory_tests --config Debug     # Run memory tests")
-endif()
-message(STATUS "  ")
-else()
-message(STATUS "  Configure with Debug build:")
+message(STATUS "")
+message(STATUS "  ══════════════════════════════════════")
+message(STATUS "  📦 STANDARD BUILD (No Tests)")
+message(STATUS "  ══════════════════════════════════════")
 message(STATUS "    cmake .. -DCMAKE_BUILD_TYPE=Debug")
-message(STATUS "  ")
-endif()
-message(STATUS "  Build ALL targets (default - builds both kolosal-server.exe and kolosal-agent):")
 message(STATUS "    cmake --build . --config Debug")
 message(STATUS "  ")
-message(STATUS "  Build specific targets:")
-message(STATUS "    cmake --build . --target kolosal-agent --config Debug      # Build only kolosal-agent")
-message(STATUS "    cmake --build . --target build-server --config Debug      # Build only kolosal-server.exe")
-message(STATUS "    cmake --build . --target build-agent --config Debug       # Build only kolosal-agent")
-message(STATUS "    cmake --build . --target build-all --config Debug         # Build both main executables")
+message(STATUS "  ══════════════════════════════════════")
+message(STATUS "  🧪 BUILD WITH ALL TESTS")
+message(STATUS "  ══════════════════════════════════════")
+message(STATUS "    cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON")
+message(STATUS "    cmake --build . --config Debug")
 message(STATUS "  ")
-message(STATUS "  Output executables (in build/Debug/ or build/ directory):")
+message(STATUS "    Optional test flags:")
+message(STATUS "    cmake .. -DBUILD_TESTS=ON -DENABLE_ASAN=ON -DENABLE_UBSAN=ON")
+message(STATUS "  ")
+message(STATUS "  ══════════════════════════════════════")
+message(STATUS "  📁 OUTPUT EXECUTABLES")
+message(STATUS "  ══════════════════════════════════════")
+message(STATUS "    Location: build/Debug/ or build/")
 message(STATUS "    - kolosal-agent(.exe) - Main agent system")
 message(STATUS "    - kolosal-server(.exe) - Standalone LLM server")
 message(STATUS "    - kolosal-launcher(.exe) - System launcher")
 message(STATUS "    - simple-test(.exe) - Simple test utility")
+message(STATUS "    - workflow-example(.exe) - Example workflow")
 message(STATUS "  ")
-if(ENABLE_TEST_MODE)
-message(STATUS "  🧪 Test Mode Usage:")
-message(STATUS "    All tests run automatically after build")
-message(STATUS "    Test results in: build/test_output/")
-message(STATUS "    Test logs in: build/test_logs/")
+message(STATUS "  ══════════════════════════════════════")
+message(STATUS "  🎯 BUILD TARGETS")
+message(STATUS "  ══════════════════════════════════════")
+message(STATUS "    cmake --build . --config Debug                     # Build everything")
+message(STATUS "    cmake --build . --target build-agent --config Debug    # Build only kolosal-agent")
+message(STATUS "    cmake --build . --target build-server --config Debug   # Build only kolosal-server")
+message(STATUS "    cmake --build . --target build-all --config Debug      # Build both main executables")
+if(BUILD_TESTS)
+message(STATUS "    cmake --build . --target build-with-tests --config Debug  # Build with test support")
 message(STATUS "  ")
+message(STATUS "  ══════════════════════════════════════")
+message(STATUS "  🧪 TEST TARGETS (Available)")
+message(STATUS "  ══════════════════════════════════════")
+message(STATUS "    cmake --build . --target quick-test --config Debug     # Run unit tests only")
+message(STATUS "    cmake --build . --target full-test --config Debug      # Run all tests")
+message(STATUS "    cmake --build . --target test-report --config Debug    # Run tests with reporting")
+message(STATUS "    ctest --output-on-failure                              # Run tests manually")
 endif()
-message(STATUS "  Additional options:")
-if(ENABLE_TEST_MODE)
-message(STATUS "    cmake .. -DENABLE_TEST_MODE=ON -DENABLE_MEMORY_TESTING=ON -DENABLE_TEST_COVERAGE=ON")
-else()
-message(STATUS "    cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON")
-endif()
-message(STATUS "    cmake --build . --config Debug --parallel")
 message(STATUS "  ")
-message(STATUS "  Build only kolosal-server:")
-message(STATUS "    cmake --build . --target build-server --config Debug")
+message(STATUS "  ══════════════════════════════════════")
+message(STATUS "  🛠️  UTILITY TARGETS")
+message(STATUS "  ══════════════════════════════════════")
+message(STATUS "    cmake --build . --target clean-all      # Clean everything")
+message(STATUS "    cmake --build . --target info           # Show system info")
+message(STATUS "    cmake --install . --config Debug        # Install binaries")
+message(STATUS "    cpack                                    # Create packages")
 message(STATUS "  ")
 if(NOT CURL_FOUND)
-message(STATUS "  💡 To enable HTTP client functionality:")
-message(STATUS "    Install CURL and reconfigure:")
+message(STATUS "  ══════════════════════════════════════")
+message(STATUS "  💡 ENABLE HTTP CLIENT (Optional)")
+message(STATUS "  ══════════════════════════════════════")
 if(WIN32)
-message(STATUS "      vcpkg install curl")
-message(STATUS "      cmake .. -DCURL_ROOT=path/to/curl")
+message(STATUS "    vcpkg install curl")
+message(STATUS "    cmake .. -DCURL_ROOT=path/to/curl")
 else()
-message(STATUS "      sudo apt install libcurl4-openssl-dev  # Ubuntu/Debian")
-message(STATUS "      sudo yum install libcurl-devel         # CentOS/RHEL")  
-message(STATUS "      brew install curl                      # macOS")
+message(STATUS "    # Ubuntu/Debian:")
+message(STATUS "    sudo apt install libcurl4-openssl-dev")
+message(STATUS "    # CentOS/RHEL:")
+message(STATUS "    sudo yum install libcurl-devel")
+message(STATUS "    # macOS:")
+message(STATUS "    brew install curl")
 endif()
 message(STATUS "  ")
 endif()
-message(STATUS "  Run tests:")
-message(STATUS "    ctest --output-on-failure")
-message(STATUS "  ")
-message(STATUS "  Install:")
-message(STATUS "    cmake --install . --config Debug")
-message(STATUS "  ")
-message(STATUS "  Create packages:")
-message(STATUS "    cpack")
-message(STATUS "  ")
-message(STATUS "  Clean all:")
-message(STATUS "    cmake --build . --target clean-all")
-message(STATUS "  ")
-message(STATUS "  System info:")
-message(STATUS "    cmake --build . --target info")
 message(STATUS "========================================")
-message(STATUS "")

@@ -6,6 +6,9 @@
                 "${workspaceFolder}/include",
                 "${workspaceFolder}/external/nlohmann",
                 "${workspaceFolder}/external",
+                "${workspaceFolder}/external/googletest/googletest/include",
+                "${workspaceFolder}/external/googletest/googlemock/include",
+                "${workspaceFolder}/tests/mocks",
                 "${workspaceFolder}/kolosal-server/include",
                 "${workspaceFolder}/kolosal-server/external/nlohmann",
                 "${workspaceFolder}/kolosal-server/external/yaml-cpp/include",
@@ -22,7 +25,9 @@
                 "WIN32_LEAN_AND_MEAN",
                 "NOMINMAX",
                 "_WIN32_WINNT=0x602",
-                "KOLOSAL_AGENT_BUILD"
+                "KOLOSAL_AGENT_BUILD",
+                "KOLOSAL_AGENT_TEST_MODE",
+                "BUILD_TESTS"
             ],
             "windowsSdkVersion": "10.0.22621.0",
             "compilerPath": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.38.33130/bin/Hostx64/x64/cl.exe",
