@@ -65,7 +65,22 @@ int main() {
         
         // Example 2: Execute a workflow
         if (!workflow_ids.empty()) {
-            std::cout << "\n2. Executing workflow: " << workflow_ids[0] << "\n";
+            // Find simple_test_workflow
+            std::string simple_workflow_id;
+            for (const auto& id : workflow_ids) {
+                auto workflow = workflow_engine.get_workflow(id);
+                if (workflow && workflow->name == "Simple Test Workflow") {
+                    simple_workflow_id = id;
+                    break;
+                }
+            }
+            
+            // If simple workflow not found, use the first one
+            if (simple_workflow_id.empty()) {
+                simple_workflow_id = workflow_ids[0];
+            }
+            
+            std::cout << "\n2. Executing workflow: " << simple_workflow_id << "\n";
             
             // Input context for the workflow
             json input_context = {
@@ -75,7 +90,7 @@ int main() {
             };
             
             // Execute the workflow
-            std::string execution_id = workflow_engine.execute_workflow(workflow_ids[0], input_context);
+            std::string execution_id = workflow_engine.execute_workflow(simple_workflow_id, input_context);
             std::cout << "   Execution ID: " << execution_id << "\n";
             
             // Monitor execution progress

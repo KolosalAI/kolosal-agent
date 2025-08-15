@@ -640,7 +640,11 @@ void WorkflowEngine::execute_step(WorkflowExecutionContext& context, WorkflowSte
                 }
                 
                 // Get agent and execute function
-                auto agent = agent_manager->get_agent(step.agent_id);
+                auto agent = agent_manager->get__agent(step.agent_id);
+                if (!agent) {
+                    // Try to find by name if ID lookup failed
+                    agent = agent_manager->get_agent_by_name(step.agent_id);
+                }
                 if (!agent) {
                     throw std::runtime_error("Agent not found: " + step.agent_id);
                 }

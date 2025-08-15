@@ -332,9 +332,13 @@ bool SequentialWorkflowExecutor::validate_workflow(const SequentialWorkflow& wor
         if (agent_manager) {
             const auto agent = agent_manager->get__agent(step.agent_id);
             if (!agent) {
-                // Log as warning instead of error to allow for testing
-                logger->warn("Agent not found for step " + step.step_id + ": " + step.agent_id + " (continuing validation)");
-                // Don't fail validation - allow workflow to be created for testing
+                // Try to find by name if ID lookup failed
+                const auto agent_by_name = agent_manager->get_agent_by_name(step.agent_id);
+                if (!agent_by_name) {
+                    // Log as warning instead of error to allow for testing
+                    logger->warn("Agent not found for step " + step.step_id + ": " + step.agent_id + " (continuing validation)");
+                    // Don't fail validation - allow workflow to be created for testing
+                }
             }
         } else {
             logger->warn("Agent manager not available during workflow validation");
@@ -483,8 +487,12 @@ bool SequentialWorkflowExecutor::execute_step(const SequentialWorkflowStep& step
     // Get agent
     auto agent = agent_manager->get__agent(step.agent_id);
     if (!agent) {
+        // Try to find by name if ID lookup failed
+        agent = agent_manager->get_agent_by_name(step.agent_id);
+    }
+    if (!agent) {
         error_message = "Agent not found: " + step.agent_id;
-    result = FunctionResult(false, error_message);
+        result = FunctionResult(false, error_message);
         logger->warn("WARNING: Agent " + step.agent_id + " not found for step " + step.step_id + ", but continuing workflow execution");
         return false;
     }

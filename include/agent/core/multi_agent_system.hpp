@@ -138,6 +138,13 @@ public:
     [[nodiscard]] std::shared_ptr<AgentCore> get_agent(const std::string& agent_id) { return get__agent(agent_id); }
     
     /**
+     * @brief Get agent by name
+     * @param agent_name Agent name
+     * @return Shared pointer to Agent_Core(nullptr if not found)
+     */
+    [[nodiscard]] std::shared_ptr<AgentCore> get_agent_by_name(const std::string& agent_name);
+    
+    /**
      * @brief Get system status as a string
      * @return Status string
      */

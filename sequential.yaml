@@ -1,214 +1,107 @@
-# Sequential Workflow Configuration
-# Research Intelligence Workflow - Comprehensive Literature Review and Analysis
+# Sequential Workflow Configuration  
+# Simple Research Workflow - Single Agent Execution
 
 # Workflow metadata
-id: "research_intelligence_workflow"
-name: "Research Intelligence and Analysis Workflow"
-description: "A comprehensive sequential workflow for intelligent research with credibility analysis, synthesis, and reporting"
+id: "simple_research_workflow"
+name: "Simple Research and Analysis Workflow"
+description: "A simplified sequential workflow using only the research_analyst agent"
 type: "sequential"  # Options: sequential, parallel, pipeline, consensus, conditional
 created_by: "research_system"
 
 # Global context variables available to all steps
 global_context:
-  project_name: "Intelligent Research Analysis"
+  project_name: "Simple Research Analysis"
   research_question: "${input.research_question}"
-  output_format: "academic"
-  max_tokens: 4096
+  topic: "${input.topic}"
+  research_focus: "${input.research_focus}"
+  output_format: "comprehensive_report"
+  max_tokens: 2048
   quality_threshold: 0.75
 
 # Workflow execution settings
 settings:
-  max_execution_time: 1200  # Maximum workflow execution time in seconds (20 minutes)
-  max_concurrent_steps: 2    # Maximum steps that can run concurrently
+  max_execution_time: 300    # Maximum workflow execution time in seconds (5 minutes)
+  max_concurrent_steps: 1    # Maximum steps that can run concurrently
   auto_cleanup: true         # Automatically clean up completed workflows
   persist_state: true        # Save workflow state for recovery
 
 # Error handling strategy
 error_handling:
   retry_on_failure: true      # Retry failed steps
-  max_retries: 3              # Maximum retry attempts per step
-  retry_delay_seconds: 5      # Delay between retries
+  max_retries: 2              # Maximum retry attempts per step
+  retry_delay_seconds: 3      # Delay between retries
   continue_on_error: false    # Stop workflow on step failure
   use_fallback_agent: true    # Use fallback agent if primary fails
   fallback_agent_id: "research_analyst"      # ID of fallback agent
 
-# Research Intelligence Workflow Steps
+# Single Agent Research Workflow Steps
 steps:
-  # Phase 1: Research Planning and Query Decomposition
-  - id: "research_planning"
-    name: "Research Planning and Query Decomposition"
-    description: "Plan the research approach and decompose the research question"
-    agent_id: "research_coordinator"
-    function: "research_query_planning"
+  # Step 1: Topic Research
+  - id: "topic_research"
+    name: "Topic Research and Analysis"
+    description: "Research the given topic and provide comprehensive analysis"
+    agent_id: "research_analyst"
+    function: "research_topic"
     parameters:
-      research_question: "${global.research_question}"
-      methodology: "systematic_literature_review"
-      scope: "comprehensive"
-    timeout: 120
+      topic: "${global.topic}"
+      depth: "comprehensive"
+      sources: ["academic", "expert", "recent"]
+    timeout: 60
     max_retries: 2
     retry_delay: 3
     parallel_allowed: false
     continue_on_error: false
 
-  # Phase 2: Methodology Selection
-  - id: "methodology_selection"
-    name: "Research Methodology Selection"
-    description: "Select the most appropriate research methodology based on the research question"
-    agent_id: "research_coordinator"
-    function: "methodology_selection"
+  # Step 2: Data Analysis
+  - id: "data_analysis"
+    name: "Research Data Analysis"
+    description: "Analyze the researched data and extract key insights"
+    agent_id: "research_analyst"
+    function: "analyze_data"
     parameters:
-      research_type: "${steps.research_planning.output.methodology}"
-      domain: "interdisciplinary"
-      time_constraint: "medium"
-      resource_level: 4
+      data_source: "${steps.topic_research.output}"
+      analysis_type: "comprehensive"
+      output_format: "structured"
     depends_on:
-      - "research_planning"
-    timeout: 90
+      - "topic_research"
+    timeout: 45
     max_retries: 2
     retry_delay: 3
     parallel_allowed: false
     continue_on_error: false
 
-  # Phase 3: Knowledge Gathering and Source Collection
-  - id: "knowledge_gathering"
-    name: "Knowledge Gathering"
-    description: "Gather relevant knowledge and sources based on research plan"
-    agent_id: "advanced_research_analyst"
-    function: "knowledge_retrieval"  # This would use the existing enhanced web search
-    parameters:
-      query: "${steps.research_planning.output.search_terms}"
-      max_results: 25
-      quality_threshold: "${global.quality_threshold}"
-    depends_on:
-      - "methodology_selection"
-    timeout: 180
-    max_retries: 3
-    retry_delay: 5
-    parallel_allowed: false
-    continue_on_error: false
-
-  # Phase 4: Source Credibility Analysis
-  - id: "credibility_analysis"
-    name: "Source Credibility Analysis"
-    description: "Analyze the credibility and reliability of gathered sources"
-    agent_id: "source_analyst"
-    function: "source_credibility_analysis"
-    parameters:
-      source_url: "${steps.knowledge_gathering.output.sources[0]}"  # Simplified for demo
-      content: "${steps.knowledge_gathering.output.contents}"
-      author: "extracted_from_content"
-      publication: "identified_from_source"
-    depends_on:
-      - "knowledge_gathering"
-    timeout: 150
-    max_retries: 2
-    retry_delay: 4
-    parallel_allowed: false
-    continue_on_error: false
-
-  # Phase 5: Entity Extraction and Knowledge Graph Building
-  - id: "entity_extraction"
-    name: "Entity Extraction and Knowledge Mapping"
-    description: "Extract entities and build knowledge relationships"
-    agent_id: "knowledge_curator"
-    function: "entity_extraction"
-    parameters:
-      content: "${steps.knowledge_gathering.output.contents}"
-      entity_types: "person,organization,location,concept"
-    depends_on:
-      - "credibility_analysis"
-    timeout: 120
-    max_retries: 2
-    retry_delay: 3
-    parallel_allowed: true
-    continue_on_error: false
-
-  # Phase 6: Relationship Mapping
-  - id: "relationship_mapping"
-    name: "Relationship Mapping"
-    description: "Map relationships between extracted entities"
-    agent_id: "knowledge_curator"
-    function: "relationship_mapping"
-    parameters:
-      entities: "${steps.entity_extraction.output.entities}"
-      context: "${steps.knowledge_gathering.output.synthesized_summary}"
-    depends_on:
-      - "entity_extraction"
-    timeout: 100
-    max_retries: 2
-    retry_delay: 3
-    parallel_allowed: false
-    continue_on_error: false
-
-  # Phase 7: Fact Verification
-  - id: "fact_verification"
-    name: "Fact Verification"
-    description: "Verify key facts and claims across multiple sources"
-    agent_id: "knowledge_curator"
-    function: "fact_verification"
-    parameters:
-      claim: "${steps.credibility_analysis.output.key_claims}"
-      sources: "${steps.knowledge_gathering.output.sources}"
-      confidence_threshold: "${global.quality_threshold}"
-    depends_on:
-      - "relationship_mapping"
-    timeout: 180
-    max_retries: 3
-    retry_delay: 5
-    parallel_allowed: false
-    continue_on_error: false
-
-  # Phase 8: Information Synthesis
+  # Step 3: Information Synthesis
   - id: "information_synthesis"
-    name: "Advanced Information Synthesis"
-    description: "Synthesize verified information into coherent insights"
-    agent_id: "synthesis_specialist"
-    function: "information_synthesis"
+    name: "Information Synthesis"
+    description: "Synthesize research findings and analysis into coherent insights"
+    agent_id: "research_analyst"
+    function: "synthesize_information"
     parameters:
-      sources: "${steps.knowledge_gathering.output.contents}"
-      synthesis_type: "comprehensive"
-      confidence_threshold: "${global.quality_threshold}"
+      sources: ["${steps.topic_research.output}", "${steps.data_analysis.output}"]
+      synthesis_method: "comprehensive"
+      conflict_resolution: "evidence_based"
     depends_on:
-      - "fact_verification"
-    timeout: 200
+      - "data_analysis"
+    timeout: 60
     max_retries: 2
-    retry_delay: 5
+    retry_delay: 3
     parallel_allowed: false
     continue_on_error: false
 
-  # Phase 9: Research Report Generation
+  # Step 4: Report Generation
   - id: "report_generation"
-    name: "Comprehensive Research Report Generation"
-    description: "Generate a structured research report with citations and evidence"
-    agent_id: "synthesis_specialist"
-    function: "research_report_generation"
+    name: "Research Report Generation"
+    description: "Generate a comprehensive research report based on all findings"
+    agent_id: "research_analyst"
+    function: "generate_report"
     parameters:
-      research_data: "${steps.information_synthesis.output.synthesized_summary}"
-      report_format: "${global.output_format}"
-      include_citations: true
-      template_type: "comprehensive_research_report"
+      data: "${steps.information_synthesis.output}"
+      format: "${global.output_format}"
+      template: "research_analysis"
     depends_on:
       - "information_synthesis"
-    timeout: 250
-    max_retries: 2
-    retry_delay: 5
-    parallel_allowed: false
-    continue_on_error: false
-
-  # Phase 10: Citation Management and Finalization
-  - id: "citation_management"
-    name: "Citation Management and Report Finalization"
-    description: "Format citations and finalize the research report"
-    agent_id: "synthesis_specialist"
-    function: "citation_management"
-    parameters:
-      sources: "${steps.knowledge_gathering.output.sources}"
-      citation_style: "APA"
-      operation: "format"
-    depends_on:
-      - "report_generation"
-    timeout: 90
+    timeout: 45
     max_retries: 2
     retry_delay: 3
     parallel_allowed: false
-    continue_on_error: true  # Allow workflow to complete even if citation formatting fails
+    continue_on_error: false

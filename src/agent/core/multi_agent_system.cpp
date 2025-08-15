@@ -145,6 +145,88 @@ std::unique_ptr<AgentFunction> ConfigurableAgentFactory::create__builtin_functio
         return std::make_unique<RelationshipMappingFunction>();
     } else if (config.name == "citation_management") {
         return std::make_unique<CitationManagementFunction>();
+    
+    // Additional missing functions from config.yaml
+    } else if (config.name == "analyze_data") {
+        return std::make_unique<DataAnalysisFunction>();
+    } else if (config.name == "research_topic") {
+        // Create a generic research function as LLMFunction
+        LLMConfig llm_config;
+        return std::make_unique<LLMFunction>(
+            "research_topic", 
+            "Conduct research on a given topic",
+            "You are a research assistant capable of conducting comprehensive research on various topics.",
+            llm_config
+        );
+    } else if (config.name == "generate_report") {
+        return std::make_unique<ResearchReportGenerationFunction>();
+    } else if (config.name == "synthesize_information") {
+        return std::make_unique<InformationSynthesisFunction>();
+    } else if (config.name == "execute_task") {
+        // Create a generic task execution function as LLMFunction
+        LLMConfig llm_config;
+        return std::make_unique<LLMFunction>(
+            "execute_task", 
+            "Execute a specific task with given parameters",
+            "You are a task executor capable of performing specific operations and completing assigned tasks efficiently.",
+            llm_config
+        );
+    } else if (config.name == "use_tool") {
+        // Create a generic tool usage function as LLMFunction
+        LLMConfig llm_config;
+        return std::make_unique<LLMFunction>(
+            "use_tool", 
+            "Use external tools and utilities for various tasks",
+            "You are capable of using various tools and utilities to complete tasks.",
+            llm_config
+        );
+    } else if (config.name == "process_files") {
+        // Create a generic file processing function as LLMFunction
+        LLMConfig llm_config;
+        return std::make_unique<LLMFunction>(
+            "process_files", 
+            "Process various file formats and extract content",
+            "You are capable of processing various file formats and extracting content from them.",
+            llm_config
+        );
+    } else if (config.name == "call_api") {
+        // Create a generic API calling function as LLMFunction
+        LLMConfig llm_config;
+        return std::make_unique<LLMFunction>(
+            "call_api", 
+            "Make API calls to external services",
+            "You are capable of making API calls to external services and processing responses.",
+            llm_config
+        );
+    } else if (config.name == "project_coordination") {
+        // Create a generic project coordination function as LLMFunction
+        LLMConfig llm_config;
+        return std::make_unique<LLMFunction>(
+            "project_coordination", 
+            "Coordinate project activities and manage resources",
+            "You are a project coordinator capable of managing project activities and resources.",
+            llm_config
+        );
+    } else if (config.name == "bias_detection") {
+        // Create a generic bias detection function as LLMFunction
+        LLMConfig llm_config;
+        return std::make_unique<LLMFunction>(
+            "bias_detection", 
+            "Detect various types of bias in data, sources, or research",
+            "You are an expert in detecting various types of bias in data, sources, and research materials.",
+            llm_config
+        );
+    } else if (config.name == "citation_analysis") {
+        // Create a generic citation analysis function as LLMFunction
+        LLMConfig llm_config;
+        return std::make_unique<LLMFunction>(
+            "citation_analysis", 
+            "Analyzes citations and bibliographic references for quality and relevance",
+            "You are an expert in analyzing citations and bibliographic references for quality and relevance.",
+            llm_config
+        );
+    } else if (config.name == "knowledge_retrieval") {
+        return std::make_unique<RetrievalFunction>();
     }
     
     logger->warn("Unknown builtin function: " + config.name);
@@ -607,6 +689,21 @@ std::shared_ptr<AgentCore> YAMLConfigurableAgentManager::get__agent(const std::s
     std::lock_guard<std::mutex> lock(agents_mutex);
     auto it = active_agents.find(agent_id);
     return (it != active_agents.end()) ? it->second : nullptr;
+}
+
+std::shared_ptr<AgentCore> YAMLConfigurableAgentManager::get_agent_by_name(const std::string& agent_name) {
+    if (agent_name.empty()) {
+        logger->error("Invalid agent name provided");
+        return nullptr;
+    }
+
+    std::lock_guard<std::mutex> lock(agents_mutex);
+    for (const auto& pair : active_agents) {
+        if (pair.second && pair.second->get__agent_name() == agent_name) {
+            return pair.second;
+        }
+    }
+    return nullptr;
 }
 
 std::string YAMLConfigurableAgentManager::get__system_status() const {

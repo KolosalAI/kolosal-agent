@@ -831,8 +831,8 @@ add_dependencies(kolosal-agent kolosal-server-exe)
 
 # Ensure both main executables are built by default (ALL target)
 add_custom_target(ALL_BUILD_TARGETS ALL
-    DEPENDS kolosal-agent kolosal-server-exe simple-test kolosal-launcher workflow-example
-    COMMENT "Building all main targets: kolosal-agent, kolosal-server, simple-test, kolosal-launcher, and workflow-example"
+    DEPENDS kolosal-agent kolosal-server-exe simple-test kolosal-launcher workflow-example deep-research-demo
+    COMMENT "Building all main targets: kolosal-agent, kolosal-server, simple-test, kolosal-launcher, workflow-example, and deep-research-demo"
 )
 
 # Launcher executable
@@ -849,6 +849,16 @@ set_target_properties(workflow-example PROPERTIES
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
     OUTPUT_NAME "workflow-example"
+)
+
+# Deep Research Agent Demo executable
+add_executable(deep-research-demo examples/deep_research_agent_demo.cpp)
+target_link_libraries(deep-research-demo kolosal_agent)
+set_target_properties(deep-research-demo PROPERTIES
+    CXX_STANDARD ${CMAKE_CXX_STANDARD}
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    OUTPUT_NAME "deep-research-demo"
 )
 
 # Since kolosal-server is now built as a static library, no need to copy DLLs
@@ -1112,6 +1122,21 @@ if(WIN32)
             ${CMAKE_BINARY_DIR}/kolosal-server/Debug/libcurl.dll
             $<TARGET_FILE_DIR:kolosal-agent>
         COMMENT "Copying required DLLs for kolosal-agent.exe"
+        VERBATIM
+    )
+
+    # Copy required DLLs for deep-research-demo
+    add_custom_command(TARGET deep-research-demo POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/kolosal_server.dll
+            $<TARGET_FILE_DIR:deep-research-demo>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/llama-cpu.dll
+            $<TARGET_FILE_DIR:deep-research-demo>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/libcurl.dll
+            $<TARGET_FILE_DIR:deep-research-demo>
+        COMMENT "Copying required DLLs for deep-research-demo.exe"
         VERBATIM
     )
 endif()

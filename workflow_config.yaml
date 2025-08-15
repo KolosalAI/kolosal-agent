@@ -1,0 +1,174 @@
+server:
+  port: 8081
+  host: 127.0.0.1
+  idle_timeout: 300
+  allow_public_access: false
+  allow_internet_access: false
+logging:
+  level: INFO
+  file: ""
+  access_log: false
+  quiet_mode: false
+  show_request_details: true
+auth:
+  enabled: true
+  require_api_key: false
+  api_key_header: X-API-Key
+  api_keys:
+    []
+  rate_limit:
+    enabled: true
+    max_requests: 100
+    window_size: 60
+  cors:
+    enabled: true
+    allow_credentials: false
+    max_age: 86400
+    allowed_origins:
+      - "*"
+    allowed_methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+      - HEAD
+      - PATCH
+    allowed_headers:
+      - Content-Type
+      - Authorization
+      - X-Requested-With
+      - Accept
+      - Origin
+search:
+  enabled: false
+  searxng_url: http://localhost:4000
+  timeout: 30
+  max_results: 20
+  default_engine: ""
+  api_key: ""
+  enable_safe_search: true
+  default_format: json
+  default_language: en
+  default_category: general
+database:
+  qdrant:
+    enabled: false
+    host: localhost
+    port: 6333
+    collection_name: documents
+    default_embedding_model: text-embedding-3-small
+    timeout: 30
+    api_key: ""
+    max_connections: 10
+    connection_timeout: 5
+    embedding_batch_size: 5
+inference_engines:
+  - name: llama-cpu
+    library_path: D:\Works\Genta\codes\kolosal-agent\build\Debug\llama-cpu.dll
+    version: 1.0.0
+    description: CPU inference engine
+    load_on_startup: true
+    type: "llama_cpp"
+    model_path: "d:\\Works\\Genta\\codes\\kolosal-agent\\models\\Qwen3-0.6B-UD-Q4_K_XL.gguf"
+    auto_load: true
+    context_size: 2048
+    batch_size: 512
+    threads: 4
+    gpu_layers: 0
+    settings:
+      verbose: "false"
+      mlock: "false"
+default_inference_engine: llama-cpu
+
+# Model configurations
+models:
+  - id: qwen3-0.6b-main
+    path: models/Qwen3-0.6B-UD-Q4_K_XL.gguf
+    type: llm
+    load_immediately: false
+    inference_engine: llama-cpu
+    load_params:
+      n_ctx: 2048
+      n_gpu_layers: 0
+      n_batch: 512
+      
+features:
+  health_check: true
+  metrics: false
+
+# Agent System Configuration
+system:
+  worker_threads: 4
+  health_check_interval_seconds: 10
+  log_level: "info"
+
+# Agent Configurations
+agents:
+  # Basic research and analysis agent
+  - name: "research_analyst"
+    type: "research" 
+    role: "ANALYST"
+    description: "Handles research, analysis, and information synthesis tasks"
+    system_prompt: "You are a research analyst capable of analyzing data, conducting research, and synthesizing information into comprehensive reports."
+    capabilities:
+      - "data_analysis"
+      - "research_synthesis" 
+      - "report_generation"
+      - "information_processing"
+    functions:
+      - "analyze_data"
+      - "research_topic"
+      - "generate_report"
+      - "synthesize_information"
+    llm_config:
+      api_endpoint: "http://127.0.0.1:8081"
+      model_name: "qwen3-0.6b-main"
+      temperature: 0.7
+      max_tokens: 2048
+      timeout_seconds: 30
+    auto_start: true
+    max_concurrent_jobs: 3
+    heartbeat_interval_seconds: 5
+
+# Function Definitions
+functions:
+  - name: "analyze_data"
+    type: "builtin"
+    description: "Analyze structured and unstructured data"
+    parameters:
+      data_source: "string"
+      analysis_type: "string" 
+      output_format: "string"
+    async_capable: true
+    timeout_ms: 10000
+
+  - name: "research_topic"
+    type: "builtin"
+    description: "Conduct research on a given topic"
+    parameters:
+      topic: "string"
+      depth: "string"
+      sources: "array"
+    async_capable: true
+    timeout_ms: 15000
+
+  - name: "generate_report"
+    type: "builtin"
+    description: "Generate reports based on analyzed data"
+    parameters:
+      data: "object"
+      format: "string"
+      template: "string"
+    async_capable: true
+    timeout_ms: 8000
+
+  - name: "synthesize_information"
+    type: "builtin"
+    description: "Synthesize information from multiple sources with conflict resolution"
+    parameters:
+      sources: "array"
+      synthesis_method: "string"
+      conflict_resolution: "string"
+    async_capable: true
+    timeout_ms: 18000
