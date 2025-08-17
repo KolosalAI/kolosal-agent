@@ -14,10 +14,16 @@
 #ifndef KOLOSAL_AGENT_INCLUDE_DOCUMENT_SERVICE_MANAGER_HPP_INCLUDED
 #define KOLOSAL_AGENT_INCLUDE_DOCUMENT_SERVICE_MANAGER_HPP_INCLUDED
 
-#include <kolosal/retrieval/document_service.hpp>
-#include <kolosal/server_config.hpp>
 #include <memory>
 #include <stdexcept>
+
+// Forward declarations to avoid heavy includes
+namespace kolosal {
+    struct DatabaseConfig;
+    namespace retrieval {
+        class DocumentService;
+    }
+}
 
 namespace kolosal {
 namespace agents {

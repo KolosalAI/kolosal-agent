@@ -229,7 +229,11 @@ bool UnifiedKolosalServer::performHealth_Check() {
         current_status_.running_agents = running_count;
     }
     
-    return llm_healthy && agent_healthy;
+    // System is considered healthy if either:
+    // 1. Both LLM and agents are healthy, OR
+    // 2. At least the agent system is running (can operate without LLM)
+    // This prevents constant health check failures when LLM server is unavailable
+    return llm_healthy && agent_healthy || agent_healthy;
 }
 
 bool UnifiedKolosalServer::start_LLMServer() {
@@ -364,15 +368,36 @@ void UnifiedKolosalServer::healthMonitoring_Loop() {
         try {
             const bool healthy = performHealth_Check();
             if (!healthy) {
-                log_Event("WARN", "Health check failed");
+                // Get more specific information about what failed
+                const bool llm_healthy = performLLMServerHealth_Check();
+                const bool agent_healthy = performAgentSystemHealth_Check();
+                
+                std::string health_details = "Health check failed - ";
+                if (!llm_healthy && !agent_healthy) {
+                    health_details += "LLM server unhealthy, Agent system unhealthy";
+                } else if (!llm_healthy) {
+                    health_details += "LLM server unhealthy (agents running normally)";
+                } else if (!agent_healthy) {
+                    health_details += "Agent system unhealthy (LLM server running normally)";
+                }
+                
+                log_Event("WARN", health_details);
                 
                 if (auto_recovery_enabled_.load()) {
                     if (recovery_attempts_.load() < MAX_RECOVERY_ATTEMPTS) {
                         log_Event("information", "Attempting auto-recovery...");
                         recovery_attempts_++;
                         
-                        // Implement recovery logic here
-                        // For now, just log the attempt
+                        // Only attempt recovery for critical failures (both systems down)
+                        if (!llm_healthy && !agent_healthy) {
+                            // Try to recover both systems
+                            if (!llm_healthy && server_started_by_us_.load()) {
+                                attemptAuto_Recovery("llm_server");
+                            }
+                            if (!agent_healthy) {
+                                attemptAuto_Recovery("agent_system");
+                            }
+                        }
                     }
                 }
             } else {
@@ -397,10 +422,22 @@ void UnifiedKolosalServer::healthMonitoring_Loop() {
 
 bool UnifiedKolosalServer::performLLMServerHealth_Check() {
     if (!llm_server_client_) {
+        // No LLM server client means we're not using LLM functionality
         return false;
     }
     
-    return llm_server_client_->isServer_Healthy();
+    try {
+        return llm_server_client_->isServer_Healthy();
+    } catch (const std::exception& e) {
+        // Log the specific error but don't make it fatal
+        static auto last_llm_error_log = std::chrono::system_clock::now();
+        const auto now = std::chrono::system_clock::now();
+        if (now - last_llm_error_log >= std::chrono::minutes(5)) {
+            log_Event("WARN", "LLM server health check exception: " + std::string(e.what()));
+            last_llm_error_log = now;
+        }
+        return false;
+    }
 }
 
 bool UnifiedKolosalServer::performAgentSystemHealth_Check() {
@@ -680,7 +717,7 @@ UnifiedKolosalServer::ServerConfig UnifiedServerFactory::buildDevelopment_Config
     config.enable_agent_api = true;
     config.enable_health_monitoring = true;
     config.enable_metrics_collection = true;
-    config.health_check_interval = std::chrono::seconds(10);
+    config.health_check_interval = std::chrono::seconds(60);  // Less frequent for development
     config.server_startup_timeout_seconds = 30;
     return config;
 }

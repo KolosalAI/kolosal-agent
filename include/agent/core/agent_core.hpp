@@ -40,7 +40,7 @@ class Logger;
 /**
  * @brief Core agent implementation with advanced capabilities
  */
-class KOLOSAL_SERVER_API AgentCore : public std::enable_shared_from_this<AgentCore> {
+class KOLOSAL_AGENT_API AgentCore : public std::enable_shared_from_this<AgentCore> {
 private:
     std::shared_ptr<Logger> logger;
     std::shared_ptr<FunctionManager> function_manager;

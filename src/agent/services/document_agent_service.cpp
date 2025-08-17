@@ -11,7 +11,6 @@
 
 #include "agent/services/document_agent_service.hpp"
 #include "utils/document_service_manager.hpp"
-#include "kolosal/server_api.hpp"
 #include "kolosal/logger.hpp"
 #include <stdexcept>
 #include <regex>

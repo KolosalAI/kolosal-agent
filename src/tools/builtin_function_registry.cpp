@@ -20,7 +20,7 @@
 #include "kolosal/retrieval/add_document_types.hpp"
 #include "kolosal/retrieval/remove_document_types.hpp"
 #include "kolosal/retrieval/parse_pdf.hpp"
-#include "kolosal/retrieval/parse_docx.hpp"
+// Note: parse_docx.hpp removed due to missing pugixml dependency
 #include "inference_interface.h"
 #include <algorithm>
 #include <cctype>

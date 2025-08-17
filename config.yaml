@@ -1,93 +1,304 @@
-server:
-  port: 8080
-  host: 127.0.0.1
-  idle_timeout: 300
-  allow_public_access: false
-  allow_internet_access: false
-logging:
-  level: DEBUG
-  file: ""
-  access_log: false
-  quiet_mode: false
-  show_request_details: true
-auth:
-  enabled: true
-  require_api_key: false
-  api_key_header: X-API-Key
-  api_keys:
-    []
-  rate_limit:
-    enabled: true
-    max_requests: 100
-    window_size: 60
-  cors:
-    enabled: true
-    allow_credentials: false
-    max_age: 86400
-    allowed_origins:
-      - "*"
-    allowed_methods:
-      - GET
-      - POST
-      - PUT
-      - DELETE
-      - OPTIONS
-      - HEAD
-      - PATCH
-    allowed_headers:
-      - Content-Type
-      - Authorization
-      - X-Requested-With
-      - Accept
-      - Origin
-search:
-  enabled: false
-  searxng_url: http://localhost:4000
-  timeout: 30
-  max_results: 20
-  default_engine: ""
-  api_key: ""
-  enable_safe_search: true
-  default_format: json
-  default_language: en
-  default_category: general
-database:
-  qdrant:
-    enabled: false
-    host: localhost
-    port: 6333
-    collection_name: documents
-    default_embedding_model: text-embedding-3-small
+# Example Kolosal Agent System Configuration
+# This is a sample configuration showing various agent types and capabilities
+
+system:
+  name: "Example Multi-Agent System"
+  version: "1.0.0"
+  
+  # Server configuration
+  server:
+    host: "127.0.0.1"
+    port: 8080
     timeout: 30
-    api_key: ""
-    max_connections: 10
-    connection_timeout: 5
-    embedding_batch_size: 5
-models:
-  - id: qwen3-0.6b-main
-    path: D:\Works\Genta\codes\kolosal-agent\models\Qwen3-0.6B-UD-Q4_K_XL.gguf
-    type: llm
-    load_immediately: false
-    main_gpu_id: 0
-    inference_engine: llama-cpu
-    load_params:
-      n_ctx: 2048
-      n_keep: 0
-      use_mmap: true
-      use_mlock: true
-      n_parallel: 1
-      cont_batching: true
-      warmup: false
-      n_gpu_layers: 0
-      n_batch: 512
-      n_ubatch: 512
-inference_engines:
-  - name: llama-cpu
-    library_path: D:\Works\Genta\codes\kolosal-agent\build\Debug\llama-cpu.dll
-    version: 1.0.0
-    description: CPU inference engine
-    load_on_startup: true
-default_inference_engine: llama-cpu
-features:
-  health_check: true
-  metrics: false
+  
+  # Logging configuration
+  logging:
+    level: "INFO"    # DEBUG, INFO, WARNING, ERROR
+    file: "agent_system.log"
+    console: true
+
+# Define the agents in your system
+agents:
+  # Coordinator Agent - Orchestrates the entire system
+  - name: "system_coordinator"
+    id: "coord-main"
+    type: "coordinator"
+    role: "COORDINATOR"
+    specializations:
+      - "TASK_PLANNING"
+      - "RESOURCE_MANAGEMENT"
+      - "WORKFLOW_ORCHESTRATION"
+    capabilities:
+      - "plan_execution"
+      - "task_delegation" 
+      - "system_monitoring"
+      - "agent_coordination"
+    functions:
+      - "plan_tasks"
+      - "delegate_work" 
+      - "monitor_progress"
+      - "coordinate_agents"
+    config:
+      priority: 1
+      auto_start: true
+      max_concurrent_tasks: 10
+      decision_timeout: 30
+
+  # Research Analyst Agent - Handles research and analysis tasks
+  - name: "research_analyst"
+    id: "analyst-research"
+    type: "specialist"
+    role: "ANALYST"
+    specializations:
+      - "DATA_ANALYSIS"
+      - "RESEARCH"
+      - "INFORMATION_SYNTHESIS"
+    capabilities:
+      - "data_processing"
+      - "research_synthesis"
+      - "report_generation"
+      - "pattern_recognition"
+    functions:
+      - "analyze_data"
+      - "research_topic"
+      - "generate_report"
+      - "synthesize_information"
+    config:
+      priority: 2
+      auto_start: true
+      max_concurrent_tasks: 5
+      research_depth: "comprehensive"
+
+  # Task Executor Agent - Executes specific tasks and operations
+  - name: "task_executor"
+    id: "exec-primary"
+    type: "worker"
+    role: "EXECUTOR"
+    specializations:
+      - "TASK_EXECUTION"
+      - "TOOL_USAGE"
+      - "FILE_OPERATIONS"
+    capabilities:
+      - "execute_commands"
+      - "use_tools"
+      - "file_operations"
+      - "api_integration"
+    functions:
+      - "execute_task"
+      - "use_tool"
+      - "process_files"
+      - "call_api"
+    config:
+      priority: 3
+      auto_start: true
+      max_concurrent_tasks: 15
+      timeout_per_task: 120
+
+  # Document Specialist Agent - Handles document processing
+  - name: "document_specialist"
+    id: "doc-specialist"
+    type: "specialist"
+    role: "SPECIALIST"
+    specializations:
+      - "DOCUMENT_PROCESSING"
+      - "TEXT_ANALYSIS"
+      - "CONTENT_GENERATION"
+    capabilities:
+      - "document_parsing"
+      - "text_analysis"
+      - "content_generation"
+      - "format_conversion"
+    functions:
+      - "parse_document"
+      - "analyze_text"
+      - "generate_content"
+      - "convert_format"
+    config:
+      priority: 4
+      auto_start: false  # Start on demand
+      max_concurrent_tasks: 3
+      supported_formats: ["pdf", "docx", "txt", "md", "html"]
+
+  # Quality Assurance Agent - Reviews and validates outputs
+  - name: "quality_assurance"
+    id: "qa-primary"
+    type: "reviewer"
+    role: "REVIEWER"
+    specializations:
+      - "QUALITY_CONTROL"
+      - "VALIDATION"
+      - "COMPLIANCE_CHECK"
+    capabilities:
+      - "quality_review"
+      - "validation"
+      - "compliance_check"
+      - "error_detection"
+    functions:
+      - "review_output"
+      - "validate_result"
+      - "check_compliance"
+      - "detect_errors"
+    config:
+      priority: 5
+      auto_start: false
+      max_concurrent_tasks: 2
+      review_criteria: "comprehensive"
+
+# Define custom functions available to agents
+functions:
+  # Planning Functions
+  - name: "plan_tasks"
+    type: "builtin"
+    description: "Create detailed execution plans for complex tasks"
+    parameters:
+      - name: "goal"
+        type: "string"
+        required: true
+        description: "The main goal to achieve"
+      - name: "context"
+        type: "string" 
+        required: false
+        description: "Additional context for planning"
+      - name: "constraints"
+        type: "array"
+        required: false
+        description: "Constraints to consider"
+
+  - name: "delegate_work"
+    type: "builtin"
+    description: "Delegate tasks to appropriate agents"
+    parameters:
+      - name: "task_description"
+        type: "string"
+        required: true
+      - name: "target_agent"
+        type: "string"
+        required: false
+      - name: "priority"
+        type: "integer"
+        required: false
+
+  # Analysis Functions
+  - name: "analyze_data"
+    type: "builtin"
+    description: "Analyze structured and unstructured data"
+    parameters:
+      - name: "data_source"
+        type: "string"
+        required: true
+        description: "Path or identifier of data to analyze"
+      - name: "analysis_type"
+        type: "string"
+        required: false
+        description: "Type of analysis to perform"
+      - name: "output_format"
+        type: "string"
+        required: false
+        default: "json"
+
+  - name: "research_topic"
+    type: "builtin"
+    description: "Conduct comprehensive research on a given topic"
+    parameters:
+      - name: "topic"
+        type: "string"
+        required: true
+      - name: "depth"
+        type: "string"
+        required: false
+        default: "standard"
+        description: "Research depth: basic, standard, comprehensive"
+      - name: "sources"
+        type: "array"
+        required: false
+
+  # Execution Functions
+  - name: "execute_task"
+    type: "builtin"
+    description: "Execute specific tasks with given parameters"
+    parameters:
+      - name: "task_definition"
+        type: "object"
+        required: true
+        description: "Complete task definition object"
+      - name: "priority"
+        type: "integer"
+        required: false
+        default: 5
+      - name: "timeout"
+        type: "integer"
+        required: false
+        default: 60
+
+  - name: "use_tool"
+    type: "builtin"
+    description: "Use external tools or APIs"
+    parameters:
+      - name: "tool_name"
+        type: "string"
+        required: true
+      - name: "tool_params"
+        type: "object"
+        required: true
+      - name: "retry_count"
+        type: "integer"
+        required: false
+        default: 3
+
+  # Document Functions
+  - name: "parse_document"
+    type: "builtin"
+    description: "Parse and extract content from documents"
+    parameters:
+      - name: "document_path"
+        type: "string"
+        required: true
+      - name: "extraction_type"
+        type: "string"
+        required: false
+        default: "full_text"
+      - name: "output_format"
+        type: "string"
+        required: false
+        default: "structured"
+
+  - name: "generate_content"
+    type: "builtin"
+    description: "Generate content based on specifications"
+    parameters:
+      - name: "content_type"
+        type: "string"
+        required: true
+        description: "Type of content to generate"
+      - name: "specifications"
+        type: "object"
+        required: true
+      - name: "template"
+        type: "string"
+        required: false
+
+# System-wide configuration
+configuration:
+  # Memory management
+  memory:
+    max_entries_per_agent: 1000
+    cleanup_interval: 300  # seconds
+    persistence_enabled: true
+    
+  # Communication
+  messaging:
+    timeout: 30
+    retry_attempts: 3
+    broadcast_enabled: true
+    
+  # Performance
+  performance:
+    max_parallel_agents: 10
+    task_queue_size: 100
+    resource_monitoring: true
+    
+  # Security
+  security:
+    agent_isolation: true
+    function_sandboxing: true
+    resource_limits: true

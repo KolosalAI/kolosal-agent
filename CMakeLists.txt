@@ -122,6 +122,7 @@ endif()
 # Include directories
 include_directories(include)
 include_directories(kolosal-server/include)
+include_directories(kolosal-server/inference/include)
 
 # Find required packages
 find_package(Threads REQUIRED)
@@ -268,6 +269,7 @@ target_include_directories(kolosal_agent
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/include
         ${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann
         ${CMAKE_CURRENT_SOURCE_DIR}/external/yaml-cpp/include
 )
@@ -278,6 +280,7 @@ target_compile_definitions(kolosal_agent
         KOLOSAL_AGENT_VERSION="${PROJECT_VERSION}"
         KOLOSAL_AGENT_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
         KOLOSAL_AGENT_BUILD
+        KOLOSAL_SERVER_BUILD
 )
 
 # Test mode specific definitions
@@ -359,6 +362,7 @@ ExternalProject_Add(ext_kolosal_server
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
         -DBUILD_SHARED_LIBS=OFF
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        -DUSE_PODOFO=OFF
     BUILD_ALWAYS OFF
     INSTALL_COMMAND ""
     TEST_COMMAND ""
@@ -438,6 +442,12 @@ if(BUILD_DEEPRESEARCH_DEMO)
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 ${CMAKE_BINARY_DIR}/kolosal-server/Debug/kolosal_server.dll
                 $<TARGET_FILE_DIR:deep-research-demo>
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_BINARY_DIR}/kolosal-server/Debug/libcurl.dll
+                $<TARGET_FILE_DIR:deep-research-demo>
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_BINARY_DIR}/kolosal-server/Debug/llama-cpu.dll
+                $<TARGET_FILE_DIR:deep-research-demo>
             COMMENT "Copying required DLLs for deep-research-demo.exe"
             VERBATIM
         )
@@ -464,6 +474,12 @@ if(WIN32)
     add_custom_command(TARGET kolosal-agent POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${CMAKE_BINARY_DIR}/kolosal-server/Debug/kolosal_server.dll
+            $<TARGET_FILE_DIR:kolosal-agent>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/libcurl.dll
+            $<TARGET_FILE_DIR:kolosal-agent>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/llama-cpu.dll
             $<TARGET_FILE_DIR:kolosal-agent>
         COMMENT "Copying required DLLs for kolosal-agent.exe"
         VERBATIM

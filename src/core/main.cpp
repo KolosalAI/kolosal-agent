@@ -402,21 +402,23 @@ std::string detect_server_executable_path_automatically() {
     
     // Define candidate paths for the kolosal-server executable
     std::vector<std::string> candidate_executable_paths = {
-        // Current build structure
+        // Current build structure - main Debug directory
         "./build/Debug/kolosal-server.exe",
         "./build/Release/kolosal-server.exe",
-        // With the external project build approach, check build/kolosal-server paths:
+        // Try the same directory as the kolosal-agent executable
+        "kolosal-server.exe",
+        "./kolosal-server.exe",
+        // Kolosal-server subproject build paths
+        "./build/kolosal-server/Debug/kolosal-server.exe",
+        "./build/kolosal-server/Release/kolosal-server.exe",
         "./kolosal-server/Debug/kolosal-server.exe",
         "./kolosal-server/Release/kolosal-server.exe", 
         "./kolosal-server/kolosal-server.exe",
         "../kolosal-server/Debug/kolosal-server.exe", 
-        "./kolosal-server.exe",
         "../kolosal-server.exe",
-        // Try in the same directory
-        "kolosal-server.exe",
-        // Absolute path based on current working directory  
-        "build/kolosal-server/Debug/kolosal-server.exe",
-        "./build/kolosal-server/Debug/kolosal-server.exe"
+        // Relative paths from build directory
+        "../kolosal-server.exe",
+        "../../Debug/kolosal-server.exe"
     };
     
     for (const auto& candidate_path : candidate_executable_paths) {

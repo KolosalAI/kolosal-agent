@@ -225,6 +225,14 @@ public:
     KolosalServerFunctionRegistry(const std::string& server_endpoint = "http://localhost:8080");
     ~KolosalServerFunctionRegistry() = default;
     
+    // Delete copy constructor and assignment to prevent copying of unique_ptr members
+    KolosalServerFunctionRegistry(const KolosalServerFunctionRegistry&) = delete;
+    KolosalServerFunctionRegistry& operator=(const KolosalServerFunctionRegistry&) = delete;
+    
+    // Allow move operations
+    KolosalServerFunctionRegistry(KolosalServerFunctionRegistry&&) = default;
+    KolosalServerFunctionRegistry& operator=(KolosalServerFunctionRegistry&&) = default;
+    
     // Registry methods
     void initialize_all_functions();
     void register_function(std::unique_ptr<AgentFunction> function);
