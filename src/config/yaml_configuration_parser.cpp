@@ -1,5 +1,5 @@
 /**
- * @file yaml_configurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationurationuration_parser.cpp
+ * @file yaml_configuration_parser.cpp
  * @brief YAML configuration file parsing and validation
  * @version 2.0.0
  * @author Kolosal AI Team
@@ -39,32 +39,32 @@ LLMConfig LLMConfig::from_yaml(const YAML::Node& node) {
     
     if (node["temperature"]) {
         const double temp = node["temperature"].as<double>();
-        if (temp < 0.0 || temp > 1.0) {
-            throw std::runtime_error("LLM temperature must be between 0.0 and 1.0");
+        if (temp < 0.0 || temp > 2.0) {  // Allow up to 2.0 for some models
+            throw std::runtime_error("LLM temperature must be between 0.0 and 2.0, got: " + std::to_string(temp));
         }
         config.temperature = temp;
     }
     
     if (node["max_tokens"]) {
         const int tokens = node["max_tokens"].as<int>();
-        if (tokens <= 0) {
-            throw std::runtime_error("LLM max_tokens must be greater than 0");
+        if (tokens <= 0 || tokens > 1000000) {  // Add upper bound
+            throw std::runtime_error("LLM max_tokens must be between 1 and 1,000,000, got: " + std::to_string(tokens));
         }
         config.max_tokens = tokens;
     }
     
     if (node["timeout_seconds"]) {
         const int timeout = node["timeout_seconds"].as<int>();
-        if (timeout <= 0) {
-            throw std::runtime_error("LLM timeout_seconds must be greater than 0");
+        if (timeout <= 0 || timeout > 3600) {  // Max 1 hour timeout
+            throw std::runtime_error("LLM timeout_seconds must be between 1 and 3600, got: " + std::to_string(timeout));
         }
         config.timeout_seconds = timeout;
     }
     
     if (node["max_retries"]) {
         const int retries = node["max_retries"].as<int>();
-        if (retries < 0) {
-            throw std::runtime_error("LLM max_retries cannot be negative");
+        if (retries < 0 || retries > 10) {  // Reasonable retry limit
+            throw std::runtime_error("LLM max_retries must be between 0 and 10, got: " + std::to_string(retries));
         }
         config.max_retries = retries;
     }

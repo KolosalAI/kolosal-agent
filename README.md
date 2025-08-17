@@ -12,7 +12,7 @@ A next-generation unified multi-agent AI system that seamlessly integrates advan
 - [🚀 Quick Start](#-quick-start)
 - [🌟 What's New in v2.0](#-whats-new-in-v20)
 - [🏗️ Architecture Overview](#️-architecture-overview)
-- [🛠️ Building the Application - Complete Tutorial](#️-building-the-application---complete-tutorial)
+- [🛠️ Building the Application - Complete Guide](#️-building-the-application---complete-guide)
 - [🧪 Testing Tutorial - Complete Guide](#-testing-tutorial---complete-guide)
 - [🌐 API Reference](#-api-reference)
 - [⚙️ Configuration](#️-configuration)
@@ -108,14 +108,19 @@ cd kolosal-agent
 
 # 2. Choose your build mode:
 
-# STANDARD BUILD (Fast, no tests)
+# 📦 STANDARD BUILD (Default - Fast, core functionality)
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Debug
 cmake --build . --config Debug
 
-# OR BUILD WITH ALL TESTS (Comprehensive testing)
+# 🧪 BUILD WITH ALL TESTS (Comprehensive testing)
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
+cmake --build . --config Debug
+
+# 🔬 BUILD WITH DEEP RESEARCH DEMO (Includes demo)
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_DEEPRESEARCH_DEMO=ON
 cmake --build . --config Debug
 
 # 3. Run the application
@@ -135,6 +140,7 @@ curl http://localhost:8080/v1/system/status
 - **📊 Web Dashboard**: System status and agent monitoring interface
 - **📚 Examples**: Working examples in the `/examples` directory
 - **🧪 Tests** (if built with `-DBUILD_TESTS=ON`): Comprehensive test suite including unit, integration, and performance tests
+- **🔬 Deep Research Demo** (if built with `-DBUILD_DEEPRESEARCH_DEMO=ON`): Advanced research demonstration capabilities
 
 ### 🎯 Next Steps
 
@@ -389,7 +395,7 @@ templates:
 
 ## 🛠️ Building the Application - Complete Guide
 
-The Kolosal Agent System offers **2 simple build modes** to meet different development needs.
+The Kolosal Agent System offers **3 simple build modes** to meet different development needs.
 
 ### Prerequisites
 
@@ -467,9 +473,8 @@ cmake --build . --config Debug
 **What you get:**
 - ✅ Main application (`kolosal-agent`)
 - ✅ Server component (`kolosal-server`)
-- ✅ Launcher utility (`kolosal-launcher`)
-- ✅ Example applications (`workflow-example`)
 - ❌ No tests (fastest build)
+- ❌ No deep research demo
 
 ---
 
@@ -505,14 +510,38 @@ ctest --output-on-failure
 - ✅ **Performance Tests** - Validate performance metrics
 - ✅ **Test Utilities** - Testing infrastructure and tools
 
-**Optional Test Enhancements:**
-```bash
-# Enable memory testing (Linux/macOS only)
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DENABLE_ASAN=ON -DENABLE_UBSAN=ON
+---
 
-# Enable all optional features
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON -DBUILD_DOCS=ON
+#### **🔬 Mode 3: Build with Deep Research Demo**
+Includes the advanced deep research demonstration capabilities:
+
+```bash
+# Step 1: Clone the repository
+git clone --recursive https://github.com/kolosalai/kolosal-agent.git
+cd kolosal-agent
+
+# Step 2: Create build directory
+mkdir build && cd build
+
+# Step 3: Configure with deep research demo enabled
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_DEEPRESEARCH_DEMO=ON
+
+# Step 4: Build the project
+cmake --build . --config Debug
+
+# Step 5: Run the application
+./kolosal-agent                    # Linux/macOS
+.\Debug\kolosal-agent.exe          # Windows
+
+# Step 6: Run the deep research demo
+./deep-research-demo               # Linux/macOS
+.\Debug\deep-research-demo.exe     # Windows
 ```
+
+**What you get:**
+- ✅ Everything from Standard Build
+- ✅ **Deep Research Demo** - Advanced research demonstration executable
+- ✅ Enhanced research capabilities for complex analysis workflows
 
 ### 🎯 Which Build Mode Should I Choose?
 
@@ -521,7 +550,8 @@ cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON -DBUILD_D
 | **First-time setup** | Standard Build | `cmake .. -DCMAKE_BUILD_TYPE=Debug` |
 | **Production deployment** | Standard Build (Release) | `cmake .. -DCMAKE_BUILD_TYPE=Release` |
 | **Development & Testing** | Build with Tests | `cmake .. -DBUILD_TESTS=ON` |
-| **Contributing to project** | Build with Tests + extras | `cmake .. -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON` |
+| **Research & Analysis** | Deep Research Demo | `cmake .. -DBUILD_DEEPRESEARCH_DEMO=ON` |
+| **Contributing to project** | Build with Tests | `cmake .. -DBUILD_TESTS=ON` |
 | **CI/CD Pipeline** | Build with Tests | `cmake .. -DBUILD_TESTS=ON` |
 
 ### 🎨 Build Targets
@@ -534,13 +564,13 @@ cmake --build . --config Debug
 
 # Build specific targets
 cmake --build . --target kolosal-agent --config Debug          # Main application only
-cmake --build . --target build-server --config Debug          # Server component only
-cmake --build . --target build-all --config Debug             # Both main executables
+cmake --build . --target kolosal-server --config Debug        # Server component only
 
-# Test-specific targets (only available when DBUILD_TESTS=ON)
-cmake --build . --target build-with-tests --config Debug      # Build with test support
-cmake --build . --target quick-test --config Debug            # Run unit tests only
-cmake --build . --target full-test --config Debug             # Run all tests
+# Deep Research Demo target (only available when -DBUILD_DEEPRESEARCH_DEMO=ON)
+cmake --build . --target deep-research-demo --config Debug    # Deep research demo executable
+
+# Test-specific targets (only available when -DBUILD_TESTS=ON)
+ctest --output-on-failure                                     # Run all tests
 ```
 
 ### 🖥️ Platform-Specific Build Instructions
@@ -562,6 +592,9 @@ cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug
 # OR with tests
 cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
 
+# OR with deep research demo
+cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug -DBUILD_DEEPRESEARCH_DEMO=ON
+
 # Build the project
 cmake --build . --config Debug --parallel
 ```
@@ -577,8 +610,9 @@ git clone --recursive https://github.com/kolosalai/kolosal-agent.git
 cd kolosal-agent && mkdir build && cd build
 
 # Choose build mode:
-cmake .. -DCMAKE_BUILD_TYPE=Debug                    # Standard
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON   # With tests
+cmake .. -DCMAKE_BUILD_TYPE=Debug                              # Standard
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON             # With tests
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_DEEPRESEARCH_DEMO=ON # With deep research demo
 
 # Build using all CPU cores
 make -j$(nproc)
@@ -594,8 +628,9 @@ git clone --recursive https://github.com/kolosal-ai/kolosal-agent.git
 cd kolosal-agent && mkdir build && cd build
 
 # Choose build mode:
-cmake .. -DCMAKE_BUILD_TYPE=Debug                    # Standard
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON   # With tests
+cmake .. -DCMAKE_BUILD_TYPE=Debug                              # Standard
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON             # With tests
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_DEEPRESEARCH_DEMO=ON # With deep research demo
 
 # Build using all CPU cores
 make -j$(sysctl -n hw.ncpu)
@@ -610,18 +645,17 @@ ls -la build/Debug/  # or build/ on Linux/macOS
 
 # Expected executables:
 # - kolosal-agent          (main application)
-# - kolosal-launcher       (launcher utility)
 # - kolosal-server-exe     (server executable)
-# - simple-test           (basic functionality test)
+# - deep-research-demo     (if built with -DBUILD_DEEPRESEARCH_DEMO=ON)
 ```
 
 #### Quick Functionality Test
 ```bash
-# Run basic functionality test
-./build/Debug/simple-test  # Windows
-./build/simple-test        # Linux/macOS
+# Run the main application to verify build
+./build/Debug/kolosal-agent.exe  # Windows
+./build/kolosal-agent             # Linux/macOS
 
-# Should output: "Simple test passed!"
+# Should start successfully and show initialization messages
 ```
 
 #### Install the Application
@@ -739,9 +773,10 @@ After building, you'll have several executables:
 ./kolosal-agent               # Unified multi-agent system
 
 # Utilities
-./kolosal-launcher           # System launcher and manager
 ./kolosal-server-exe         # Standalone server component
-./simple-test               # Basic functionality test
+
+# Deep Research Demo (if built with -DBUILD_DEEPRESEARCH_DEMO=ON)
+./deep-research-demo         # Advanced research demonstration
 
 # Test executables (if built with tests)
 ./kolosal_agent_unit_tests
@@ -752,9 +787,9 @@ After building, you'll have several executables:
 ### Verify Installation
 
 ```bash
-# 1. Run basic functionality test
-./simple-test
-# Expected output: "Simple test passed!"
+# 1. Verify the main application
+./kolosal-agent --version
+# Expected output: Version information and build details
 
 # 2. Start the main application
 ./kolosal-agent &
@@ -1097,21 +1132,6 @@ Validate system performance metrics:
 # - Message routing throughput
 ```
 
-### 🔧 Advanced Testing Options
-
-#### Memory Testing (Linux/macOS only)
-Enable memory sanitizers to detect issues:
-```bash
-cmake .. \
-  -DCMAKE_BUILD_TYPE=Debug \
-  -DBUILD_TESTS=ON \
-  -DENABLE_ASAN=ON \
-  -DENABLE_UBSAN=ON
-
-cmake --build . --config Debug
-ctest --output-on-failure
-```
-
 #### Customized Test Execution
 ```bash
 # Run tests with custom options
@@ -1242,57 +1262,40 @@ cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
 |--------|------|---------|-------------|
 | `CMAKE_BUILD_TYPE` | STRING | Debug | Build type: Debug, Release, RelWithDebInfo, MinSizeRel |
 | `BUILD_TESTS` | BOOL | OFF | **Enable all tests (unit, integration, performance)** |
-| `BUILD_EXAMPLES` | BOOL | OFF | Build example applications |
-| `BUILD_DOCS` | BOOL | OFF | Build documentation (requires Doxygen) |
-| `ENABLE_ASAN` | BOOL | OFF | Enable AddressSanitizer (test builds only) |
-| `ENABLE_UBSAN` | BOOL | OFF | Enable UndefinedBehaviorSanitizer (test builds only) |
-
-### 🏗️ Advanced Options (Optional)
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `BUILD_SHARED_LIBS` | BOOL | OFF | Build shared libraries instead of static |
-| `ENABLE_LOGGING` | BOOL | ON | Enable logging support |
-| `ENABLE_METRICS` | BOOL | ON | Enable metrics collection |
-| `ENABLE_HEALTH_MONITORING` | BOOL | ON | Enable health monitoring |
-| `USE_SYSTEM_LIBS` | BOOL | OFF | Use system-installed libraries |
-| `ENABLE_HTTP_CLIENT` | BOOL | ON | Enable HTTP client functionality |
-| `USE_PODOFO` | BOOL | OFF | Enable PDF processing with PoDoFo |
-| `ENABLE_CUDA` | BOOL | OFF | Enable CUDA support |
-| `ENABLE_VULKAN` | BOOL | OFF | Enable Vulkan support |
-| `ENABLE_NATIVE_OPTS` | BOOL | OFF | Enable native CPU optimizations |
+| `BUILD_DEEPRESEARCH_DEMO` | BOOL | OFF | **Enable deep research demonstration capabilities** |
 
 ### 📋 Common Build Recipes
 
-#### Development Build
+#### **📦 Standard Build (Fastest)**
+```bash
+cmake .. -DCMAKE_BUILD_TYPE=Debug
+```
+
+#### **🧪 Development Build (with Tests)**
 ```bash
 cmake .. \
   -DCMAKE_BUILD_TYPE=Debug \
-  -DBUILD_TESTS=ON \
-  -DBUILD_EXAMPLES=ON
+  -DBUILD_TESTS=ON
 ```
 
-#### Production Build
+#### **🔬 Research Build (with Deep Research Demo)**
 ```bash
 cmake .. \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DENABLE_NATIVE_OPTS=ON
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DBUILD_DEEPRESEARCH_DEMO=ON
 ```
 
-#### CI/CD Build  
+#### **🚀 Production Build (Release)**
+```bash
+cmake .. \
+  -DCMAKE_BUILD_TYPE=Release
+```
+
+#### **🏭 CI/CD Build (Release with Tests)**  
 ```bash
 cmake .. \
   -DCMAKE_BUILD_TYPE=Release \
   -DBUILD_TESTS=ON
-```
-
-#### Memory Testing (Linux/macOS)
-```bash
-cmake .. \
-  -DCMAKE_BUILD_TYPE=Debug \
-  -DBUILD_TESTS=ON \
-  -DENABLE_ASAN=ON \
-  -DENABLE_UBSAN=ON
 ```
 
 ### 🎯 Build Target Reference

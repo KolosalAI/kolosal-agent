@@ -12,6 +12,7 @@
 #include "server/server_client_interface.h"
 #include "api/http_client.hpp"
 #include "utils/loading_animation_utils.hpp"
+#include "kolosal/logger.hpp"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -1183,9 +1184,14 @@ bool KolosalServerClient::streamingChat_Completion(const std::string& engineId, 
                     }
                     
                     return true; // Continue streaming
-                } catch (const std::exception&) {
-                    // Silently ignore JSON parse errors for malformed chunks
+                } catch (const nlohmann::json::parse_error& e) {
+                    // Log JSON parse errors but continue streaming for malformed chunks
+                    ServerLogger::logDebug("JSON parse error in streaming chunk (continuing): %s", e.what());
                     return true; // Continue streaming even on parse errors
+                } catch (const std::exception& e) {
+                    // Log other exceptions during chunk processing
+                    ServerLogger::logWarning("Exception processing streaming chunk: %s", e.what());
+                    return true; // Continue streaming
                 }
             });
 

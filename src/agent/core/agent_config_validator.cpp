@@ -343,8 +343,18 @@ bool AgentConfigValidator::is__valid_path(const std::string& path) {
     // Check if it's an absolute path or relative path that could exist
     try {
         std::filesystem::path p(path);
-    return !path.empty() && (p.is_absolute() || path.find("..") == std::string::npos);
+        return !path.empty() && (p.is_absolute() || path.find("..") == std::string::npos);
+    } catch (const std::filesystem::filesystem_error& e) {
+        // Log specific filesystem errors for debugging
+        ServerLogger::logDebug("Filesystem error validating path '%s': %s", path.c_str(), e.what());
+        return false;
+    } catch (const std::exception& e) {
+        // Log other specific exceptions
+        ServerLogger::logDebug("Exception validating path '%s': %s", path.c_str(), e.what());
+        return false;
     } catch (...) {
+        // Only catch truly unknown exceptions
+        ServerLogger::logWarning("Unknown exception validating path '%s'", path.c_str());
         return false;
     }
 }

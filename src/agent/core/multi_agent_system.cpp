@@ -349,12 +349,15 @@ bool YAMLConfigurableAgentManager::load_configuration(const std::string& yaml_fi
             } else {
                 logger->info("Found " + std::to_string(healthy_engines) + " healthy inference engine(s)");
             }
+        } catch (const std::bad_alloc& e) {
+            logger->error("Memory allocation failed during health check: " + std::string(e.what()));
+            throw; // Re-throw memory errors as they indicate serious problems
         } catch (const std::exception& e) {
             logger->warn("Failed to check inference engine health: " + std::string(e.what()));
             logger->warn("Continuing with configuration loading...");
         } catch (...) {
-            logger->warn("Unknown exception while checking inference engine health");
-            logger->warn("Continuing with configuration loading...");
+            logger->error("Unknown exception while checking inference engine health - this may indicate a serious system issue");
+            logger->warn("Continuing with configuration loading, but system stability may be compromised");
         }
         
         // Register function configurations

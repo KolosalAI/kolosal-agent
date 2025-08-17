@@ -432,24 +432,24 @@ void WorkflowEngine::execute_workflow_internal(const std::string& execution_id) 
                         [&step_id](const WorkflowStep& s) { return s.step_id == step_id; });
                     
                     if (step_it != workflow.steps.end()) {
-                        lock.lock();
-                        if (context.current_status != WorkflowStatus::RUNNING) {
-                            lock.unlock();
-                            break;
+                        {
+                            std::lock_guard<std::mutex> status_lock(workflow_mutex);
+                            if (context.current_status != WorkflowStatus::RUNNING) {
+                                break;
+                            }
+                            context.current_step_id = step_id;
                         }
-                        context.current_step_id = step_id;
-                        lock.unlock();
                         
                         execute_step(context, *step_it);
                         
-                        lock.lock();
-                        if (context.step_statuses[step_id] == StepStatus::FAILED && 
-                            !workflow.error_handling.continue_on_error) {
-                            context.current_status = WorkflowStatus::FAILED;
-                            lock.unlock();
-                            break;
+                        {
+                            std::lock_guard<std::mutex> status_lock(workflow_mutex);
+                            if (context.step_statuses[step_id] == StepStatus::FAILED && 
+                                !workflow.error_handling.continue_on_error) {
+                                context.current_status = WorkflowStatus::FAILED;
+                                break;
+                            }
                         }
-                        lock.unlock();
                     }
                 }
                 break;
@@ -471,12 +471,12 @@ void WorkflowEngine::execute_workflow_internal(const std::string& execution_id) 
                 for (const auto& group : parallel_groups) {
                     if (!engine_running.load()) break;
                     
-                    lock.lock();
-                    if (context.current_status != WorkflowStatus::RUNNING) {
-                        lock.unlock();
-                        break;
+                    {
+                        std::lock_guard<std::mutex> status_lock(workflow_mutex);
+                        if (context.current_status != WorkflowStatus::RUNNING) {
+                            break;
+                        }
                     }
-                    lock.unlock();
                     
                     if (group.size() == 1) {
                         // Single step execution
@@ -491,21 +491,21 @@ void WorkflowEngine::execute_workflow_internal(const std::string& execution_id) 
                     }
                     
                     // Check for failures
-                    lock.lock();
-                    bool has_failures = false;
-                    for (const auto& step_id : group) {
-                        if (context.step_statuses[step_id] == StepStatus::FAILED && 
-                            !workflow.error_handling.continue_on_error) {
-                            has_failures = true;
+                    {
+                        std::lock_guard<std::mutex> status_lock(workflow_mutex);
+                        bool has_failures = false;
+                        for (const auto& step_id : group) {
+                            if (context.step_statuses[step_id] == StepStatus::FAILED && 
+                                !workflow.error_handling.continue_on_error) {
+                                has_failures = true;
+                                break;
+                            }
+                        }
+                        if (has_failures) {
+                            context.current_status = WorkflowStatus::FAILED;
                             break;
                         }
                     }
-                    if (has_failures) {
-                        context.current_status = WorkflowStatus::FAILED;
-                        lock.unlock();
-                        break;
-                    }
-                    lock.unlock();
                 }
                 break;
             }
@@ -578,25 +578,28 @@ void WorkflowEngine::execute_workflow_internal(const std::string& execution_id) 
                 break;
         }
         
-        lock.lock();
-        if (context.current_status == WorkflowStatus::RUNNING) {
-            context.current_status = WorkflowStatus::COMPLETED;
-            workflow.status = WorkflowStatus::COMPLETED;
-            log_workflow_event(execution_id, "COMPLETED", "Workflow execution completed successfully");
+        {
+            std::lock_guard<std::mutex> final_lock(workflow_mutex);
+            if (context.current_status == WorkflowStatus::RUNNING) {
+                context.current_status = WorkflowStatus::COMPLETED;
+                workflow.status = WorkflowStatus::COMPLETED;
+                log_workflow_event(execution_id, "COMPLETED", "Workflow execution completed successfully");
+            }
         }
     } catch (const std::exception& e) {
-        lock.lock();
+        std::lock_guard<std::mutex> error_lock(workflow_mutex);
         context.current_status = WorkflowStatus::FAILED;
         workflow.status = WorkflowStatus::FAILED;
         workflow.error_message = e.what();
         log_workflow_event(execution_id, "FAILED", std::string("Workflow execution failed: ") + e.what());
     }
     
-    // Move to history
-    execution_history[execution_id] = context;
-    active_executions.erase(execution_id);
-    
-    lock.unlock();
+    // Move to history (need lock for this)
+    {
+        std::lock_guard<std::mutex> history_lock(workflow_mutex);
+        execution_history[execution_id] = context;
+        active_executions.erase(execution_id);
+    }
     
     update_metrics();
 }
