@@ -444,6 +444,19 @@ std::string detect_server_executable_path_automatically() {
  * @return int Description of return value
  */
 int main(int argc, char* argv[]) {
+    // Prevent multiple instances using a named mutex (Windows only)
+#ifdef _WIN32
+    HANDLE hMutex = CreateMutexA(NULL, FALSE, "Global\\KolosalAgentMutex");
+    if (hMutex == NULL) {
+        std::cerr << "[bootstrap] ERROR: Unable to create mutex for single instance check." << std::endl;
+        return EXIT_FAILURE;
+    }
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        std::cerr << "[bootstrap] WARNING: Kolosal Agent is already running. Only one instance is allowed." << std::endl;
+        CloseHandle(hMutex);
+        return EXIT_FAILURE;
+    }
+#endif
     try {
         // Early diagnostic output
         std::cout << "[bootstrap] kolosal-agent-unified starting..." << std::endl;
@@ -693,17 +706,26 @@ int main(int argc, char* argv[]) {
         
         // Ensure all logs are flushed before termination
         KolosalLogger::instance().flush();
+        // Release mutex on exit (Windows only)
+#ifdef _WIN32
+        if (hMutex) {
+            CloseHandle(hMutex);
+        }
+#endif
         return EXIT_SUCCESS;
         
     } catch (const std::exception& exception) {
         std::cerr << "Fatal System Error: " << exception.what() << std::endl;
-        
         // Ensure cleanup on exception
         if (unified_server_instance) {
             unified_server_instance->stop();
             unified_server_instance.reset();
         }
-        
+#ifdef _WIN32
+        if (hMutex) {
+            CloseHandle(hMutex);
+        }
+#endif
         return EXIT_FAILURE;
     }
 }
