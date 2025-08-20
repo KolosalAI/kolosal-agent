@@ -74,7 +74,7 @@ public:
     std::string agent_api_host = "127.0.0.1";
     int agent_api_port = 8081;  // Use different port for agent API
     // Agent system configuration
-    std::string agent_config_file = "config.yaml";
+    std::string agent_config_file = "agent_config.yaml";
     bool auto_start_agents = true;
     bool enable_agent_api = true;
     // Integration configuration

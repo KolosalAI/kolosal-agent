@@ -155,7 +155,7 @@ void system_signal_handler(int signal_number) {
  * via command line arguments, with sensible defaults.
  */
 struct ApplicationConfiguration {
-    std::string configuration_file_path = "config.yaml";
+    std::string configuration_file_path = "agent_config.yaml";
     int server_port_number = 8080;
     std::string server_host_address = "127.0.0.1";
     std::string external_server_executable_path = "";
@@ -263,7 +263,7 @@ USAGE:
     )" << program_executable_name << R"( [OPTIONS]
 
 OPTIONS:
-    -c, --config FILE          Use custom configuration file (default: config.yaml)
+    -c, --config FILE          Use custom configuration file (default: agent_config.yaml)
     -p, --port PORT           Server port (default: 8080)
         --host HOST           Server host (default: 127.0.0.1)
     -s, --server PATH         Path to kolosal-server executable (auto-detect if not specified)
@@ -280,7 +280,7 @@ OPTIONS:
     -v, --version             Show version information
 
 EXAMPLES:
-    # Basic usage - will auto-detect development mode with config.yaml
+    # Basic usage - will auto-detect development mode with agent_config.yaml
     )" << program_executable_name << R"(
 
     # Development mode with custom configuration and port
@@ -538,7 +538,7 @@ int main(int argc, char* argv[]) {
         } else if (application_config.is_development_mode) {
             server_configuration = UnifiedServerFactory::buildDevelopment_Config(application_config.server_port_number);
         } else {
-            // Auto-detect mode: if config.yaml exists, use development mode as default
+            // Auto-detect mode: if agent_config.yaml exists, use development mode as default
             COMPONENT_INFO(configuration, "No mode specified, defaulting to development mode with config file: {}", application_config.configuration_file_path);
             server_configuration = UnifiedServerFactory::buildDevelopment_Config(application_config.server_port_number);
             application_config.is_development_mode = true; // Set the flag for consistency

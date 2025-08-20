@@ -26,7 +26,7 @@ int main() {
         auto agent_manager = std::make_shared<YAMLConfigurableAgentManager>();
         
         // Load agent configuration
-        if (!agent_manager->load_configuration("config.yaml")) {
+        if (!agent_manager->load_configuration("agent_config.yaml")) {
             std::cerr << "Failed to load agent configuration\n";
             return 1;
         }

@@ -50,8 +50,8 @@ public:
             
             // Initialize agent manager
             agent_manager = std::make_shared<YAMLConfigurableAgentManager>();
-            if (!agent_manager->load_configuration("config.yaml")) {
-                std::cerr << "❌ Failed to load agent configuration from config.yaml\n";
+            if (!agent_manager->load_configuration("agent_config.yaml")) {
+                std::cerr << "❌ Failed to load agent configuration from agent_config.yaml\n";
                 return false;
             }
             

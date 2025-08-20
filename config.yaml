@@ -52,6 +52,8 @@ search:
   default_language: en
   default_category: general
 database:
+  vector_database: faiss
+  retrieval_embedding_model: text-embedding-3-small
   qdrant:
     enabled: false
     host: localhost
@@ -63,6 +65,16 @@ database:
     max_connections: 10
     connection_timeout: 5
     embedding_batch_size: 5
+  faiss:
+    index_type: Flat
+    index_path: ./data/faiss_index
+    dimensions: 1536
+    normalize_vectors: true
+    nlist: 100
+    nprobe: 10
+    use_gpu: false
+    gpu_device: 0
+    metric_type: IP
 models:
   - id: qwen3-0.6b-main
     path: D:\Works\Genta\codes\kolosal-agent\models\Qwen3-0.6B-UD-Q4_K_XL.gguf

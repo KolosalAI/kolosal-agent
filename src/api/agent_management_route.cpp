@@ -376,7 +376,7 @@ void AgentManagementRoute::handleSystem_Reload(SocketType sock, const std::strin
         }
 
     auto request_json = json::parse(body);
-    std::string config_path = request_json.value("config_file", "config.yaml");
+    std::string config_path = request_json.value("config_file", "agent_config.yaml");
         if (!agent_manager_->reload_configuration(config_path)) {
             sendError_Response(sock, 400, "Failed to reload configuration");
             return;

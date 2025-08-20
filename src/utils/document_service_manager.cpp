@@ -11,7 +11,7 @@
 
 #include "utils/document_service_manager.hpp"
 #include <kolosal/retrieval/document_service.hpp>
-#include <kolosal/database_config.hpp>
+#include <kolosal/server_config.hpp>
 #include <kolosal/logger.hpp>
 #include "logger/server_logger_integration.hpp"
 #include <iostream>

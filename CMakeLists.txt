@@ -124,6 +124,21 @@ include_directories(include)
 include_directories(kolosal-server/include)
 include_directories(kolosal-server/inference/include)
 
+# Add llama.cpp include directories
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/external/llama.cpp/include")
+    include_directories(kolosal-server/inference/external/llama.cpp/include)
+    include_directories(kolosal-server/inference/external/llama.cpp/common)
+    include_directories(kolosal-server/inference/external/llama.cpp/ggml/include)
+    message(STATUS "Added llama.cpp include directories from inference/external/llama.cpp")
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/include")
+    include_directories(kolosal-server/external/llama.cpp/include)
+    include_directories(kolosal-server/external/llama.cpp/common)
+    include_directories(kolosal-server/external/llama.cpp/ggml/include)
+    message(WARNING "Using legacy llama.cpp include path from kolosal-server/external/. Please migrate to inference/external/llama.cpp")
+else()
+    message(FATAL_ERROR "llama.cpp include directory not found. Please ensure llama.cpp is properly cloned in kolosal-server/inference/external/llama.cpp")
+endif()
+
 # Find required packages
 find_package(Threads REQUIRED)
 
@@ -273,6 +288,21 @@ target_include_directories(kolosal_agent
         ${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann
         ${CMAKE_CURRENT_SOURCE_DIR}/external/yaml-cpp/include
 )
+
+# Add llama.cpp include directories for the target
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/external/llama.cpp/include")
+    target_include_directories(kolosal_agent PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/external/llama.cpp/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/external/llama.cpp/common
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/external/llama.cpp/ggml/include
+    )
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/include")
+    target_include_directories(kolosal_agent PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/common
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/ggml/include
+    )
+endif()
 
 # Preprocessor definitions
 target_compile_definitions(kolosal_agent 
