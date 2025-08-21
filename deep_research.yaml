@@ -1,0 +1,266 @@
+# Deep Research Workflow Configuration
+# Comprehensive research workflow for the Deep Research Agent
+
+# Workflow metadata
+id: "deep_research_comprehensive"
+name: "Deep Research Comprehensive Workflow"
+description: "Comprehensive research workflow combining web search, document retrieval, and analysis"
+type: "sequential"
+created_by: "deep_research_system"
+
+# Global context variables available to all steps
+global_context:
+  project_name: "Deep Research Analysis"
+  research_question: "${input.research_question}"
+  topic: "${input.topic}"
+  methodology: "${input.methodology}"
+  depth_level: "${input.depth_level}"
+  max_sources: "${input.max_sources}"
+  max_web_results: "${input.max_web_results}"
+  output_format: "comprehensive_report"
+  relevance_threshold: 0.75
+  include_academic: true
+  include_news: true
+  include_documents: true
+
+# Workflow execution settings
+settings:
+  max_execution_time: 1800      # Maximum workflow execution time in seconds (30 minutes)
+  max_concurrent_steps: 1       # Sequential execution
+  auto_cleanup: true            # Automatically clean up completed workflows
+  persist_state: true           # Save workflow state for recovery
+
+# Error handling strategy
+error_handling:
+  strategy: "continue"          # continue, stop, retry
+  retry_on_failure: true        # Retry failed steps
+  max_retries: 2                # Maximum retry attempts per step
+  retry_delay_seconds: 5        # Delay between retries
+  continue_on_error: true       # Continue workflow even if some steps fail
+  use_fallback_agent: false     # Don't use fallback for deep research
+
+# Deep Research Workflow Steps
+steps:
+  # Step 1: Research Planning and Query Decomposition
+  - id: "research_planning"
+    name: "Research Planning"
+    description: "Analyze research question and plan methodology"
+    agent_id: "deep_research_agent"
+    function: "research_query_planning"
+    parameters:
+      research_question: "${global.research_question}"
+      methodology: "${global.methodology}"
+      scope: "${global.depth_level}"
+      max_sub_queries: 5
+    timeout: 300
+    max_retries: 2
+    retry_delay: 3
+    parallel_allowed: false
+    continue_on_error: false
+
+  # Step 2: Methodology Selection
+  - id: "methodology_selection"
+    name: "Methodology Selection"
+    description: "Select appropriate research methodology based on question"
+    agent_id: "deep_research_agent"
+    function: "methodology_selection"
+    parameters:
+      research_question: "${global.research_question}"
+      domain: "${global.topic}"
+      constraints: 
+        - "time_limit: 30_minutes"
+        - "source_types: web,documents,academic"
+      requirements:
+        - "comprehensive_coverage"
+        - "source_diversity"
+    timeout: 180
+    max_retries: 1
+    retry_delay: 2
+    parallel_allowed: false
+    continue_on_error: true
+
+  # Step 3: Web Search Phase
+  - id: "web_search"
+    name: "Internet Search"
+    description: "Comprehensive web search using multiple engines"
+    agent_id: "deep_research_agent"
+    function: "enhanced_web_search"
+    parameters:
+      query: "${global.research_question}"
+      engines: "google,bing,duckduckgo"
+      categories: "general,science,news"
+      results: "${global.max_web_results}"
+      language: "en"
+      safe_search: true
+      enable_filtering: true
+      enable_summaries: true
+      timeout: 60
+    timeout: 600
+    max_retries: 3
+    retry_delay: 5
+    parallel_allowed: false
+    continue_on_error: true
+
+  # Step 4: Document Retrieval Phase
+  - id: "document_retrieval"
+    name: "Document Retrieval"
+    description: "Retrieve relevant documents from knowledge base"
+    agent_id: "deep_research_agent"
+    function: "server_document_retrieval"
+    parameters:
+      query: "${global.research_question}"
+      collection: "documents"
+      limit: "${global.max_sources}"
+      threshold: "${global.relevance_threshold}"
+      include_metadata: true
+      expand_query: true
+    timeout: 300
+    max_retries: 2
+    retry_delay: 3
+    parallel_allowed: false
+    continue_on_error: true
+
+  # Step 5: Knowledge Retrieval (Hybrid)
+  - id: "knowledge_retrieval"
+    name: "Hybrid Knowledge Retrieval"
+    description: "Combined web and document knowledge retrieval"
+    agent_id: "deep_research_agent"
+    function: "knowledge_retrieval"
+    parameters:
+      query: "${global.research_question}"
+      prefer_local_first: false
+      relevance_threshold: "${global.relevance_threshold}"
+      max_web_results: 10
+      max_doc_results: 15
+      combine_results: true
+    timeout: 400
+    max_retries: 2
+    retry_delay: 4
+    parallel_allowed: false
+    continue_on_error: true
+
+  # Step 6: Source Credibility Analysis
+  - id: "credibility_analysis"
+    name: "Source Credibility Analysis"
+    description: "Analyze credibility and reliability of found sources"
+    agent_id: "deep_research_agent"
+    function: "source_credibility_analysis"
+    parameters:
+      sources: "${steps.web_search.output.sources}"
+      documents: "${steps.document_retrieval.output.documents}"
+      criteria:
+        - "authority"
+        - "accuracy"
+        - "objectivity"
+        - "currency"
+        - "coverage"
+      minimum_score: 0.6
+    timeout: 400
+    max_retries: 2
+    retry_delay: 3
+    parallel_allowed: false
+    continue_on_error: true
+
+  # Step 7: Information Synthesis
+  - id: "information_synthesis"
+    name: "Information Synthesis"
+    description: "Synthesize information from all sources"
+    agent_id: "deep_research_agent"
+    function: "information_synthesis"
+    parameters:
+      research_question: "${global.research_question}"
+      web_results: "${steps.web_search.output}"
+      document_results: "${steps.document_retrieval.output}"
+      knowledge_results: "${steps.knowledge_retrieval.output}"
+      credibility_scores: "${steps.credibility_analysis.output}"
+      synthesis_method: "comprehensive"
+      include_contradictions: true
+      identify_gaps: true
+    timeout: 900
+    max_retries: 2
+    retry_delay: 5
+    parallel_allowed: false
+    continue_on_error: false
+
+  # Step 8: Fact Verification
+  - id: "fact_verification"
+    name: "Fact Verification"
+    description: "Verify key facts and claims from synthesis"
+    agent_id: "deep_research_agent"
+    function: "fact_verification"
+    parameters:
+      synthesis_data: "${steps.information_synthesis.output}"
+      verification_sources: "multiple"
+      confidence_threshold: 0.8
+      cross_reference: true
+      flag_uncertainties: true
+    timeout: 600
+    max_retries: 2
+    retry_delay: 4
+    parallel_allowed: false
+    continue_on_error: true
+
+  # Step 9: Report Generation
+  - id: "report_generation"
+    name: "Comprehensive Report Generation"
+    description: "Generate comprehensive research report"
+    agent_id: "deep_research_agent"
+    function: "research_report_generation"
+    parameters:
+      research_question: "${global.research_question}"
+      methodology: "${global.methodology}"
+      synthesis_data: "${steps.information_synthesis.output}"
+      verification_data: "${steps.fact_verification.output}"
+      credibility_analysis: "${steps.credibility_analysis.output}"
+      output_format: "${global.output_format}"
+      include_executive_summary: true
+      include_methodology: true
+      include_citations: true
+      include_appendices: true
+      include_confidence_scores: true
+    timeout: 600
+    max_retries: 2
+    retry_delay: 3
+    parallel_allowed: false
+    continue_on_error: false
+
+  # Step 10: Quality Assessment
+  - id: "quality_assessment"
+    name: "Research Quality Assessment"
+    description: "Assess the quality and completeness of research"
+    agent_id: "deep_research_agent"
+    function: "research_quality_assessment"
+    parameters:
+      research_question: "${global.research_question}"
+      report_data: "${steps.report_generation.output}"
+      assessment_criteria:
+        - "question_coverage"
+        - "source_quality"
+        - "evidence_strength"
+        - "methodology_appropriateness"
+        - "conclusion_validity"
+      generate_recommendations: true
+    timeout: 300
+    max_retries: 1
+    retry_delay: 2
+    parallel_allowed: false
+    continue_on_error: true
+
+# Workflow completion criteria
+completion:
+  required_successful_steps: 7    # Minimum steps that must succeed
+  critical_steps:                 # Steps that must succeed for workflow success
+    - "research_planning"
+    - "information_synthesis"
+    - "report_generation"
+  
+# Workflow metadata for tracking
+metadata:
+  version: "1.0"
+  tags: ["research", "comprehensive", "web_search", "documents"]
+  complexity: "high"
+  estimated_duration: "15-30 minutes"
+  resource_requirements:
+    - "internet_access"
+    - "document_database"
+    - "llm_processing"

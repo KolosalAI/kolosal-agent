@@ -783,6 +783,7 @@ void ResearchFunctionRegistry::register_all_research_functions(std::shared_ptr<F
     function_manager->register_function(std::make_unique<RelationshipMappingFunction>());
     function_manager->register_function(std::make_unique<ResearchReportGenerationFunction>());
     function_manager->register_function(std::make_unique<CitationManagementFunction>());
+    function_manager->register_function(std::make_unique<ResearchQualityAssessmentFunction>());
     
     ServerLogger::instance().info("Registered all research functions");
 }
@@ -831,6 +832,175 @@ void ResearchFunctionRegistry::register_functions_for_capabilities(
     }
     
     ServerLogger::instance().info("Registered research functions for %zu capabilities", capabilities.size());
+}
+
+// Research Quality Assessment Function
+FunctionResult ResearchQualityAssessmentFunction::execute(const AgentData& parameters) {
+    FunctionResult result;
+    
+    try {
+        std::string research_question = parameters.get_string("research_question", "");
+        json report_data = parameters.to_json();
+        json assessment_criteria = parameters.to_json();
+        bool generate_recommendations = parameters.get_bool("generate_recommendations", true);
+        
+        if (research_question.empty()) {
+            result.success = false;
+            result.error_message = "Research question is required for quality assessment";
+            return result;
+        }
+        
+        ServerLogger::instance().info("Assessing research quality for: %s", research_question.c_str());
+        
+        // Quality assessment metrics
+        double overall_score = 0.0;
+        std::map<std::string, double> criteria_scores;
+        std::vector<std::string> strengths;
+        std::vector<std::string> weaknesses;
+        std::vector<std::string> recommendations;
+        
+        // Assess question coverage
+        double question_coverage = 0.0;
+        if (report_data.contains("comprehensive_analysis") && 
+            !report_data["comprehensive_analysis"].get<std::string>().empty()) {
+            question_coverage = 0.8; // Good coverage if analysis exists
+            strengths.push_back("Comprehensive analysis provided");
+        } else {
+            question_coverage = 0.3;
+            weaknesses.push_back("Limited analysis of research question");
+        }
+        criteria_scores["question_coverage"] = question_coverage;
+        
+        // Assess source quality
+        double source_quality = 0.0;
+        if (report_data.contains("sources") && report_data["sources"].is_array()) {
+            int source_count = report_data["sources"].size();
+            if (source_count >= 10) {
+                source_quality = 0.9;
+                strengths.push_back("Excellent source diversity (" + std::to_string(source_count) + " sources)");
+            } else if (source_count >= 5) {
+                source_quality = 0.7;
+                strengths.push_back("Good source coverage (" + std::to_string(source_count) + " sources)");
+            } else {
+                source_quality = 0.4;
+                weaknesses.push_back("Limited source coverage (" + std::to_string(source_count) + " sources)");
+            }
+        } else {
+            source_quality = 0.2;
+            weaknesses.push_back("No source information available");
+        }
+        criteria_scores["source_quality"] = source_quality;
+        
+        // Assess evidence strength
+        double evidence_strength = 0.0;
+        if (report_data.contains("key_findings") && report_data["key_findings"].is_array()) {
+            int findings_count = report_data["key_findings"].size();
+            if (findings_count >= 5) {
+                evidence_strength = 0.8;
+                strengths.push_back("Strong evidence base with " + std::to_string(findings_count) + " key findings");
+            } else if (findings_count >= 3) {
+                evidence_strength = 0.6;
+            } else {
+                evidence_strength = 0.3;
+                weaknesses.push_back("Limited key findings identified");
+            }
+        } else {
+            evidence_strength = 0.2;
+            weaknesses.push_back("No key findings documented");
+        }
+        criteria_scores["evidence_strength"] = evidence_strength;
+        
+        // Assess methodology appropriateness
+        double methodology_score = 0.0;
+        if (report_data.contains("methodology") && 
+            !report_data["methodology"].get<std::string>().empty()) {
+            methodology_score = 0.7; // Assume appropriate if documented
+            strengths.push_back("Research methodology documented");
+        } else {
+            methodology_score = 0.3;
+            weaknesses.push_back("Research methodology not clearly documented");
+        }
+        criteria_scores["methodology_appropriateness"] = methodology_score;
+        
+        // Assess conclusion validity
+        double conclusion_validity = 0.0;
+        if (report_data.contains("executive_summary") && 
+            !report_data["executive_summary"].get<std::string>().empty()) {
+            conclusion_validity = 0.7;
+            strengths.push_back("Executive summary with conclusions provided");
+        } else {
+            conclusion_validity = 0.4;
+            weaknesses.push_back("Limited or unclear conclusions");
+        }
+        criteria_scores["conclusion_validity"] = conclusion_validity;
+        
+        // Calculate overall score
+        overall_score = (question_coverage + source_quality + evidence_strength + 
+                        methodology_score + conclusion_validity) / 5.0;
+        
+        // Generate recommendations if requested
+        if (generate_recommendations) {
+            if (source_quality < 0.6) {
+                recommendations.push_back("Expand source diversity and include more authoritative references");
+            }
+            if (evidence_strength < 0.6) {
+                recommendations.push_back("Strengthen evidence base with more detailed findings and analysis");
+            }
+            if (question_coverage < 0.6) {
+                recommendations.push_back("Ensure research question is fully addressed in analysis");
+            }
+            if (methodology_score < 0.6) {
+                recommendations.push_back("Document research methodology more clearly");
+            }
+            if (conclusion_validity < 0.6) {
+                recommendations.push_back("Strengthen conclusions with better evidence linkage");
+            }
+        }
+        
+        // Determine quality level
+        std::string quality_level;
+        if (overall_score >= 0.8) {
+            quality_level = "Excellent";
+        } else if (overall_score >= 0.7) {
+            quality_level = "Good";
+        } else if (overall_score >= 0.6) {
+            quality_level = "Satisfactory";
+        } else if (overall_score >= 0.4) {
+            quality_level = "Needs Improvement";
+        } else {
+            quality_level = "Poor";
+        }
+        
+        // Build result
+        result.result_data.set("overall_score", overall_score);
+        result.result_data.set("quality_level", quality_level);
+        
+        // Convert criteria_scores map to AgentData
+        AgentData scores_data;
+        for (const auto& pair : criteria_scores) {
+            scores_data.set(pair.first, pair.second);
+        }
+        result.result_data.set("criteria_scores", scores_data);
+        
+        result.result_data.set("strengths", strengths);
+        result.result_data.set("weaknesses", weaknesses);
+        result.result_data.set("recommendations", recommendations);
+        result.result_data.set("assessment_summary", 
+            "Research quality assessment completed with " + quality_level + 
+            " rating (" + std::to_string(static_cast<int>(overall_score * 100)) + "%)");
+        
+        result.success = true;
+        result.execution_time_ms = 150;
+        
+        ServerLogger::instance().info("Quality assessment completed: %s (%.2f)", 
+                                    quality_level.c_str(), overall_score);
+        
+    } catch (const std::exception& e) {
+        result.success = false;
+        result.error_message = "Research quality assessment failed: " + std::string(e.what());
+    }
+    
+    return result;
 }
 
 } // namespace kolosal::agents

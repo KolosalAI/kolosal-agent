@@ -251,6 +251,10 @@ set(WORKFLOW_SOURCES
     src/workflow/workflow_loader.cpp
 )
 
+set(EXAMPLES_SOURCES
+    src/examples/deep_research_agent.cpp
+)
+
 # Combine all sources
 set(ALL_SOURCES
     ${AGENT_CORE_SOURCES}
@@ -265,6 +269,7 @@ set(ALL_SOURCES
     ${TOOLS_SOURCES}
     ${UTILS_SOURCES}
     ${WORKFLOW_SOURCES}
+    ${EXAMPLES_SOURCES}
 )
 
 # Create the main library
@@ -454,47 +459,57 @@ set_target_properties(kolosal-agent PROPERTIES
     OUTPUT_NAME "kolosal-agent"
 )
 
-# Deep Research Demo executable (optional)
+# Deep Research executable (optional)
 if(BUILD_DEEPRESEARCH_DEMO)
-    add_executable(deep-research-demo examples/deep_research_agent_demo.cpp)
-    target_link_libraries(deep-research-demo kolosal_agent)
-    set_target_properties(deep-research-demo PROPERTIES
+    add_executable(deep_research examples/deep_research_agent_demo.cpp)
+    target_link_libraries(deep_research kolosal_agent)
+    set_target_properties(deep_research PROPERTIES
         CXX_STANDARD ${CMAKE_CXX_STANDARD}
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS OFF
-        OUTPUT_NAME "deep-research-demo"
+        OUTPUT_NAME "deep_research"
     )
     
     # Make sure kolosal-server executable is built
-    add_dependencies(deep-research-demo kolosal-server-exe)
+    add_dependencies(deep_research kolosal-server-exe)
     
-    # Copy required DLLs for deep-research-demo (Windows)
+    # Copy required DLLs for deep_research (Windows)
     if(WIN32)
-        add_custom_command(TARGET deep-research-demo POST_BUILD
+        add_custom_command(TARGET deep_research POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 ${CMAKE_BINARY_DIR}/kolosal-server/Debug/kolosal_server.dll
-                $<TARGET_FILE_DIR:deep-research-demo>
+                $<TARGET_FILE_DIR:deep_research>
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 ${CMAKE_BINARY_DIR}/kolosal-server/Debug/libcurl.dll
-                $<TARGET_FILE_DIR:deep-research-demo>
+                $<TARGET_FILE_DIR:deep_research>
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 ${CMAKE_BINARY_DIR}/kolosal-server/Debug/llama-cpu.dll
-                $<TARGET_FILE_DIR:deep-research-demo>
-            COMMENT "Copying required DLLs for deep-research-demo.exe"
+                $<TARGET_FILE_DIR:deep_research>
+            COMMENT "Copying required DLLs for deep_research.exe"
             VERBATIM
         )
     endif()
-    
-    # Ensure both main executables are built by default (ALL target)
+endif()
+
+# Standalone Deep Research executable (always available)
+add_executable(deep_research_standalone examples/standalone_deep_research.cpp)
+set_target_properties(deep_research_standalone PROPERTIES
+    CXX_STANDARD ${CMAKE_CXX_STANDARD}
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    OUTPUT_NAME "deep_research"
+)
+
+# Ensure all main executables are built by default (ALL target)
+if(BUILD_DEEPRESEARCH_DEMO)
     add_custom_target(ALL_BUILD_TARGETS ALL
-        DEPENDS kolosal-agent kolosal-server-exe deep-research-demo
-        COMMENT "Building all main targets: kolosal-agent, kolosal-server, and deep-research-demo"
+        DEPENDS kolosal-agent kolosal-server-exe deep_research deep_research_standalone
+        COMMENT "Building all main targets: kolosal-agent, kolosal-server, and deep_research"
     )
 else()
-    # Standard build targets
     add_custom_target(ALL_BUILD_TARGETS ALL
-        DEPENDS kolosal-agent kolosal-server-exe
-        COMMENT "Building main targets: kolosal-agent and kolosal-server"
+        DEPENDS kolosal-agent kolosal-server-exe deep_research_standalone
+        COMMENT "Building main targets: kolosal-agent, kolosal-server, and standalone deep_research"
     )
 endif()
 

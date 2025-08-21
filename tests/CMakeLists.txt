@@ -50,6 +50,7 @@ add_library(test_utils STATIC
     mocks/mock_agent_components.cpp
     mocks/mock_llm_service.cpp
     mocks/mock_filesystem.cpp
+    mocks/mock_deep_research_components.hpp
 )
 
 target_link_libraries(test_utils
@@ -89,6 +90,9 @@ if(BUILD_UNIT_TESTS)
         
         # Workflow tests - main version with working content
         unit/workflow/test_workflow_engine.cpp
+        
+        # Examples tests - Deep Research Agent tests
+        unit/examples/test_deep_research_agent.cpp
         
         # Placeholder tests for all remaining categories
         unit/placeholder_tests.cpp
@@ -157,6 +161,9 @@ endif()
 # Integration Tests
 if(BUILD_INTEGRATION_TESTS)
     set(INTEGRATION_TEST_SOURCES
+        # Integration tests for Deep Research Agent
+        integration/examples/test_deep_research_agent_integration.cpp
+        
         # Integration tests are included in placeholder_tests.cpp for now
         # This ensures all integration test categories are represented
         # but using working placeholder implementations
@@ -223,6 +230,9 @@ endif()
 # Performance Tests
 if(BUILD_PERFORMANCE_TESTS)
     set(PERFORMANCE_TEST_SOURCES
+        # Performance tests for Deep Research Agent
+        performance/examples/test_deep_research_agent_performance.cpp
+        
         # Performance tests are included in placeholder_tests.cpp for now
         # This ensures all performance test categories are represented
         # but using working placeholder implementations

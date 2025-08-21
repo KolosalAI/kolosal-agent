@@ -158,6 +158,19 @@ public:
 };
 
 /**
+ * @brief Research quality assessment function
+ */
+class KOLOSAL_SERVER_API ResearchQualityAssessmentFunction : public AgentFunction {
+public:
+    std::string get__name() const override { return "research_quality_assessment"; }
+    std::string get__description() const override { 
+        return "Assesses the quality and completeness of research reports and findings"; 
+    }
+    std::string get__type() const override { return "quality_control"; }
+    FunctionResult execute(const AgentData& parameters) override;
+};
+
+/**
  * @brief Research function registry utilities
  */
 class KOLOSAL_SERVER_API ResearchFunctionRegistry {
