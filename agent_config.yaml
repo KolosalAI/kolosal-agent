@@ -8,7 +8,7 @@ system:
   # Server configuration for agent communication
   server:
     host: "127.0.0.1"
-    port: 8081
+    port: 8080
     timeout: 30
   
   # Logging configuration for agents
@@ -178,6 +178,30 @@ functions:
         type: "integer"
         required: false
 
+  - name: "monitor_progress"
+    type: "builtin"
+    description: "Monitor progress of delegated tasks"
+    parameters:
+      - name: "task_id"
+        type: "string"
+        required: true
+      - name: "check_interval"
+        type: "integer"
+        required: false
+        default: 30
+
+  - name: "coordinate_agents"
+    type: "builtin"
+    description: "Coordinate multiple agents for complex tasks"
+    parameters:
+      - name: "agents"
+        type: "array"
+        required: true
+      - name: "coordination_type"
+        type: "string"
+        required: false
+        default: "sequential"
+
   # Analysis Functions
   - name: "analyze_data"
     type: "builtin"
@@ -212,6 +236,37 @@ functions:
         type: "array"
         required: false
 
+  - name: "generate_report"
+    type: "builtin"
+    description: "Generate comprehensive reports from research data"
+    parameters:
+      - name: "data"
+        type: "object"
+        required: true
+      - name: "format"
+        type: "string"
+        required: false
+        default: "markdown"
+      - name: "template"
+        type: "string"
+        required: false
+
+  - name: "synthesize_information"
+    type: "builtin"
+    description: "Synthesize information from multiple sources"
+    parameters:
+      - name: "sources"
+        type: "array"
+        required: true
+      - name: "synthesis_method"
+        type: "string"
+        required: false
+        default: "comprehensive"
+      - name: "conflict_resolution"
+        type: "string"
+        required: false
+        default: "evidence_based"
+
   # Execution Functions
   - name: "execute_task"
     type: "builtin"
@@ -245,6 +300,36 @@ functions:
         required: false
         default: 3
 
+  - name: "process_files"
+    type: "builtin"
+    description: "Process files for analysis or transformation"
+    parameters:
+      - name: "file_paths"
+        type: "array"
+        required: true
+      - name: "operation"
+        type: "string"
+        required: true
+      - name: "output_format"
+        type: "string"
+        required: false
+        default: "json"
+
+  - name: "call_api"
+    type: "builtin"
+    description: "Make API calls to external services"
+    parameters:
+      - name: "endpoint"
+        type: "string"
+        required: true
+      - name: "method"
+        type: "string"
+        required: false
+        default: "GET"
+      - name: "payload"
+        type: "object"
+        required: false
+
   # Document Functions
   - name: "parse_document"
     type: "builtin"
@@ -262,6 +347,21 @@ functions:
         required: false
         default: "structured"
 
+  - name: "analyze_text"
+    type: "builtin"
+    description: "Analyze text content for patterns and insights"
+    parameters:
+      - name: "text"
+        type: "string"
+        required: true
+      - name: "analysis_type"
+        type: "string"
+        required: false
+        default: "comprehensive"
+      - name: "metrics"
+        type: "array"
+        required: false
+
   - name: "generate_content"
     type: "builtin"
     description: "Generate content based on specifications"
@@ -276,6 +376,81 @@ functions:
       - name: "template"
         type: "string"
         required: false
+
+  - name: "convert_format"
+    type: "builtin"
+    description: "Convert documents between different formats"
+    parameters:
+      - name: "source_path"
+        type: "string"
+        required: true
+      - name: "target_format"
+        type: "string"
+        required: true
+      - name: "output_path"
+        type: "string"
+        required: false
+
+  # Quality Assurance Functions
+  - name: "review_output"
+    type: "builtin"
+    description: "Review and validate output quality"
+    parameters:
+      - name: "content"
+        type: "object"
+        required: true
+      - name: "criteria"
+        type: "array"
+        required: false
+      - name: "threshold"
+        type: "number"
+        required: false
+        default: 0.8
+
+  - name: "validate_result"
+    type: "builtin"
+    description: "Validate results against expected outcomes"
+    parameters:
+      - name: "result"
+        type: "object"
+        required: true
+      - name: "expected"
+        type: "object"
+        required: false
+      - name: "validation_type"
+        type: "string"
+        required: false
+        default: "comprehensive"
+
+  - name: "check_compliance"
+    type: "builtin"
+    description: "Check compliance with standards and requirements"
+    parameters:
+      - name: "content"
+        type: "object"
+        required: true
+      - name: "standards"
+        type: "array"
+        required: true
+      - name: "severity"
+        type: "string"
+        required: false
+        default: "medium"
+
+  - name: "detect_errors"
+    type: "builtin"
+    description: "Detect errors and inconsistencies in content"
+    parameters:
+      - name: "content"
+        type: "object"
+        required: true
+      - name: "error_types"
+        type: "array"
+        required: false
+      - name: "confidence_threshold"
+        type: "number"
+        required: false
+        default: 0.7
 
 # System-wide configuration
 configuration:

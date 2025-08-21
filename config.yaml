@@ -67,7 +67,7 @@ database:
     embedding_batch_size: 5
   faiss:
     index_type: Flat
-    index_path: ./data/faiss_index
+    index_path: D:\Works\Genta\codes\kolosal-agent\data\faiss_index
     dimensions: 1536
     normalize_vectors: true
     nlist: 100

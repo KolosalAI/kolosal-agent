@@ -202,6 +202,7 @@ set(AGENT_SERVICES_SOURCES
 
 set(API_SOURCES
     src/api/agent_management_route.cpp
+    src/api/workflow_route.cpp
     src/api/simple_http_server.cpp
     src/api/message_router.cpp
     src/api/http_client.cpp
@@ -247,6 +248,7 @@ set(UTILS_SOURCES
 set(WORKFLOW_SOURCES
     src/workflow/sequential_workflow.cpp
     src/workflow/workflow_engine.cpp
+    src/workflow/workflow_loader.cpp
 )
 
 # Combine all sources

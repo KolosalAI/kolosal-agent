@@ -30,8 +30,10 @@
 #include "server_client_interface.h"
 #include "../agent/services/agent_service.hpp"
 #include "../agent/core/multi_agent_system.hpp"
+#include "../workflow/workflow_engine.hpp"
 #include "../api/simple_http_server.hpp"
 #include "../api/agent_management_route.hpp"
+#include "../api/workflow_route.hpp"
 
 #ifdef MCP_PROTOCOL_ENABLED
 #include "mcp_server_integration.hpp"
@@ -123,6 +125,7 @@ public:
     std::shared_ptr<KolosalServerClient> getLLMServer_Client() const;
     std::shared_ptr<kolosal::agents::YAMLConfigurableAgentManager> getAgent_Manager() const;
     std::shared_ptr<kolosal::services::AgentService> getAgent_Service() const;
+    std::shared_ptr<kolosal::agents::WorkflowEngine> getWorkflow_Engine() const;
     
     // Advanced features
     bool enableAuto_Recovery(const bool enable = true);
@@ -151,8 +154,10 @@ private:
     std::shared_ptr<KolosalServerClient> llm_server_client_;
     std::shared_ptr<kolosal::agents::YAMLConfigurableAgentManager> agent_manager_;
     std::shared_ptr<kolosal::services::AgentService> agent_service_;
+    std::shared_ptr<kolosal::agents::WorkflowEngine> workflow_engine_;
     std::unique_ptr<kolosal::api::SimpleHttpServer> agent_http_server_;
     std::shared_ptr<kolosal::api::AgentManagementRoute> agent_management_route_;
+    std::shared_ptr<kolosal::api::WorkflowRoute> workflow_route_;
 
     // Health monitoring
     std::thread health_monitoring_thread_;

@@ -12,6 +12,8 @@
 #include "server/unified_server.hpp"
 #include "api/simple_http_server.hpp"
 #include "api/agent_management_route.hpp"
+#include "api/workflow_route.hpp"
+#include "workflow/workflow_loader.hpp"
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -39,17 +41,25 @@ UnifiedKolosalServer::UnifiedKolosalServer(const ServerConfig& config)
     agent_manager_ = std::make_shared<YAMLConfigurableAgentManager>();
     agent_service_ = std::make_shared<AgentService>(agent_manager_);
     
+    // Initialize workflow engine
+    workflow_engine_ = std::make_shared<kolosal::agents::WorkflowEngine>(agent_manager_);
+    
     // Initialize HTTP server components if agent API is enabled
     if (config_.enable_agent_api) {
         kolosal::api::SimpleHttpServer::ServerConfig http_config;
         http_config.host = config_.agent_api_host;
         http_config.port = config_.agent_api_port;
         http_config.backlog = 10;
+        http_config.enable_cors = true;
         agent_http_server_ = std::make_unique<kolosal::api::SimpleHttpServer>(http_config);
         
         // Create agent management route
         agent_management_route_ = std::make_shared<kolosal::api::AgentManagementRoute>(agent_manager_);
         agent_http_server_->add_Route(agent_management_route_);
+        
+        // Create workflow route
+        workflow_route_ = std::make_shared<kolosal::api::WorkflowRoute>(workflow_engine_);
+        agent_http_server_->add_Route(workflow_route_);
     }
     
     // Initialize current status
@@ -99,6 +109,17 @@ bool UnifiedKolosalServer::start() {
                 log_Event("ERROR", "Failed to start agent system");
             } else {
                 agents_started = true;
+                
+                // Start workflow engine
+                if (workflow_engine_) {
+                    workflow_engine_->start();
+                    log_Event("information", "Workflow engine started");
+                    
+                    // Auto-load default workflows
+                    auto workflow_loader = std::make_shared<kolosal::agents::WorkflowLoader>(workflow_engine_);
+                    int loaded_workflows = workflow_loader->autoLoad_DefaultWorkflows();
+                    log_Event("information", "Auto-loaded " + std::to_string(loaded_workflows) + " workflows");
+                }
             }
         }
         
@@ -310,6 +331,11 @@ void UnifiedKolosalServer::stop_LLMServer() {
 }
 
 void UnifiedKolosalServer::stopAgent_System() {
+    if (workflow_engine_) {
+        log_Event("information", "Stopping workflow engine...");
+        workflow_engine_->stop();
+    }
+    
     if (agent_manager_) {
         log_Event("information", "Stopping agent system...");
         agent_manager_->stop();
@@ -339,6 +365,9 @@ bool UnifiedKolosalServer::start_AgentHttpServer() {
             // Reattach routes
             if (agent_management_route_) {
                 agent_http_server_->add_Route(agent_management_route_);
+            }
+            if (workflow_route_) {
+                agent_http_server_->add_Route(workflow_route_);
             }
         }
 
@@ -666,6 +695,10 @@ std::shared_ptr<YAMLConfigurableAgentManager> UnifiedKolosalServer::getAgent_Man
 
 std::shared_ptr<AgentService> UnifiedKolosalServer::getAgent_Service() const {
     return agent_service_;
+}
+
+std::shared_ptr<kolosal::agents::WorkflowEngine> UnifiedKolosalServer::getWorkflow_Engine() const {
+    return workflow_engine_;
 }
 
 // Factory methods

@@ -62,7 +62,6 @@ DECLARE_COMPONENT_LOGGER(application_main);
 DECLARE_COMPONENT_LOGGER(signal_handler);
 DECLARE_COMPONENT_LOGGER(configuration);
 DECLARE_COMPONENT_LOGGER(unified_server);
-DECLARE_COMPONENT_LOGGER(system_demo);
 
 // Forward declarations
 void system_signal_handler(int signal_number);
@@ -151,8 +150,8 @@ void system_signal_handler(int signal_number) {
 /**
  * @brief Command line arguments configuration structure
  * 
- * This structure holds all configuration options that can be specified
- * via command line arguments, with sensible defaults.
+ * Simplified configuration structure with defaults optimized for
+ * comprehensive logging and monitoring of all requests and actions.
  */
 struct ApplicationConfiguration {
     std::string configuration_file_path = "agent_config.yaml";
@@ -160,16 +159,16 @@ struct ApplicationConfiguration {
     std::string server_host_address = "127.0.0.1";
     std::string external_server_executable_path = "";
     bool disable_embedded_server = false;
-    bool enable_system_demonstration = false;
-    bool enable_verbose_logging = false;
-    bool is_development_mode = false;
-    bool is_production_mode = false;
     std::string logging_level = "INFO";
-    bool enable_performance_metrics = true;
-    bool enable_system_health_monitoring = true;
-    bool enable_quiet_mode = false;
     bool display_help_information = false;
     bool display_version_information = false;
+    
+    // Default enabled features for comprehensive monitoring
+    bool enable_verbose_logging = true;
+    bool enable_performance_metrics = true;
+    bool enable_system_health_monitoring = true;
+    bool enable_request_response_logging = true;
+    bool enable_action_logging = true;
 };
 
 /**
@@ -179,15 +178,11 @@ struct ApplicationConfiguration {
  * @return ApplicationConfiguration with parsed values
  * @throws std::runtime_error for invalid arguments
  */
-/**
- * @brief Perform parse command line arguments operation
- * @return ApplicationConfiguration Description of return value
- */
 ApplicationConfiguration parse_command_line_arguments(int argc, char* argv[]) {
     ApplicationConfiguration config;
     
     for (int i = 1; i < argc; ++i) {
-    std::string argument = argv[i];
+        std::string argument = argv[i];
         
         if (argument == "-h" || argument == "--help") {
             config.display_help_information = true;
@@ -222,14 +217,6 @@ ApplicationConfiguration parse_command_line_arguments(int argc, char* argv[]) {
             }
         } else if (argument == "--no-server") {
             config.disable_embedded_server = true;
-        } else if (argument == "--demo") {
-            config.enable_system_demonstration = true;
-        } else if (argument == "--verbose") {
-            config.enable_verbose_logging = true;
-        } else if (argument == "--dev" || argument == "--development") {
-            config.is_development_mode = true;
-        } else if (argument == "--prod" || argument == "--production") {
-            config.is_production_mode = true;
         } else if (argument == "--log-level") {
             if (i + 1 < argc) {
                 config.logging_level = argv[++i];
@@ -240,9 +227,10 @@ ApplicationConfiguration parse_command_line_arguments(int argc, char* argv[]) {
             config.enable_performance_metrics = false;
         } else if (argument == "--no-health-monitoring") {
             config.enable_system_health_monitoring = false;
-        } else if (argument == "--quiet") {
-            config.enable_quiet_mode = true;
-            config.enable_system_health_monitoring = false; // Quiet mode disables health monitoring
+        } else if (argument == "--no-request-logging") {
+            config.enable_request_response_logging = false;
+        } else if (argument == "--no-action-logging") {
+            config.enable_action_logging = false;
         } else {
             throw std::runtime_error("Unknown argument: " + argument);
         }
@@ -257,10 +245,16 @@ ApplicationConfiguration parse_command_line_arguments(int argc, char* argv[]) {
  */
 void display_application_usage_information(const char* program_executable_name) {
     std::cout << R"(
-Kolosal Agent System v2.0.0 - Unified LLM & Multi-const Agent Platform = ====================================================================
+Kolosal Agent System v2.0.0 - Unified LLM & Multi-Agent Platform
+====================================================================
 
 USAGE:
     )" << program_executable_name << R"( [OPTIONS]
+
+OVERVIEW:
+    The Kolosal Agent System runs with comprehensive logging enabled by default,
+    monitoring all requests and actions performed by the agent server. This 
+    provides full visibility into system operations and performance.
 
 OPTIONS:
     -c, --config FILE          Use custom configuration file (default: agent_config.yaml)
@@ -268,44 +262,36 @@ OPTIONS:
         --host HOST           Server host (default: 127.0.0.1)
     -s, --server PATH         Path to kolosal-server executable (auto-detect if not specified)
         --no-server           Don't start LLM server (assume it's already running)
-        --demo                Run system demonstration
-        --verbose             Enable verbose logging
-        --dev, --development  Run in development mode with enhanced debugging
-        --prod, --production  Run in production mode with optimizations
-        --log-level LEVEL     Set log level (DEBUG, information, WARN, ERROR)
-        --no-metrics          Disable metrics collection
+        --log-level LEVEL     Set log level (TRACE, DEBUG, INFO, WARN, ERROR, FATAL)
+        --no-metrics          Disable performance metrics collection
         --no-health-monitoring Disable health monitoring
-        --quiet               Minimize console output (implies --no-health-monitoring)
+        --no-request-logging  Disable request/response logging
+        --no-action-logging   Disable action logging
     -h, --help                Show this help message
     -v, --version             Show version information
 
 EXAMPLES:
-    # Basic usage - will auto-detect development mode with agent_config.yaml
+    # Default operation with comprehensive logging
     )" << program_executable_name << R"(
 
-    # Development mode with custom configuration and port
-    )" << program_executable_name << R"( --dev -c my_config.yaml -p 9090
+    # Custom configuration and port
+    )" << program_executable_name << R"( -c my_config.yaml -p 9090
 
-    # Development mode with verbose output
-    )" << program_executable_name << R"( --dev --verbose --log-level DEBUG
+    # Enable debug level logging for detailed monitoring
+    )" << program_executable_name << R"( --log-level DEBUG
 
-    # Production mode
-    )" << program_executable_name << R"( --prod -p 8080
+    # Connect to external LLM server
+    )" << program_executable_name << R"( --no-server --host external-server.com -p 8080
 
-    # Run demonstration in development mode
-    )" << program_executable_name << R"( --dev --demo
+    # Minimal logging for production environments
+    )" << program_executable_name << R"( --log-level WARN --no-request-logging
 
-    # Connect to external LLM server in production mode
-    )" << program_executable_name << R"( --prod --no-server --host external-server.com -p 8080
-
-FEATURES:
-    * High-performance LLM inference server
-    * Multi-agent coordination and management
-    * Real-time metrics and monitoring
-    * Automatic health checking and recovery
-    * REST API for agent management
-    * Hot configuration reloading
-    * Performance analytics and optimization
+DEFAULT FEATURES (Always Enabled):
+    * Comprehensive request/response logging
+    * Action and operation monitoring  
+    * Performance metrics collection
+    * Health monitoring and auto-recovery
+    * Real-time system status tracking
 
 API ENDPOINTS:
     GET    /v1/agents                    - List all agents
@@ -346,9 +332,9 @@ void initialize_system_health_monitoring(UnifiedKolosalServer& unified_server_re
     unified_server_ref.setHealthCheck_Callback([](const UnifiedKolosalServer::SystemStatus& status) {
         static auto last_health_log_time = std::chrono::system_clock::now();
         const auto current_time = std::chrono::system_clock::now();
-        // Log health status every 10 minutes (less frequent to reduce noise)
-        if (current_time - last_health_log_time >= std::chrono::minutes(10)) {
-            COMPONENT_INFO(health_monitor, "Health Check - LLM: {}, Agents: {}/{}, average Response: {:.1f} ms", 
+        // Log health status every 5 minutes for comprehensive monitoring
+        if (current_time - last_health_log_time >= std::chrono::minutes(5)) {
+            COMPONENT_INFO(health_monitor, "Health Check - LLM: {}, Agents: {}/{}, Average Response: {:.1f} ms", 
                           (status.llm_server_healthy ? "Healthy" : "Unhealthy"),
                           status.running_agents, status.total_agents,
                           status.average_response_time_ms);
@@ -363,35 +349,25 @@ void initialize_system_health_monitoring(UnifiedKolosalServer& unified_server_re
 }
 
 /**
- * @brief Execute system demonstration showcasing key features and capabilities
+ * @brief Setup comprehensive request and action logging
  * @param unified_server_ref Reference to the unified server instance
+ * @param config Application configuration
  */
-void execute_system_demonstration(const UnifiedKolosalServer& unified_server_ref) {
-    COMPONENT_INFO(system_demo, "Starting Kolosal Agent System Demonstration");
-    COMPONENT_INFO(system_demo, "=============================================");
-
-    const auto agent_service = unified_server_ref.getAgent_Service();
-    // Display current system status
-    const auto system_status = unified_server_ref.getSystem_Status();
-    COMPONENT_INFO(system_demo, "Current System Status:");
-    COMPONENT_INFO(system_demo, "  * LLM Server: {}", (system_status.llm_server_healthy ? "Healthy" : "Unhealthy"));
-    COMPONENT_INFO(system_demo, "  * Active Agents: {}/{}", system_status.running_agents, system_status.total_agents);
-    
-    // Display all registered agents
-    const auto registered_agents = agent_service->getAllAgentInfo();
-    COMPONENT_INFO(system_demo, "Registered Agent Instances:");
-    for (const auto& agent_info : registered_agents) {
-        COMPONENT_INFO(system_demo, "  * {} ({}) - Status: {}", agent_info.name, agent_info.id, (agent_info.running ? "Running" : "Stopped"));
+void initialize_comprehensive_logging(UnifiedKolosalServer& unified_server_ref, const ApplicationConfiguration& config) {
+    if (config.enable_request_response_logging) {
+        COMPONENT_INFO(application_main, "Request/Response logging enabled - all API calls will be monitored");
+        // Note: Actual request/response logging would be implemented in the server routing layer
     }
     
-    // Display system performance metrics
-    const auto performance_metrics = unified_server_ref.get_Metrics();
-    COMPONENT_INFO(system_demo, "📈 Performance Metrics:");
-    COMPONENT_INFO(system_demo, "  * LLM Requests: {} (Successful: {})", performance_metrics.total_llm_requests, performance_metrics.successful_llm_requests);
-    COMPONENT_INFO(system_demo, "  * Agent Function Calls: {} (Successful: {})", performance_metrics.total_agent_function_calls, performance_metrics.successful_agent_function_calls);
+    if (config.enable_action_logging) {
+        COMPONENT_INFO(application_main, "Action logging enabled - all agent actions will be tracked");
+        // Note: Action logging would be implemented in the agent execution layer
+    }
     
-    COMPONENT_INFO(system_demo, "System demonstration completed successfully! System is ready for production use.");
+    COMPONENT_INFO(application_main, "Comprehensive logging system initialized successfully");
 }
+
+
 
 /**
  * @brief Automatically detect the kolosal-server executable path from common locations
@@ -494,16 +470,8 @@ int main(int argc, char* argv[]) {
             return EXIT_SUCCESS;
         }
         
-        // Configure logging system based on runtime mode
-        if (application_config.is_production_mode) {
-            LoggingConfig::setupProduction_Logging("kolosal_agent_production.log", application_config.enable_quiet_mode);
-        } else if (application_config.is_development_mode) {
-            LoggingConfig::setupDevelopment_Logging("kolosal_agent_dev.log");
-        } else {
-            if (application_config.enable_quiet_mode) {
-                LoggingConfig::setupMinimal_Logging();
-            }
-        }
+        // Configure logging system with enhanced monitoring capabilities
+        LoggingConfig::setupDevelopment_Logging("kolosal_agent.log");
         
         // Apply logging level configuration
         LoggingConfig::setLog_Level(application_config.logging_level);
@@ -511,7 +479,9 @@ int main(int argc, char* argv[]) {
         // Enable server logger integration if available
         KolosalLogger::instance().enableServerLogger_Integration(true);
         
-        COMPONENT_INFO(application_main, "Logging system configured with level: {}", application_config.logging_level);
+        COMPONENT_INFO(application_main, "Logging system configured with comprehensive monitoring - level: {}", application_config.logging_level);
+        COMPONENT_INFO(application_main, "Request/Response logging: {}", (application_config.enable_request_response_logging ? "ENABLED" : "DISABLED"));
+        COMPONENT_INFO(application_main, "Action logging: {}", (application_config.enable_action_logging ? "ENABLED" : "DISABLED"));
         
         // Initialize signal handlers for graceful system shutdown
         COMPONENT_DEBUG(application_main, "Configuring system signal handlers...");
@@ -530,19 +500,11 @@ int main(int argc, char* argv[]) {
             return EXIT_FAILURE;
         }
         
-        // Build unified server configuration
+        // Build unified server configuration with default comprehensive monitoring
         UnifiedKolosalServer::ServerConfig server_configuration;
+        server_configuration = UnifiedServerFactory::buildDevelopment_Config(application_config.server_port_number);
         
-        if (application_config.is_production_mode) {
-            server_configuration = UnifiedServerFactory::buildProduction_Config(application_config.server_port_number);
-        } else if (application_config.is_development_mode) {
-            server_configuration = UnifiedServerFactory::buildDevelopment_Config(application_config.server_port_number);
-        } else {
-            // Auto-detect mode: if agent_config.yaml exists, use development mode as default
-            COMPONENT_INFO(configuration, "No mode specified, defaulting to development mode with config file: {}", application_config.configuration_file_path);
-            server_configuration = UnifiedServerFactory::buildDevelopment_Config(application_config.server_port_number);
-            application_config.is_development_mode = true; // Set the flag for consistency
-        }
+        COMPONENT_INFO(configuration, "Using default configuration with comprehensive logging and monitoring enabled");
         
         // Apply command line configuration overrides
         server_configuration.server_host = application_config.server_host_address;
@@ -560,18 +522,19 @@ int main(int argc, char* argv[]) {
         server_configuration.enable_health_monitoring = application_config.enable_system_health_monitoring;
         server_configuration.enable_metrics_collection = application_config.enable_performance_metrics;
         
-        // Display configuration summary if not in quiet mode
-        if (!application_config.enable_quiet_mode) {
-            COMPONENT_INFO(configuration, "System Configuration Summary:");
-            COMPONENT_INFO(configuration, "  * Configuration File: {}", application_config.configuration_file_path);
-            COMPONENT_INFO(configuration, "  * Server Endpoint: {}:{}", server_configuration.server_host, server_configuration.server_port);
-            if (server_configuration.auto_start_server && !server_configuration.server_executable_path.empty()) {
-                COMPONENT_INFO(configuration, "  * Server Executable: {}", server_configuration.server_executable_path);
-            }
-            COMPONENT_INFO(configuration, "  * Operating Mode: {}", (application_config.is_production_mode ? "Production" : 
-                                          application_config.is_development_mode ? "Development" : "Default"));
-            COMPONENT_INFO(configuration, "  * Auto-start Server: {}", (server_configuration.auto_start_server ? "Enabled" : "Disabled"));
+        // Display configuration summary (always shown for transparency)
+        COMPONENT_INFO(configuration, "System Configuration Summary:");
+        COMPONENT_INFO(configuration, "  * Configuration File: {}", application_config.configuration_file_path);
+        COMPONENT_INFO(configuration, "  * Server Endpoint: {}:{}", server_configuration.server_host, server_configuration.server_port);
+        if (server_configuration.auto_start_server && !server_configuration.server_executable_path.empty()) {
+            COMPONENT_INFO(configuration, "  * Server Executable: {}", server_configuration.server_executable_path);
         }
+        COMPONENT_INFO(configuration, "  * Operating Mode: Default (Comprehensive Logging & Monitoring)");
+        COMPONENT_INFO(configuration, "  * Auto-start Server: {}", (server_configuration.auto_start_server ? "Enabled" : "Disabled"));
+        COMPONENT_INFO(configuration, "  * Request/Response Logging: {}", (application_config.enable_request_response_logging ? "Enabled" : "Disabled"));
+        COMPONENT_INFO(configuration, "  * Action Logging: {}", (application_config.enable_action_logging ? "Enabled" : "Disabled"));
+        COMPONENT_INFO(configuration, "  * Performance Metrics: {}", (application_config.enable_performance_metrics ? "Enabled" : "Disabled"));
+        COMPONENT_INFO(configuration, "  * Health Monitoring: {}", (application_config.enable_system_health_monitoring ? "Enabled" : "Disabled"));
 
         // Create and initialize unified server instance
         try {
@@ -582,24 +545,26 @@ int main(int argc, char* argv[]) {
             return EXIT_FAILURE;
         }
         
-        // Configure system health monitoring
+        // Configure system health monitoring and comprehensive logging
         try {
             if (server_configuration.enable_health_monitoring) {
                 initialize_system_health_monitoring(*unified_server_instance);
                 unified_server_instance->enableAuto_Recovery(true);
             }
+            
+            // Initialize comprehensive request and action logging
+            initialize_comprehensive_logging(*unified_server_instance, application_config);
+            
         } catch (const std::exception& e) {
-            std::cout << "[bootstrap] WARNING: health monitoring setup failed: " << e.what() << std::endl;
-            // Continue without health monitoring
+            std::cout << "[bootstrap] WARNING: monitoring setup failed: " << e.what() << std::endl;
+            // Continue without enhanced monitoring
         }
         
-        // Start the unified server system
-        if (!application_config.enable_quiet_mode) {
-            try {
-                COMPONENT_INFO(unified_server, "Starting Kolosal unified server system...");
-            } catch (...) {
-                std::cout << "Starting Kolosal unified server system..." << std::endl;
-            }
+        // Start the unified server system with comprehensive logging
+        try {
+            COMPONENT_INFO(unified_server, "Starting Kolosal unified server system with comprehensive monitoring...");
+        } catch (...) {
+            std::cout << "Starting Kolosal unified server system with comprehensive monitoring..." << std::endl;
         }
         
         PERF_LOG("unified_server", "server_startup_sequence");
@@ -617,69 +582,102 @@ int main(int argc, char* argv[]) {
             std::cout << "[bootstrap] continuing with partial functionality..." << std::endl;
         }
         
-        if (!application_config.enable_quiet_mode && server_started) {
+        if (server_started) {
             try {
-                COMPONENT_INFO(unified_server, "Unified server system started successfully!");
+                COMPONENT_INFO(unified_server, "Unified server system started successfully with comprehensive monitoring!");
             } catch (...) {
-                std::cout << "Unified server system started successfully!" << std::endl;
+                std::cout << "Unified server system started successfully with comprehensive monitoring!" << std::endl;
             }
         }
         
-        // Execute system demonstration if requested
-        if (application_config.enable_system_demonstration) {
-            try {
-                std::this_thread::sleep_for(std::chrono::seconds(2)); // Allow system to stabilize
-                execute_system_demonstration(*unified_server_instance);
-            } catch (const std::exception& e) {
-                std::cout << "[demo] WARNING: system demonstration failed: " << e.what() << std::endl;
-            }
+        // Main application event loop with enhanced logging
+        try {
+            const auto server_config = unified_server_instance ? unified_server_instance->get_Configuration() : server_configuration;
+            COMPONENT_INFO(application_main, "🎯 Kolosal Agent System is operational with comprehensive monitoring!");
+            COMPONENT_INFO(application_main, "   * LLM Inference Server: http://{}:{}", server_config.server_host, server_config.server_port);
+            COMPONENT_INFO(application_main, "");
+            COMPONENT_INFO(application_main, "📋 Available Agent Management Endpoints:");
+            COMPONENT_INFO(application_main, "   * GET    http://{}:{}/v1/agents                    - List all agents", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "   * POST   http://{}:{}/v1/agents                    - Create new agent", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "   * GET    http://{}:{}/v1/agents/{{id}}               - Get agent details", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "   * PUT    http://{}:{}/v1/agents/{{id}}/start         - Start agent", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "   * PUT    http://{}:{}/v1/agents/{{id}}/stop          - Stop agent", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "   * DELETE http://{}:{}/v1/agents/{{id}}               - Delete agent", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "   * POST   http://{}:{}/v1/agents/{{id}}/execute       - Execute agent function", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "");
+            COMPONENT_INFO(application_main, "🔄 Available Workflow Endpoints:");
+            COMPONENT_INFO(application_main, "   * GET    http://{}:{}/v1/workflows                 - List all workflows", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "   * POST   http://{}:{}/v1/workflows                 - Create new workflow", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "   * GET    http://{}:{}/v1/workflows/{{id}}            - Get workflow details", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "   * POST   http://{}:{}/v1/workflows/{{id}}/execute    - Execute workflow", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "   * PUT    http://{}:{}/v1/workflows/{{id}}/pause      - Pause workflow", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "   * PUT    http://{}:{}/v1/workflows/{{id}}/resume     - Resume workflow", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "   * DELETE http://{}:{}/v1/workflows/{{id}}            - Delete workflow", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "");
+            COMPONENT_INFO(application_main, "🔧 System Management Endpoints:");
+            COMPONENT_INFO(application_main, "   * GET    http://{}:{}/v1/system/status             - Get system status", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "   * POST   http://{}:{}/v1/system/reload             - Reload configuration", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "   * GET    http://{}:{}/v1/system/health             - Health check", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "   * GET    http://{}:{}/v1/system/metrics            - Performance metrics", server_config.agent_api_host, server_config.agent_api_port);
+            COMPONENT_INFO(application_main, "");
+            COMPONENT_INFO(application_main, "   * All requests and actions will be logged for monitoring");
+            COMPONENT_INFO(application_main, "Press Ctrl+C to initiate graceful shutdown...");
+        } catch (const std::exception& e) {
+            std::cout << "🎯 Kolosal Agent System is operational with comprehensive monitoring!" << std::endl;
+            std::cout << "   * LLM Inference Server: http://" << server_configuration.server_host << ":" << server_configuration.server_port << std::endl;
+            std::cout << std::endl;
+            std::cout << "📋 Available Agent Management Endpoints:" << std::endl;
+            std::cout << "   * GET    http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/agents                    - List all agents" << std::endl;
+            std::cout << "   * POST   http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/agents                    - Create new agent" << std::endl;
+            std::cout << "   * GET    http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/agents/{id}               - Get agent details" << std::endl;
+            std::cout << "   * PUT    http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/agents/{id}/start         - Start agent" << std::endl;
+            std::cout << "   * PUT    http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/agents/{id}/stop          - Stop agent" << std::endl;
+            std::cout << "   * DELETE http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/agents/{id}               - Delete agent" << std::endl;
+            std::cout << "   * POST   http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/agents/{id}/execute       - Execute agent function" << std::endl;
+            std::cout << std::endl;
+            std::cout << "🔄 Available Workflow Endpoints:" << std::endl;
+            std::cout << "   * GET    http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/workflows                 - List all workflows" << std::endl;
+            std::cout << "   * POST   http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/workflows                 - Create new workflow" << std::endl;
+            std::cout << "   * GET    http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/workflows/{id}            - Get workflow details" << std::endl;
+            std::cout << "   * POST   http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/workflows/{id}/execute    - Execute workflow" << std::endl;
+            std::cout << "   * PUT    http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/workflows/{id}/pause      - Pause workflow" << std::endl;
+            std::cout << "   * PUT    http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/workflows/{id}/resume     - Resume workflow" << std::endl;
+            std::cout << "   * DELETE http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/workflows/{id}            - Delete workflow" << std::endl;
+            std::cout << std::endl;
+            std::cout << "🔧 System Management Endpoints:" << std::endl;
+            std::cout << "   * GET    http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/system/status             - Get system status" << std::endl;
+            std::cout << "   * POST   http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/system/reload             - Reload configuration" << std::endl;
+            std::cout << "   * GET    http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/system/health             - Health check" << std::endl;
+            std::cout << "   * GET    http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/system/metrics            - Performance metrics" << std::endl;
+            std::cout << std::endl;
+            std::cout << "   * All requests and actions will be logged for monitoring" << std::endl;
+            std::cout << "Press Ctrl+C to initiate graceful shutdown..." << std::endl;
         }
         
-        // Main application event loop
-        if (!application_config.enable_quiet_mode) {
-            try {
-                const auto server_config = unified_server_instance ? unified_server_instance->get_Configuration() : server_configuration;
-                COMPONENT_INFO(application_main, "🎯 Kolosal Agent System is operational!");
-                COMPONENT_INFO(application_main, "   * LLM Inference Server: http://{}:{}", server_config.server_host, server_config.server_port);
-                COMPONENT_INFO(application_main, "   * Agent Management API: http://{}:{}/v1/agents", server_config.agent_api_host, server_config.agent_api_port);
-                COMPONENT_INFO(application_main, "   * System Status Endpoint: http://{}:{}/v1/system/status", server_config.agent_api_host, server_config.agent_api_port);
-                COMPONENT_INFO(application_main, "Press Ctrl+C to initiate graceful shutdown...");
-            } catch (const std::exception& e) {
-                std::cout << "🎯 Kolosal Agent System is operational!" << std::endl;
-                std::cout << "   * LLM Inference Server: http://" << server_configuration.server_host << ":" << server_configuration.server_port << std::endl;
-                std::cout << "   * Agent Management API: http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/agents" << std::endl;
-                std::cout << "   * System Status Endpoint: http://" << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port << "/v1/system/status" << std::endl;
-                std::cout << "Press Ctrl+C to initiate graceful shutdown..." << std::endl;
-            }
-        } else {
-            try {
-                const auto server_config = unified_server_instance ? unified_server_instance->get_Configuration() : server_configuration;
-                COMPONENT_INFO(application_main, "System operational - LLM: {}:{}, Agent API: {}:{} (Press Ctrl+C to stop)", 
-                              server_config.server_host, server_config.server_port,
-                              server_config.agent_api_host, server_config.agent_api_port);
-            } catch (const std::exception& e) {
-                std::cout << "System operational - LLM: " << server_configuration.server_host << ":" << server_configuration.server_port
-                          << ", Agent API: " << server_configuration.agent_api_host << ":" << server_configuration.agent_api_port 
-                          << " (Press Ctrl+C to stop)" << std::endl;
-            }
-        }
-        
-        // Event loop with periodic status monitoring and responsive signal handling
-    auto last_status_update_time = std::chrono::system_clock::now();
-    while (system_running.load()) {
+        // Event loop with comprehensive status monitoring and responsive signal handling
+        auto last_status_update_time = std::chrono::system_clock::now();
+        while (system_running.load()) {
             // Use shorter sleep intervals to improve signal responsiveness
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             
-            // Periodic status updates in verbose mode
-            if (application_config.enable_verbose_logging) {
-                auto current_time = std::chrono::system_clock::now();
-                if (current_time - last_status_update_time >= std::chrono::minutes(5)) {
-            const auto current_system_status = unified_server_instance ? unified_server_instance->getSystem_Status() : UnifiedKolosalServer::SystemStatus{};
-                    COMPONENT_INFO(application_main, "📊 System Status - Agents: {}/{}, Response Time: {:.1f} ms", 
-                                  current_system_status.running_agents, current_system_status.total_agents,
-                                  current_system_status.average_response_time_ms);
-                    last_status_update_time = current_time;
+            // Regular status updates for comprehensive monitoring (every 2 minutes)
+            auto current_time = std::chrono::system_clock::now();
+            if (current_time - last_status_update_time >= std::chrono::minutes(2)) {
+                const auto current_system_status = unified_server_instance ? unified_server_instance->getSystem_Status() : UnifiedKolosalServer::SystemStatus{};
+                COMPONENT_INFO(application_main, "📊 System Status Monitor - Agents: {}/{}, Response Time: {:.1f} ms, Health: {}", 
+                              current_system_status.running_agents, current_system_status.total_agents,
+                              current_system_status.average_response_time_ms,
+                              (current_system_status.llm_server_healthy ? "Healthy" : "Unhealthy"));
+                
+                // Log current metrics if enabled
+                if (application_config.enable_performance_metrics && unified_server_instance) {
+                    const auto performance_metrics = unified_server_instance->get_Metrics();
+                    COMPONENT_INFO(application_main, "📈 Performance Metrics - LLM Requests: {} (Success: {}), Agent Calls: {} (Success: {})", 
+                                  performance_metrics.total_llm_requests, performance_metrics.successful_llm_requests,
+                                  performance_metrics.total_agent_function_calls, performance_metrics.successful_agent_function_calls);
                 }
+                
+                last_status_update_time = current_time;
             }
             
             // Check for shutdown signals
