@@ -2,8 +2,8 @@ server:
   port: 8080
   host: 127.0.0.1
   idle_timeout: 300
-  allow_public_access: false
-  allow_internet_access: false
+  allow_public_access: true
+  allow_internet_access: true
 logging:
   level: INFO
   file: ""
@@ -41,8 +41,8 @@ auth:
       - Accept
       - Origin
 search:
-  enabled: false
-  searxng_url: http://localhost:4000
+  enabled: true
+  searxng_url: https://searx.stream/
   timeout: 30
   max_results: 20
   default_engine: ""

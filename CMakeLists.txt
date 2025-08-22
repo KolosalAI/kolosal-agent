@@ -492,7 +492,8 @@ if(BUILD_DEEPRESEARCH_DEMO)
 endif()
 
 # Standalone Deep Research executable (always available)
-add_executable(deep_research_standalone examples/standalone_deep_research.cpp)
+add_executable(deep_research_standalone examples/deep_research.cpp)
+target_link_libraries(deep_research_standalone kolosal_agent)
 set_target_properties(deep_research_standalone PROPERTIES
     CXX_STANDARD ${CMAKE_CXX_STANDARD}
     CXX_STANDARD_REQUIRED ON
@@ -500,16 +501,66 @@ set_target_properties(deep_research_standalone PROPERTIES
     OUTPUT_NAME "deep_research"
 )
 
+# Make sure kolosal-server executable is built for deep_research_standalone
+add_dependencies(deep_research_standalone kolosal-server-exe)
+
+# Copy required DLLs for deep_research_standalone (Windows)
+if(WIN32)
+    add_custom_command(TARGET deep_research_standalone POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/kolosal_server.dll
+            $<TARGET_FILE_DIR:deep_research_standalone>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/libcurl.dll
+            $<TARGET_FILE_DIR:deep_research_standalone>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/llama-cpu.dll
+            $<TARGET_FILE_DIR:deep_research_standalone>
+        COMMENT "Copying required DLLs for deep_research_standalone.exe"
+        VERBATIM
+    )
+endif()
+
+# Real Deep Research executable with full API integration
+add_executable(real_deep_research examples/deep_research.cpp)
+target_link_libraries(real_deep_research kolosal_agent)
+set_target_properties(real_deep_research PROPERTIES
+    CXX_STANDARD ${CMAKE_CXX_STANDARD}
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    OUTPUT_NAME "real_deep_research"
+)
+
+# Make sure kolosal-server executable is built for real_deep_research
+add_dependencies(real_deep_research kolosal-server-exe)
+
+# Copy required DLLs for real_deep_research (Windows)
+if(WIN32)
+    add_custom_command(TARGET real_deep_research POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/kolosal_server.dll
+            $<TARGET_FILE_DIR:real_deep_research>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/libcurl.dll
+            $<TARGET_FILE_DIR:real_deep_research>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/llama-cpu.dll
+            $<TARGET_FILE_DIR:real_deep_research>
+        COMMENT "Copying required DLLs for real_deep_research.exe"
+        VERBATIM
+    )
+endif()
+
 # Ensure all main executables are built by default (ALL target)
 if(BUILD_DEEPRESEARCH_DEMO)
     add_custom_target(ALL_BUILD_TARGETS ALL
-        DEPENDS kolosal-agent kolosal-server-exe deep_research deep_research_standalone
-        COMMENT "Building all main targets: kolosal-agent, kolosal-server, and deep_research"
+        DEPENDS kolosal-agent kolosal-server-exe deep_research deep_research_standalone real_deep_research
+        COMMENT "Building all main targets: kolosal-agent, kolosal-server, and deep_research variants"
     )
 else()
     add_custom_target(ALL_BUILD_TARGETS ALL
-        DEPENDS kolosal-agent kolosal-server-exe deep_research_standalone
-        COMMENT "Building main targets: kolosal-agent, kolosal-server, and standalone deep_research"
+        DEPENDS kolosal-agent kolosal-server-exe deep_research_standalone real_deep_research
+        COMMENT "Building main targets: kolosal-agent, kolosal-server, and deep_research variants"
     )
 endif()
 
