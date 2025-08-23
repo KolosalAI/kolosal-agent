@@ -52,10 +52,10 @@ search:
   default_language: en
   default_category: general
 database:
-  vector_database: faiss
+  vector_database: qdrant
   retrieval_embedding_model: text-embedding-3-small
   qdrant:
-    enabled: false
+    enabled: true
     host: localhost
     port: 6333
     collection_name: documents
@@ -75,24 +75,26 @@ database:
     use_gpu: false
     gpu_device: 0
     metric_type: IP
-models:
-  - id: qwen3-0.6b-main
-    path: D:\Works\Genta\codes\kolosal-agent\models\Qwen3-0.6B-UD-Q4_K_XL.gguf
-    type: llm
-    load_immediately: false
-    main_gpu_id: 0
-    inference_engine: llama-cpu
-    load_params:
-      n_ctx: 2048
-      n_keep: 1024
-      use_mmap: true
-      use_mlock: false
-      n_parallel: 1
-      cont_batching: true
-      warmup: false
-      n_gpu_layers: 0
-      n_batch: 512
-      n_ubatch: 256
+models: []
+  # Model configuration disabled until valid model files are downloaded
+  # To add a model:
+  # - id: model-name
+  #   path: /path/to/valid/model.gguf
+  #   type: llm
+  #   load_immediately: false
+  #   main_gpu_id: 0
+  #   inference_engine: llama-cpu
+  #   load_params:
+  #     n_ctx: 2048
+  #     n_keep: 1024
+  #     use_mmap: true
+  #     use_mlock: false
+  #     n_parallel: 1
+  #     cont_batching: true
+  #     warmup: false
+  #     n_gpu_layers: 0
+  #     n_batch: 512
+  #     n_ubatch: 256
 inference_engines:
   - name: llama-cpu
     library_path: D:\Works\Genta\codes\kolosal-agent\build\Debug\llama-cpu.dll
