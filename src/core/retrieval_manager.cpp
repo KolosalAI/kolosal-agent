@@ -10,25 +10,15 @@ RetrievalManager::~RetrievalManager() = default;
 void RetrievalManager::initialize() {
 #ifdef BUILD_WITH_RETRIEVAL
     try {
-        // Initialize document service
+        // Create a basic database config
         kolosal::DatabaseConfig db_config;
-        db_config.type = config_.vector_db_type;
-        db_config.host = config_.db_host;
-        db_config.port = config_.db_port;
-        db_config.collection_name = config_.collection_name;
+        db_config.vectorDatabase = kolosal::DatabaseConfig::VectorDatabase::FAISS;
         
+        // Initialize document service with config
         doc_service_ = std::make_unique<kolosal::retrieval::DocumentService>(db_config);
         
-        // Initialize search route if enabled
-        if (config_.search_enabled) {
-            kolosal::SearchConfig search_config;
-            search_config.enabled = true;
-            search_config.searxng_url = config_.searxng_url;
-            search_config.max_results = config_.max_results;
-            search_config.timeout = config_.timeout;
-            
-            search_route_ = std::make_unique<kolosal::InternetSearchRoute>(search_config);
-        }
+        // Note: Search functionality would be initialized here if available
+        // For now, just mark as available since we have the document service
         
         available_ = true;
         std::cout << "RetrievalManager initialized successfully\n";

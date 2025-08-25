@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.14)
 
 # Project configuration
-project(KolosalAgentSystem 
+project(KolosalAgent 
     VERSION 1.0.0
     LANGUAGES C CXX
-    DESCRIPTION "Kolosal Agent System - Multi-Agent System with LLM Integration"
+    DESCRIPTION "Kolosal Agent - Multi-Agent System with LLM Integration"
 )
 
 # Include UCM for runtime library management (if available)
@@ -31,6 +31,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 # Options
 option(BUILD_KOLOSAL_SERVER "Build the Kolosal Server component" ON)
+option(BUILD_WITH_RETRIEVAL "Enable retrieval functionality" ON)
 option(BUILD_SIMPLE_ONLY "Build only the simple agent system without kolosal-server" OFF)
 option(ENABLE_NATIVE_OPTIMIZATION "Enable native CPU optimization (-march=native)" OFF)
 option(BUILD_TESTS "Build unit tests" OFF)
@@ -39,7 +40,14 @@ option(BUILD_EXAMPLES "Build example applications" OFF)
 # Override BUILD_KOLOSAL_SERVER if BUILD_SIMPLE_ONLY is ON
 if(BUILD_SIMPLE_ONLY)
     set(BUILD_KOLOSAL_SERVER OFF)
-    message(STATUS "BUILD_SIMPLE_ONLY enabled - Kolosal Server will be skipped")
+    set(BUILD_WITH_RETRIEVAL OFF)
+    message(STATUS "BUILD_SIMPLE_ONLY enabled - Kolosal Server and Retrieval will be skipped")
+endif()
+
+# Ensure BUILD_WITH_RETRIEVAL is compatible with BUILD_KOLOSAL_SERVER
+if(BUILD_WITH_RETRIEVAL AND NOT BUILD_KOLOSAL_SERVER)
+    message(WARNING "BUILD_WITH_RETRIEVAL requires BUILD_KOLOSAL_SERVER - enabling it automatically")
+    set(BUILD_KOLOSAL_SERVER ON)
 endif()
 
 # macOS specific options
@@ -82,9 +90,13 @@ endif()
 if(MSVC)
     add_compile_options(/W4 /utf-8)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-    # Use Multi-threaded static runtime for better distribution
+    
+    # Fix for Debug builds with kolosal-server: avoid RTC/optimization conflicts
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebug")
+        # Remove default /RTC1 flag to avoid conflicts with subprojects using /O2
+        string(REPLACE "/RTC1" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        string(REPLACE "/RTC1" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
     else()
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
     endif()
@@ -182,23 +194,31 @@ set(ALL_SOURCES
 )
 
 # Create main executable
-add_executable(kolosal-agent-system ${ALL_SOURCES} ${HEADERS})
+add_executable(kolosal-agent ${ALL_SOURCES} ${HEADERS})
+
+# Create an alias for the main target to ensure it's always built
+add_custom_target(kolosal-agent-system ALL DEPENDS kolosal-agent)
 
 # Set target properties
-set_target_properties(kolosal-agent-system PROPERTIES
+set_target_properties(kolosal-agent PROPERTIES
     CXX_STANDARD ${CMAKE_CXX_STANDARD}
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
-    OUTPUT_NAME "kolosal-agent-system"
+    OUTPUT_NAME "kolosal-agent"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
 
+# Define BUILD_WITH_RETRIEVAL if the option is enabled
+if(BUILD_WITH_RETRIEVAL)
+    target_compile_definitions(kolosal-agent PRIVATE BUILD_WITH_RETRIEVAL)
+endif()
+
 # Link basic libraries
-target_link_libraries(kolosal-agent-system PRIVATE Threads::Threads)
+target_link_libraries(kolosal-agent PRIVATE Threads::Threads)
 
 # Platform-specific libraries and configurations
 if(WIN32)
-    target_link_libraries(kolosal-agent-system PRIVATE
+    target_link_libraries(kolosal-agent PRIVATE
         ws2_32
         rpcrt4
         winmm
@@ -207,16 +227,24 @@ if(WIN32)
     
     # Copy CURL DLL if exists
     if(EXISTS "${CURL_DIR}/bin/libcurl.dll")
-        add_custom_command(TARGET kolosal-agent-system POST_BUILD
+        add_custom_command(TARGET kolosal-agent POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CURL_DIR}/bin/libcurl.dll"
-            "$<TARGET_FILE_DIR:kolosal-agent-system>/libcurl.dll"
+            "$<TARGET_FILE_DIR:kolosal-agent>/libcurl.dll"
             COMMENT "Copying libcurl.dll to output directory"
         )
     endif()
     
+    # Ensure kolosal-agent.exe is also copied to the main build directory for convenience
+    add_custom_command(TARGET kolosal-agent POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:kolosal-agent>"
+        "${CMAKE_BINARY_DIR}/kolosal-agent.exe"
+        COMMENT "Copying kolosal-agent.exe to main build directory"
+    )
+    
 elseif(APPLE)
-    target_link_libraries(kolosal-agent-system PRIVATE
+    target_link_libraries(kolosal-agent PRIVATE
         "-framework Foundation"
         "-framework CoreFoundation"
         "-framework Security"
@@ -226,19 +254,19 @@ elseif(APPLE)
     
     # Link found system libraries
     if(OpenSSL_FOUND)
-        target_link_libraries(kolosal-agent-system PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+        target_link_libraries(kolosal-agent PRIVATE OpenSSL::SSL OpenSSL::Crypto)
     endif()
     
     if(ZLIB_FOUND)
-        target_link_libraries(kolosal-agent-system PRIVATE ZLIB::ZLIB)
+        target_link_libraries(kolosal-agent PRIVATE ZLIB::ZLIB)
     endif()
     
     if(CURL_LIBRARY)
-        target_link_libraries(kolosal-agent-system PRIVATE ${CURL_LIBRARY})
+        target_link_libraries(kolosal-agent PRIVATE ${CURL_LIBRARY})
     endif()
     
     # Set RPATH for runtime library search
-    set_target_properties(kolosal-agent-system PROPERTIES
+    set_target_properties(kolosal-agent PROPERTIES
         INSTALL_RPATH "@executable_path;@executable_path/../lib;/usr/local/lib;/opt/homebrew/lib"
         BUILD_WITH_INSTALL_RPATH TRUE
         INSTALL_RPATH_USE_LINK_PATH TRUE
@@ -246,7 +274,7 @@ elseif(APPLE)
     
 else()
     # Linux
-    target_link_libraries(kolosal-agent-system PRIVATE
+    target_link_libraries(kolosal-agent PRIVATE
         pthread
         dl
         rt
@@ -255,29 +283,29 @@ else()
     # Find and link UUID library if available
     find_library(UUID_LIBRARY uuid)
     if(UUID_LIBRARY)
-        target_link_libraries(kolosal-agent-system PRIVATE ${UUID_LIBRARY})
+        target_link_libraries(kolosal-agent PRIVATE ${UUID_LIBRARY})
     endif()
     
     # Link found system libraries
     if(OpenSSL_FOUND)
-        target_link_libraries(kolosal-agent-system PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+        target_link_libraries(kolosal-agent PRIVATE OpenSSL::SSL OpenSSL::Crypto)
     endif()
     
     if(ZLIB_FOUND)
-        target_link_libraries(kolosal-agent-system PRIVATE ZLIB::ZLIB)
+        target_link_libraries(kolosal-agent PRIVATE ZLIB::ZLIB)
     endif()
     
     if(CURL_LIBRARY)
-        target_link_libraries(kolosal-agent-system PRIVATE ${CURL_LIBRARY})
+        target_link_libraries(kolosal-agent PRIVATE ${CURL_LIBRARY})
     endif()
     
     # Link filesystem library for older GCC versions
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9.0")
-        target_link_libraries(kolosal-agent-system PRIVATE stdc++fs)
+        target_link_libraries(kolosal-agent PRIVATE stdc++fs)
     endif()
     
     # Set RPATH for runtime library search
-    set_target_properties(kolosal-agent-system PROPERTIES
+    set_target_properties(kolosal-agent PROPERTIES
         INSTALL_RPATH "$ORIGIN/../lib:$ORIGIN:/usr/lib/kolosal:/usr/lib"
         BUILD_WITH_INSTALL_RPATH TRUE
         INSTALL_RPATH_USE_LINK_PATH TRUE
@@ -294,29 +322,31 @@ if(BUILD_KOLOSAL_SERVER)
     add_subdirectory(kolosal-server)
     
     # Add kolosal-server include directories for retrieval functionality
-    target_include_directories(kolosal-agent-system PRIVATE 
+    target_include_directories(kolosal-agent PRIVATE 
         ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/include
         ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/include
     )
     
     # Link kolosal-server to main executable for retrieval capabilities
-    target_link_libraries(kolosal-agent-system PRIVATE kolosal_server)
-    target_compile_definitions(kolosal-agent-system PRIVATE BUILD_WITH_RETRIEVAL)
+    target_link_libraries(kolosal-agent PRIVATE kolosal_server)
+    
+    # Always define BUILD_WITH_RETRIEVAL when kolosal-server is built
+    target_compile_definitions(kolosal-agent PRIVATE BUILD_WITH_RETRIEVAL)
     
     # Copy kolosal-server files to output directory for all platforms
-    add_custom_command(TARGET kolosal-agent-system POST_BUILD
+    add_custom_command(TARGET kolosal-agent POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "$<TARGET_FILE:kolosal_server>"
-        "$<TARGET_FILE_DIR:kolosal-agent-system>/"
+        "$<TARGET_FILE_DIR:kolosal-agent>/"
         COMMENT "Copying kolosal_server library to output directory"
     )
     
-    # Always copy kolosal-server executable to the same directory as kolosal-agent-system
+    # Always copy kolosal-server executable to the same directory as kolosal-agent
     if(TARGET kolosal_server_exe)
-        add_custom_command(TARGET kolosal-agent-system POST_BUILD
+        add_custom_command(TARGET kolosal-agent POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:kolosal_server_exe>"
-            "$<TARGET_FILE_DIR:kolosal-agent-system>/"
+            "$<TARGET_FILE_DIR:kolosal-agent>/"
             COMMENT "Copying kolosal-server executable to output directory"
         )
     endif()
@@ -325,22 +355,22 @@ if(BUILD_KOLOSAL_SERVER)
     if(WIN32)
         # Windows specific handling for DLLs and executables
         if(TARGET kolosal_server_exe)
-            add_custom_command(TARGET kolosal-agent-system POST_BUILD
+            add_custom_command(TARGET kolosal-agent POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "$<TARGET_FILE_DIR:kolosal_server_exe>/kolosal-server.exe"
-                "$<TARGET_FILE_DIR:kolosal-agent-system>/kolosal-server.exe"
-                COMMENT "Ensuring kolosal-server.exe is in the same directory as kolosal-agent-system"
+                "$<TARGET_FILE_DIR:kolosal-agent>/kolosal-server.exe"
+                COMMENT "Ensuring kolosal-server.exe is in the same directory as kolosal-agent"
                 VERBATIM
             )
         endif()
     elseif(UNIX)
         # Unix/Linux/macOS specific handling
         if(TARGET kolosal_server_exe)
-            add_custom_command(TARGET kolosal-agent-system POST_BUILD
+            add_custom_command(TARGET kolosal-agent POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "$<TARGET_FILE_DIR:kolosal_server_exe>/kolosal-server"
-                "$<TARGET_FILE_DIR:kolosal-agent-system>/kolosal-server"
-                COMMENT "Ensuring kolosal-server binary is in the same directory as kolosal-agent-system"
+                "$<TARGET_FILE_DIR:kolosal-agent>/kolosal-server"
+                COMMENT "Ensuring kolosal-server binary is in the same directory as kolosal-agent"
                 VERBATIM
             )
         endif()
@@ -362,7 +392,7 @@ endif()
 include(GNUInstallDirs)
 
 # Install main executable
-install(TARGETS kolosal-agent-system
+install(TARGETS kolosal-agent
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     COMPONENT Runtime
 )
@@ -393,9 +423,9 @@ install(DIRECTORY include/
 )
 
 # Create and install configuration file
-set(CONFIG_CONTENT "# Kolosal Agent System Configuration
+set(CONFIG_CONTENT "# Kolosal Agent Configuration
 system:
-  name: \"Kolosal Agent System\"
+  name: \"Kolosal Agent\"
   version: \"${PROJECT_VERSION}\"
   host: \"127.0.0.1\"
   port: 8080
@@ -445,7 +475,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/config.yaml" "${CONFIG_CONTENT}")
 
 # Install configuration file
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/config.yaml"
-    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/kolosal-agent-system
+    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/kolosal-agent
     COMPONENT Runtime
 )
 
@@ -468,9 +498,9 @@ endif()
 include(CPack)
 
 # Package configuration
-set(CPACK_PACKAGE_NAME "kolosal-agent-system")
+set(CPACK_PACKAGE_NAME "kolosal-agent")
 set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Kolosal Agent System - Multi-Agent LLM System")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Kolosal Agent - Multi-Agent LLM System")
 set(CPACK_PACKAGE_DESCRIPTION "A sophisticated multi-agent system for Large Language Models with advanced capabilities including chat, analysis, research, and retrieval.")
 set(CPACK_PACKAGE_VENDOR "Kolosal Project")
 set(CPACK_PACKAGE_CONTACT "dev@kolosal.com")
@@ -489,8 +519,8 @@ set(CPACK_COMPONENT_DOCUMENTATION_DESCRIPTION "Documentation and examples")
 # Platform-specific package settings
 if(WIN32)
     set(CPACK_GENERATOR "NSIS;ZIP")
-    set(CPACK_NSIS_DISPLAY_NAME "Kolosal Agent System")
-    set(CPACK_NSIS_PACKAGE_NAME "Kolosal Agent System")
+    set(CPACK_NSIS_DISPLAY_NAME "Kolosal Agent")
+    set(CPACK_NSIS_PACKAGE_NAME "Kolosal Agent")
     set(CPACK_NSIS_HELP_LINK "https://github.com/kolosalai/kolosal-agent")
     set(CPACK_NSIS_URL_INFO_ABOUT "https://github.com/kolosalai/kolosal-agent")
     set(CPACK_NSIS_CONTACT "dev@kolosal.com")
@@ -498,7 +528,7 @@ if(WIN32)
     
 elseif(APPLE)
     set(CPACK_GENERATOR "DragNDrop;TGZ")
-    set(CPACK_DMG_VOLUME_NAME "Kolosal Agent System")
+    set(CPACK_DMG_VOLUME_NAME "Kolosal Agent")
     set(CPACK_DMG_FORMAT "UDBZ")
     
 elseif(UNIX)
@@ -512,16 +542,21 @@ elseif(UNIX)
 endif()
 
 # Summary
-message(STATUS "=== Kolosal Agent System Configuration ===")
+message(STATUS "=== Kolosal Agent Configuration ===")
 message(STATUS "Version: ${PROJECT_VERSION}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
-message(STATUS "Target: kolosal-agent-system")
+message(STATUS "Default Target: kolosal-agent-system (builds kolosal-agent.exe)")
 if(BUILD_KOLOSAL_SERVER)
     message(STATUS "Kolosal Server: Enabled")
 else()
     message(STATUS "Kolosal Server: Disabled")
+endif()
+if(BUILD_WITH_RETRIEVAL)
+    message(STATUS "Retrieval Support: Enabled")
+else()
+    message(STATUS "Retrieval Support: Disabled")
 endif()
 if(BUILD_TESTS)
     message(STATUS "Tests: Enabled")
@@ -539,7 +574,7 @@ else()
     message(STATUS "Native Optimization: Disabled")
 endif()
 message(STATUS "Installation Prefix: ${CMAKE_INSTALL_PREFIX}")
-message(STATUS "===========================================")
+message(STATUS "======================================")
 
 # Development helpers
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -549,13 +584,13 @@ endif()
 
 # Create example usage script
 set(EXAMPLE_CONTENT "#!/bin/bash
-# Kolosal Agent System - Quick Start Examples
+# Kolosal Agent - Quick Start Examples
 
 HOST=\"127.0.0.1\"
 PORT=\"8080\"
 BASE_URL=\"http://\${HOST}:\${PORT}\"
 
-echo \"=== Kolosal Agent System Examples ===\"
+echo \"=== Kolosal Agent Examples ===\"
 echo \"Server: \${BASE_URL}\"
 echo \"\"
 

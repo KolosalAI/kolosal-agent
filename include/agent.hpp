@@ -11,8 +11,7 @@
 using json = nlohmann::json;
 
 #ifdef BUILD_WITH_RETRIEVAL
-// Forward declaration
-class RetrievalManager;
+#include "retrieval_manager.hpp"
 #endif
 
 /**

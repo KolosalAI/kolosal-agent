@@ -10,8 +10,6 @@ using json = nlohmann::json;
 
 #ifdef BUILD_WITH_RETRIEVAL
 #include <kolosal/retrieval/document_service.hpp>
-// Note: InternetSearchRoute might be in a different header - adjust as needed
-// #include <kolosal/routes/retrieval/internet_search_route.hpp>
 #endif
 
 /**
@@ -56,7 +54,6 @@ private:
     
 #ifdef BUILD_WITH_RETRIEVAL
     std::unique_ptr<kolosal::retrieval::DocumentService> doc_service_;
-    // std::unique_ptr<kolosal::InternetSearchRoute> search_route_;
 #endif
     
     void initialize();
