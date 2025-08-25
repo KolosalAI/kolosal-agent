@@ -64,3 +64,5 @@ CMakeLists.txt text
 *.ini text
 *.cfg text
 *.conf text
+
+test_files/*

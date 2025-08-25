@@ -1,16 +1,16 @@
 # Sequential Workflow Configuration  
-# Simple Research Workflow - Single Agent Execution
+# Research Workflow - Single Agent Execution
 
 # Workflow metadata
-id: "simple_research_workflow"
-name: "Simple Research and Analysis Workflow"
-description: "A simplified sequential workflow using only the research_analyst agent"
+id: "research_workflow"
+name: "Research and Analysis Workflow"
+description: "A sequential workflow using the research_analyst agent"
 type: "sequential"  # Options: sequential, parallel, pipeline, consensus, conditional
 created_by: "research_system"
 
 # Global context variables available to all steps
 global_context:
-  project_name: "Simple Research Analysis"
+  project_name: "Research Analysis"
   research_question: "${input.research_question}"
   topic: "${input.topic}"
   research_focus: "${input.research_focus}"

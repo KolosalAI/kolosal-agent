@@ -1,8 +1,8 @@
-# Agent System Configuration
-# This configuration is specifically for the agent system components
+# Simple Retrieval Agent Configuration
+# This configuration is for a simple agent system focused on retrieval functionality
 
 system:
-  name: "Kolosal Multi-Agent System"
+  name: "Simple Retrieval Agent"
   version: "2.0.0"
   
   # Server configuration for agent communication
@@ -14,449 +14,105 @@ system:
   # Logging configuration for agents
   logging:
     level: "INFO"    # DEBUG, INFO, WARNING, ERROR
-    file: "agent_system.log"
+    file: "retrieval_agent.log"
     console: true
 
 # Define the agents in your system
 agents:
-  # Coordinator Agent - Orchestrates the entire system
-  - name: "system_coordinator"
-    id: "coord-main"
-    type: "coordinator"
-    role: "COORDINATOR"
+  # Retrieval Agent - Handles document retrieval and knowledge search
+  - name: "retrieval_agent"
+    id: "retrieval-main"
+    type: "specialist"
+    role: "RETRIEVAL_SPECIALIST"
     specializations:
-      - "TASK_PLANNING"
-      - "RESOURCE_MANAGEMENT"
-      - "WORKFLOW_ORCHESTRATION"
+      - "DOCUMENT_RETRIEVAL"
+      - "KNOWLEDGE_SEARCH"
+      - "INFORMATION_EXTRACTION"
     capabilities:
-      - "plan_execution"
-      - "task_delegation" 
-      - "system_monitoring"
-      - "agent_coordination"
+      - "document_search"
+      - "vector_similarity"
+      - "knowledge_retrieval"
+      - "embedding_generation"
     functions:
-      - "plan_tasks"
-      - "delegate_work" 
-      - "monitor_progress"
-      - "coordinate_agents"
+      - "server_document_retrieval"
+      - "knowledge_retrieval"
+      - "get_embedding"
     config:
       priority: 1
       auto_start: true
-      max_concurrent_tasks: 10
-      decision_timeout: 30
-
-  # Research Analyst Agent - Handles research and analysis tasks
-  - name: "research_analyst"
-    id: "analyst-research"
-    type: "specialist"
-    role: "ANALYST"
-    specializations:
-      - "DATA_ANALYSIS"
-      - "RESEARCH"
-      - "INFORMATION_SYNTHESIS"
-    capabilities:
-      - "data_processing"
-      - "research_synthesis"
-      - "report_generation"
-      - "pattern_recognition"
-    functions:
-      - "analyze_data"
-      - "research_topic"
-      - "generate_report"
-      - "synthesize_information"
-    config:
-      priority: 2
-      auto_start: true
       max_concurrent_tasks: 5
-      research_depth: "comprehensive"
-
-  # Task Executor Agent - Executes specific tasks and operations
-  - name: "task_executor"
-    id: "exec-primary"
-    type: "worker"
-    role: "EXECUTOR"
-    specializations:
-      - "TASK_EXECUTION"
-      - "TOOL_USAGE"
-      - "FILE_OPERATIONS"
-    capabilities:
-      - "execute_commands"
-      - "use_tools"
-      - "file_operations"
-      - "api_integration"
-    functions:
-      - "execute_task"
-      - "use_tool"
-      - "process_files"
-      - "call_api"
-    config:
-      priority: 3
-      auto_start: true
-      max_concurrent_tasks: 15
-      timeout_per_task: 120
-
-  # Document Specialist Agent - Handles document processing
-  - name: "document_specialist"
-    id: "doc-specialist"
-    type: "specialist"
-    role: "SPECIALIST"
-    specializations:
-      - "DOCUMENT_PROCESSING"
-      - "TEXT_ANALYSIS"
-      - "CONTENT_GENERATION"
-    capabilities:
-      - "document_parsing"
-      - "text_analysis"
-      - "content_generation"
-      - "format_conversion"
-    functions:
-      - "parse_document"
-      - "analyze_text"
-      - "generate_content"
-      - "convert_format"
-    config:
-      priority: 4
-      auto_start: false  # Start on demand
-      max_concurrent_tasks: 3
-      supported_formats: ["pdf", "docx", "txt", "md", "html"]
-
-  # Quality Assurance Agent - Reviews and validates outputs
-  - name: "quality_assurance"
-    id: "qa-primary"
-    type: "reviewer"
-    role: "REVIEWER"
-    specializations:
-      - "QUALITY_CONTROL"
-      - "VALIDATION"
-      - "COMPLIANCE_CHECK"
-    capabilities:
-      - "quality_review"
-      - "validation"
-      - "compliance_check"
-      - "error_detection"
-    functions:
-      - "review_output"
-      - "validate_result"
-      - "check_compliance"
-      - "detect_errors"
-    config:
-      priority: 5
-      auto_start: false
-      max_concurrent_tasks: 2
-      review_criteria: "comprehensive"
+      retrieval_threshold: 0.7
 
 # Define custom functions available to agents
 functions:
-  # Planning Functions
-  - name: "plan_tasks"
+  # Document Retrieval Functions
+  - name: "server_document_retrieval"
     type: "builtin"
-    description: "Create detailed execution plans for complex tasks"
+    description: "Retrieve documents from server-based vector database using similarity search"
     parameters:
-      - name: "goal"
+      - name: "query"
         type: "string"
         required: true
-        description: "The main goal to achieve"
-      - name: "context"
-        type: "string" 
-        required: false
-        description: "Additional context for planning"
-      - name: "constraints"
-        type: "array"
-        required: false
-        description: "Constraints to consider"
-
-  - name: "delegate_work"
-    type: "builtin"
-    description: "Delegate tasks to appropriate agents"
-    parameters:
-      - name: "task_description"
-        type: "string"
-        required: true
-      - name: "target_agent"
-        type: "string"
-        required: false
-      - name: "priority"
+        description: "Search query to find relevant documents"
+      - name: "max_results"
         type: "integer"
         required: false
+        default: 10
+        description: "Maximum number of documents to retrieve"
+      - name: "score_threshold"
+        type: "number"
+        required: false
+        default: 0.7
+        description: "Minimum similarity score threshold"
+      - name: "collection_name"
+        type: "string"
+        required: false
+        default: "documents"
+        description: "Name of the document collection to search"
 
-  - name: "monitor_progress"
+  - name: "knowledge_retrieval"
     type: "builtin"
-    description: "Monitor progress of delegated tasks"
+    description: "Comprehensive knowledge retrieval combining document search and web search"
     parameters:
-      - name: "task_id"
+      - name: "query"
         type: "string"
         required: true
-      - name: "check_interval"
+        description: "Knowledge query to search for"
+      - name: "max_results"
         type: "integer"
         required: false
-        default: 30
+        default: 15
+        description: "Maximum number of results to return"
+      - name: "local_only"
+        type: "boolean"
+        required: false
+        default: false
+        description: "Only search local documents, skip web search"
+      - name: "web_only"
+        type: "boolean"
+        required: false
+        default: false
+        description: "Only search web, skip local documents"
 
-  - name: "coordinate_agents"
+  - name: "get_embedding"
     type: "builtin"
-    description: "Coordinate multiple agents for complex tasks"
-    parameters:
-      - name: "agents"
-        type: "array"
-        required: true
-      - name: "coordination_type"
-        type: "string"
-        required: false
-        default: "sequential"
-
-  # Analysis Functions
-  - name: "analyze_data"
-    type: "builtin"
-    description: "Analyze structured and unstructured data"
-    parameters:
-      - name: "data_source"
-        type: "string"
-        required: true
-        description: "Path or identifier of data to analyze"
-      - name: "analysis_type"
-        type: "string"
-        required: false
-        description: "Type of analysis to perform"
-      - name: "output_format"
-        type: "string"
-        required: false
-        default: "json"
-
-  - name: "research_topic"
-    type: "builtin"
-    description: "Conduct comprehensive research on a given topic"
-    parameters:
-      - name: "topic"
-        type: "string"
-        required: true
-      - name: "depth"
-        type: "string"
-        required: false
-        default: "standard"
-        description: "Research depth: basic, standard, comprehensive"
-      - name: "sources"
-        type: "array"
-        required: false
-
-  - name: "generate_report"
-    type: "builtin"
-    description: "Generate comprehensive reports from research data"
-    parameters:
-      - name: "data"
-        type: "object"
-        required: true
-      - name: "format"
-        type: "string"
-        required: false
-        default: "markdown"
-      - name: "template"
-        type: "string"
-        required: false
-
-  - name: "synthesize_information"
-    type: "builtin"
-    description: "Synthesize information from multiple sources"
-    parameters:
-      - name: "sources"
-        type: "array"
-        required: true
-      - name: "synthesis_method"
-        type: "string"
-        required: false
-        default: "comprehensive"
-      - name: "conflict_resolution"
-        type: "string"
-        required: false
-        default: "evidence_based"
-
-  # Execution Functions
-  - name: "execute_task"
-    type: "builtin"
-    description: "Execute specific tasks with given parameters"
-    parameters:
-      - name: "task_definition"
-        type: "object"
-        required: true
-        description: "Complete task definition object"
-      - name: "priority"
-        type: "integer"
-        required: false
-        default: 5
-      - name: "timeout"
-        type: "integer"
-        required: false
-        default: 60
-
-  - name: "use_tool"
-    type: "builtin"
-    description: "Use external tools or APIs"
-    parameters:
-      - name: "tool_name"
-        type: "string"
-        required: true
-      - name: "tool_params"
-        type: "object"
-        required: true
-      - name: "retry_count"
-        type: "integer"
-        required: false
-        default: 3
-
-  - name: "process_files"
-    type: "builtin"
-    description: "Process files for analysis or transformation"
-    parameters:
-      - name: "file_paths"
-        type: "array"
-        required: true
-      - name: "operation"
-        type: "string"
-        required: true
-      - name: "output_format"
-        type: "string"
-        required: false
-        default: "json"
-
-  - name: "call_api"
-    type: "builtin"
-    description: "Make API calls to external services"
-    parameters:
-      - name: "endpoint"
-        type: "string"
-        required: true
-      - name: "method"
-        type: "string"
-        required: false
-        default: "GET"
-      - name: "payload"
-        type: "object"
-        required: false
-
-  # Document Functions
-  - name: "parse_document"
-    type: "builtin"
-    description: "Parse and extract content from documents"
-    parameters:
-      - name: "document_path"
-        type: "string"
-        required: true
-      - name: "extraction_type"
-        type: "string"
-        required: false
-        default: "full_text"
-      - name: "output_format"
-        type: "string"
-        required: false
-        default: "structured"
-
-  - name: "analyze_text"
-    type: "builtin"
-    description: "Analyze text content for patterns and insights"
+    description: "Generate text embeddings using server-side embedding models"
     parameters:
       - name: "text"
         type: "string"
         required: true
-      - name: "analysis_type"
+        description: "Text to generate embedding for"
+      - name: "model_id"
         type: "string"
         required: false
-        default: "comprehensive"
-      - name: "metrics"
-        type: "array"
-        required: false
-
-  - name: "generate_content"
-    type: "builtin"
-    description: "Generate content based on specifications"
-    parameters:
-      - name: "content_type"
-        type: "string"
-        required: true
-        description: "Type of content to generate"
-      - name: "specifications"
-        type: "object"
-        required: true
-      - name: "template"
-        type: "string"
-        required: false
-
-  - name: "convert_format"
-    type: "builtin"
-    description: "Convert documents between different formats"
-    parameters:
-      - name: "source_path"
-        type: "string"
-        required: true
-      - name: "target_format"
-        type: "string"
-        required: true
-      - name: "output_path"
-        type: "string"
-        required: false
-
-  # Quality Assurance Functions
-  - name: "review_output"
-    type: "builtin"
-    description: "Review and validate output quality"
-    parameters:
-      - name: "content"
-        type: "object"
-        required: true
-      - name: "criteria"
-        type: "array"
-        required: false
-      - name: "threshold"
-        type: "number"
-        required: false
-        default: 0.8
-
-  - name: "validate_result"
-    type: "builtin"
-    description: "Validate results against expected outcomes"
-    parameters:
-      - name: "result"
-        type: "object"
-        required: true
-      - name: "expected"
-        type: "object"
-        required: false
-      - name: "validation_type"
-        type: "string"
-        required: false
-        default: "comprehensive"
-
-  - name: "check_compliance"
-    type: "builtin"
-    description: "Check compliance with standards and requirements"
-    parameters:
-      - name: "content"
-        type: "object"
-        required: true
-      - name: "standards"
-        type: "array"
-        required: true
-      - name: "severity"
-        type: "string"
-        required: false
-        default: "medium"
-
-  - name: "detect_errors"
-    type: "builtin"
-    description: "Detect errors and inconsistencies in content"
-    parameters:
-      - name: "content"
-        type: "object"
-        required: true
-      - name: "error_types"
-        type: "array"
-        required: false
-      - name: "confidence_threshold"
-        type: "number"
-        required: false
-        default: 0.7
+        default: "qwen3-embedding-0.6b"
+        description: "Embedding model to use"
 
 # System-wide configuration
 configuration:
   # Memory management
   memory:
-    max_entries_per_agent: 1000
+    max_entries_per_agent: 500
     cleanup_interval: 300  # seconds
     persistence_enabled: true
     
@@ -464,12 +120,12 @@ configuration:
   messaging:
     timeout: 30
     retry_attempts: 3
-    broadcast_enabled: true
+    broadcast_enabled: false
     
   # Performance
   performance:
-    max_parallel_agents: 10
-    task_queue_size: 100
+    max_parallel_agents: 3
+    task_queue_size: 50
     resource_monitoring: true
     
   # Security
@@ -482,7 +138,7 @@ configuration:
 inference_engines:
   - name: "llama-cpu"
     type: "llama"
-    model_path: "D:\\Works\\Genta\\codes\\kolosal-agent\\models\\Qwen3-0.6B-UD-Q4_K_XL.gguf"
+    model_path: "D:\\Works\\Genta\\codes\\kolosal-agent\\models\\qwen2.5-0.5b-instruct-q4_k_m.gguf"
     description: "CPU-based inference engine for LLaMA models"
     auto_load: true
     context_size: 2048
