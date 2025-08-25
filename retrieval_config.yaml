@@ -1,0 +1,86 @@
+# Simple Retrieval Agent Configuration
+system:
+  name: "Kolosal Agent System with Retrieval"
+  version: "1.0.0"
+  host: "127.0.0.1"
+  port: 8080
+
+agents:
+  - name: "Research Assistant"
+    capabilities: ["chat", "analysis", "document_management", "internet_search"]
+    auto_start: true
+    retrieval:
+      vector_db_type: "faiss"  # or "qdrant"
+      db_host: "localhost"
+      db_port: 6333
+      collection_name: "documents"
+      search_enabled: true
+      searxng_url: "http://localhost:8888"
+      max_results: 10
+      timeout: 30
+  
+  - name: "Document Manager"
+    capabilities: ["chat", "document_management", "semantic_search"]
+    auto_start: true
+    retrieval:
+      vector_db_type: "faiss"
+      search_enabled: false
+
+# Vector Database Settings (for qdrant)
+qdrant:
+  host: "localhost"
+  port: 6333
+  api_key: ""
+
+# Search Engine Settings  
+searxng:
+  url: "http://localhost:8888"
+  enabled: true
+
+functions:
+  # Original functions
+  chat:
+    description: "Basic chat functionality"
+  analyze:
+    description: "Text analysis functionality"
+  echo:
+    description: "Echo function for testing"
+  status:
+    description: "Agent status information"
+    
+  # New retrieval functions
+  add_document:
+    description: "Add document to vector database"
+    params:
+      - content: "Document text content"
+      - metadata: "Document metadata (optional)"
+      - id: "Document ID (optional)"
+      
+  search_documents:
+    description: "Search documents by semantic similarity"
+    params:
+      - query: "Search query text"
+      - limit: "Maximum results (default: 10)"
+      - threshold: "Similarity threshold (default: 0.7)"
+      
+  list_documents:
+    description: "List all indexed documents"
+    
+  remove_document:
+    description: "Remove document from index"
+    params:
+      - id: "Document ID to remove"
+      
+  internet_search:
+    description: "Search the internet via SearXNG"
+    params:
+      - query: "Search query"
+      - results: "Number of results (default: 10)"
+      - language: "Search language (default: en)"
+      
+  research:
+    description: "Combined search of local documents and internet"
+    params:
+      - query: "Research topic"
+      - include_web: "Include internet search (default: true)"
+      - include_docs: "Include local documents (default: true)"

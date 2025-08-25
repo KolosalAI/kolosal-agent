@@ -22,6 +22,7 @@ public:
     
     // Agent lifecycle
     std::string create_agent(const std::string& name, const std::vector<std::string>& capabilities = {});
+    std::string create_agent_with_config(const std::string& name, const json& config);
     bool start_agent(const std::string& agent_id);
     void stop_agent(const std::string& agent_id);
     bool delete_agent(const std::string& agent_id);

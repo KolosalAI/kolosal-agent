@@ -17,6 +17,30 @@ std::string AgentManager::create_agent(const std::string& name, const std::vecto
     return agent_id;
 }
 
+std::string AgentManager::create_agent_with_config(const std::string& name, const json& config) {
+    auto agent = std::make_unique<Agent>(name);
+    std::string agent_id = agent->get_id();
+    
+#ifdef BUILD_WITH_RETRIEVAL
+    // Configure retrieval if specified
+    agent->configure_retrieval(config);
+#endif
+    
+    // Add capabilities from config
+    if (config.contains("capabilities")) {
+        for (const auto& capability : config["capabilities"]) {
+            if (capability.is_string()) {
+                agent->add_capability(capability);
+            }
+        }
+    }
+    
+    agents_[agent_id] = std::move(agent);
+    
+    std::cout << "Created agent '" << name << "' with config, ID: " << agent_id << "\n";
+    return agent_id;
+}
+
 bool AgentManager::start_agent(const std::string& agent_id) {
     auto it = agents_.find(agent_id);
     if (it == agents_.end()) {

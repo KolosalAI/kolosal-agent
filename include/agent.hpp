@@ -10,6 +10,11 @@
 
 using json = nlohmann::json;
 
+#ifdef BUILD_WITH_RETRIEVAL
+// Forward declaration
+class RetrievalManager;
+#endif
+
 /**
  * @brief Agent Class - Core functionality
  */
@@ -20,6 +25,10 @@ private:
     std::vector<std::string> capabilities_;
     std::map<std::string, std::function<json(const json&)>> functions_;
     std::atomic<bool> running_{false};
+    
+#ifdef BUILD_WITH_RETRIEVAL
+    std::unique_ptr<RetrievalManager> retrieval_manager_;
+#endif
     
 public:
     explicit Agent(const std::string& name);
@@ -45,4 +54,10 @@ public:
     
     // Built-in functions
     void setup_builtin_functions();
+    
+#ifdef BUILD_WITH_RETRIEVAL
+    // Retrieval functions
+    void setup_retrieval_functions();
+    void configure_retrieval(const json& config);
+#endif
 };

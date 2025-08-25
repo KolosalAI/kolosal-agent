@@ -3,6 +3,8 @@
 #include <sstream>
 #include <regex>
 #include <thread>
+#include <algorithm>
+#include <ctime>
 
 #ifdef _WIN32
 static bool winsock_initialized = false;
@@ -95,8 +97,11 @@ bool HTTPServer::start() {
     std::cout << "  PUT    /agents/{id}/start   - Start agent\n";
     std::cout << "  PUT    /agents/{id}/stop    - Stop agent\n";
     std::cout << "  DELETE /agents/{id}         - Delete agent\n";
-    std::cout << "  POST   /agents/{id}/execute - Execute function\n";
+    std::cout << "  POST   /agents/{id}/execute - Execute function or execute_all_tools\n";
     std::cout << "  GET    /status              - System status\n";
+    std::cout << "\n";
+    std::cout << "Special execute functions:\n";
+    std::cout << "  execute_all_tools - Run all tool functions and use results as LLM context\n";
     
     return true;
 }
@@ -353,6 +358,12 @@ void HTTPServer::handle_execute_function(socket_t client_socket, const std::stri
             return;
         }
         
+        // Check if this is a special "execute_all_tools" request
+        if (function_name == "execute_all_tools") {
+            handle_execute_all_tools(client_socket, agent_id, params);
+            return;
+        }
+        
         json result = agent_manager_->execute_agent_function(agent_id, function_name, params);
         
         json response;
@@ -361,6 +372,125 @@ void HTTPServer::handle_execute_function(socket_t client_socket, const std::stri
         response["function"] = function_name;
         
         send_response(client_socket, 200, response.dump(2));
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_execute_all_tools(socket_t client_socket, const std::string& agent_id, const json& params) {
+    try {
+        auto agent = agent_manager_->get_agent(agent_id);
+        if (!agent) {
+            send_error(client_socket, 404, "Agent not found");
+            return;
+        }
+        
+        // Get agent info to find all available functions
+        json agent_info = agent->get_info();
+        json available_functions = agent_info.value("functions", json::array());
+        
+        // Filter out basic functions to focus on tool functions
+        std::vector<std::string> tool_functions;
+        std::vector<std::string> exclude_functions = {"chat", "echo", "status"};
+        
+        for (const auto& func : available_functions) {
+            std::string func_name = func.get<std::string>();
+            if (std::find(exclude_functions.begin(), exclude_functions.end(), func_name) == exclude_functions.end()) {
+                tool_functions.push_back(func_name);
+            }
+        }
+        
+        // Execute all tool functions and collect results
+        json tool_results = json::object();
+        json execution_log = json::array();
+        std::string user_message = params.value("message", "");
+        std::string user_query = params.value("query", user_message);
+        
+        for (const std::string& func_name : tool_functions) {
+            try {
+                json func_params;
+                
+                // Customize parameters based on function type
+                if (func_name == "analyze") {
+                    func_params["text"] = user_query;
+                } else if (func_name == "search_documents" || func_name == "internet_search" || func_name == "research") {
+                    func_params["query"] = user_query;
+                } else if (func_name == "list_documents") {
+                    // No parameters needed for listing
+                } else {
+                    // For other functions, pass the user query or message
+                    func_params = params;
+                }
+                
+                // Execute the function
+                json result = agent->execute_function(func_name, func_params);
+                tool_results[func_name] = result;
+                
+                json log_entry;
+                log_entry["function"] = func_name;
+                log_entry["status"] = "success";
+                log_entry["result_summary"] = result.size() > 0 ? "Data retrieved" : "No data";
+                execution_log.push_back(log_entry);
+                
+            } catch (const std::exception& e) {
+                // Continue with other functions even if one fails
+                json error_result;
+                error_result["error"] = e.what();
+                error_result["status"] = "failed";
+                tool_results[func_name] = error_result;
+                
+                json log_entry;
+                log_entry["function"] = func_name;
+                log_entry["status"] = "failed";
+                log_entry["error"] = e.what();
+                execution_log.push_back(log_entry);
+            }
+        }
+        
+        // Create context for LLM
+        std::string context = "Tool execution results for query: \"" + user_query + "\"\n\n";
+        for (const auto& [func_name, result] : tool_results.items()) {
+            context += "=== " + func_name + " ===\n";
+            context += result.dump(2) + "\n\n";
+        }
+        
+        // Execute chat function with the accumulated context
+        json chat_params;
+        chat_params["message"] = user_message;
+        chat_params["context"] = context;
+        chat_params["tool_results"] = tool_results;
+        
+        json chat_result;
+        try {
+            chat_result = agent->execute_function("chat", chat_params);
+        } catch (const std::exception& e) {
+            // Fallback response if chat function fails
+            chat_result["agent"] = agent->get_name();
+            chat_result["response"] = "I executed " + std::to_string(tool_functions.size()) + 
+                                    " tool functions for your query. Here's a summary of the results: " + context;
+            chat_result["timestamp"] = std::to_string(std::time(nullptr));
+        }
+        
+        // Build comprehensive response
+        json response;
+        response["agent_id"] = agent_id;
+        response["function"] = "execute_all_tools";
+        response["user_query"] = user_query;
+        response["tools_executed"] = tool_functions;
+        response["execution_log"] = execution_log;
+        response["tool_results"] = tool_results;
+        response["context"] = context;
+        response["llm_response"] = chat_result;
+        response["summary"] = {
+            {"total_tools", tool_functions.size()},
+            {"successful", std::count_if(execution_log.begin(), execution_log.end(), 
+                [](const json& entry) { return entry.value("status", "") == "success"; })},
+            {"failed", std::count_if(execution_log.begin(), execution_log.end(), 
+                [](const json& entry) { return entry.value("status", "") == "failed"; })}
+        };
+        
+        send_response(client_socket, 200, response.dump(2));
+        
     } catch (const std::exception& e) {
         send_error(client_socket, 500, e.what());
     }

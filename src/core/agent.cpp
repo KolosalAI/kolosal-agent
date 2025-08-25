@@ -1,4 +1,7 @@
 #include "../include/agent.hpp"
+#ifdef BUILD_WITH_RETRIEVAL
+#include "../include/retrieval_manager.hpp"
+#endif
 #include <iostream>
 #include <chrono>
 #include <iomanip>
@@ -43,6 +46,9 @@ namespace {
 Agent::Agent(const std::string& name) 
     : id_(generate_uuid()), name_(name.empty() ? "Agent-" + id_.substr(0, 8) : name) {
     setup_builtin_functions();
+#ifdef BUILD_WITH_RETRIEVAL
+    setup_retrieval_functions();
+#endif
 }
 
 bool Agent::start() {
@@ -122,10 +128,48 @@ void Agent::setup_builtin_functions() {
             throw std::runtime_error("Missing 'message' parameter");
         }
         
+        // Check if context from tool execution is provided
+        std::string context = params.value("context", "");
+        json tool_results = params.value("tool_results", json::object());
+        
         json response;
         response["agent"] = name_;
-        response["response"] = "Hello! I'm " + name_ + ". You said: " + message;
         response["timestamp"] = get_timestamp();
+        
+        if (!context.empty()) {
+            // Enhanced response with tool context
+            std::string enhanced_response = "Based on the tool execution results, I can provide you with the following information:\n\n";
+            
+            // Analyze tool results
+            if (tool_results.contains("analyze")) {
+                auto analyze_result = tool_results["analyze"];
+                if (!analyze_result.contains("error")) {
+                    enhanced_response += "Analysis: ";
+                    enhanced_response += "Text contains " + std::to_string(analyze_result.value("word_count", 0)) + " words. ";
+                }
+            }
+            
+            if (tool_results.contains("search_documents") || tool_results.contains("internet_search") || tool_results.contains("research")) {
+                enhanced_response += "Search results were retrieved from available sources. ";
+            }
+            
+            if (tool_results.contains("list_documents")) {
+                enhanced_response += "Document repository was accessed. ";
+            }
+            
+            enhanced_response += "\n\nRegarding your message: \"" + message + "\"\n";
+            enhanced_response += "I have executed multiple tool functions to gather relevant information. ";
+            enhanced_response += "The detailed results are available in the tool_results section of this response.";
+            
+            response["response"] = enhanced_response;
+            response["context_used"] = true;
+            response["tool_results_summary"] = tool_results;
+        } else {
+            // Simple response without context
+            response["response"] = "Hello! I'm " + name_ + ". You said: " + message;
+            response["context_used"] = false;
+        }
+        
         return response;
     });
     
@@ -164,6 +208,106 @@ void Agent::setup_builtin_functions() {
         status["capabilities"] = capabilities_;
         status["function_count"] = functions_.size();
         status["timestamp"] = get_timestamp();
+        
+#ifdef BUILD_WITH_RETRIEVAL
+        // Add retrieval status if available
+        if (retrieval_manager_) {
+            status["retrieval"] = retrieval_manager_->get_status();
+        }
+#endif
+        
         return status;
     });
 }
+
+#ifdef BUILD_WITH_RETRIEVAL
+void Agent::setup_retrieval_functions() {
+    // Initialize with default config (will be overridden by configure_retrieval)
+    RetrievalManager::Config config;
+    retrieval_manager_ = std::make_unique<RetrievalManager>(config);
+    
+    // Document management functions
+    register_function("add_document", [this](const json& params) -> json {
+        if (!retrieval_manager_ || !retrieval_manager_->is_available()) {
+            throw std::runtime_error("Retrieval system not available");
+        }
+        return retrieval_manager_->add_document(params);
+    });
+    
+    register_function("search_documents", [this](const json& params) -> json {
+        if (!retrieval_manager_ || !retrieval_manager_->is_available()) {
+            throw std::runtime_error("Retrieval system not available");
+        }
+        return retrieval_manager_->search_documents(params);
+    });
+    
+    register_function("list_documents", [this](const json& params) -> json {
+        if (!retrieval_manager_ || !retrieval_manager_->is_available()) {
+            throw std::runtime_error("Retrieval system not available");
+        }
+        return retrieval_manager_->list_documents(params);
+    });
+    
+    register_function("remove_document", [this](const json& params) -> json {
+        if (!retrieval_manager_ || !retrieval_manager_->is_available()) {
+            throw std::runtime_error("Retrieval system not available");
+        }
+        return retrieval_manager_->remove_document(params);
+    });
+    
+    // Search functions
+    register_function("internet_search", [this](const json& params) -> json {
+        if (!retrieval_manager_ || !retrieval_manager_->is_available()) {
+            throw std::runtime_error("Search system not available");
+        }
+        return retrieval_manager_->internet_search(params);
+    });
+    
+    register_function("research", [this](const json& params) -> json {
+        if (!retrieval_manager_ || !retrieval_manager_->is_available()) {
+            throw std::runtime_error("Retrieval system not available");
+        }
+        return retrieval_manager_->combined_search(params);
+    });
+}
+
+void Agent::configure_retrieval(const json& config) {
+    if (!config.contains("retrieval")) {
+        return;
+    }
+    
+    auto retrieval_config = config["retrieval"];
+    RetrievalManager::Config new_config;
+    
+    // Parse configuration
+    if (retrieval_config.contains("vector_db_type")) {
+        new_config.vector_db_type = retrieval_config["vector_db_type"];
+    }
+    if (retrieval_config.contains("db_host")) {
+        new_config.db_host = retrieval_config["db_host"];
+    }
+    if (retrieval_config.contains("db_port")) {
+        new_config.db_port = retrieval_config["db_port"];
+    }
+    if (retrieval_config.contains("search_enabled")) {
+        new_config.search_enabled = retrieval_config["search_enabled"];
+    }
+    if (retrieval_config.contains("searxng_url")) {
+        new_config.searxng_url = retrieval_config["searxng_url"];
+    }
+    
+    // Recreate retrieval manager with new config
+    retrieval_manager_ = std::make_unique<RetrievalManager>(new_config);
+    
+    // Add capabilities based on what's available
+    if (retrieval_manager_->is_available()) {
+        add_capability("document_management");
+        add_capability("semantic_search");
+        
+        if (new_config.search_enabled) {
+            add_capability("internet_search");
+            add_capability("research");
+        }
+    }
+}
+#endif
