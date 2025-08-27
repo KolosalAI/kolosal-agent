@@ -1,0 +1,10 @@
+^D:\WORKS\GENTA\CODES\KOLOSAL-AGENT\TESTS_BUILD\CMAKEFILES\F03E9216B8FE02DC8DDDA23B1B7EF1E6\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SD:/Works/Genta/codes/kolosal-agent/tests -BD:/Works/Genta/codes/kolosal-agent/tests_build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file D:/Works/Genta/codes/kolosal-agent/tests_build/KolosalAgentTests.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
