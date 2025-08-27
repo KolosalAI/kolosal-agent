@@ -25,24 +25,16 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Set output directories for consistent build output
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 # Options
 option(BUILD_KOLOSAL_SERVER "Build the Kolosal Server component" ON)
 option(BUILD_WITH_RETRIEVAL "Enable retrieval functionality" ON)
-option(BUILD_SIMPLE_ONLY "Build only the simple agent system without kolosal-server" OFF)
 option(ENABLE_NATIVE_OPTIMIZATION "Enable native CPU optimization (-march=native)" OFF)
 option(BUILD_TESTS "Build unit tests" OFF)
 option(BUILD_EXAMPLES "Build example applications" OFF)
-
-# Override BUILD_KOLOSAL_SERVER if BUILD_SIMPLE_ONLY is ON
-if(BUILD_SIMPLE_ONLY)
-    set(BUILD_KOLOSAL_SERVER OFF)
-    set(BUILD_WITH_RETRIEVAL OFF)
-    message(STATUS "BUILD_SIMPLE_ONLY enabled - Kolosal Server and Retrieval will be skipped")
-endif()
 
 # Ensure BUILD_WITH_RETRIEVAL is compatible with BUILD_KOLOSAL_SERVER
 if(BUILD_WITH_RETRIEVAL AND NOT BUILD_KOLOSAL_SERVER)
@@ -138,35 +130,21 @@ else()
     message(FATAL_ERROR "nlohmann/json not found at ${NLOHMANN_JSON_DIR}")
 endif()
 
-# CURL setup - platform specific
-if(WIN32)
-    set(CURL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/curl")
-    if(EXISTS "${CURL_DIR}/include")
-        include_directories(${CURL_DIR}/include)
-        find_library(CURL_LIBRARY
-            NAMES curl libcurl
-            PATHS ${CURL_DIR}/lib
-            NO_DEFAULT_PATH
-        )
-    endif()
+# YAML-CPP setup
+set(YAML_CPP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/yaml-cpp")
+if(EXISTS "${YAML_CPP_DIR}/CMakeLists.txt")
+    add_subdirectory(${YAML_CPP_DIR})
+    message(STATUS "Using yaml-cpp from: ${YAML_CPP_DIR}")
 else()
-    find_package(CURL REQUIRED)
-    if(CURL_FOUND)
-        include_directories(${CURL_INCLUDE_DIRS})
-        set(CURL_LIBRARY ${CURL_LIBRARIES})
-    else()
-        if(APPLE)
-            message(FATAL_ERROR "CURL not found. Please install with: brew install curl")
-        else()
-            message(FATAL_ERROR "CURL not found. Please install libcurl4-openssl-dev (Ubuntu/Debian) or libcurl-devel (RHEL/CentOS)")
-        endif()
-    endif()
+    message(FATAL_ERROR "yaml-cpp not found at ${YAML_CPP_DIR}")
 endif()
 
 # Source files organization
 set(CORE_SOURCES
     src/core/agent.cpp
     src/core/agent_manager.cpp
+    src/core/agent_config.cpp
+    src/core/model_interface.cpp
     src/core/main.cpp
 )
 
@@ -205,7 +183,7 @@ set_target_properties(kolosal-agent PROPERTIES
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
     OUTPUT_NAME "kolosal-agent"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
 # Define BUILD_WITH_RETRIEVAL if the option is enabled
@@ -214,7 +192,7 @@ if(BUILD_WITH_RETRIEVAL)
 endif()
 
 # Link basic libraries
-target_link_libraries(kolosal-agent PRIVATE Threads::Threads)
+target_link_libraries(kolosal-agent PRIVATE Threads::Threads yaml-cpp)
 
 # Platform-specific libraries and configurations
 if(WIN32)
@@ -224,16 +202,6 @@ if(WIN32)
         winmm
         bcrypt
     )
-    
-    # Copy CURL DLL if exists
-    if(EXISTS "${CURL_DIR}/bin/libcurl.dll")
-        add_custom_command(TARGET kolosal-agent POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CURL_DIR}/bin/libcurl.dll"
-            "$<TARGET_FILE_DIR:kolosal-agent>/libcurl.dll"
-            COMMENT "Copying libcurl.dll to output directory"
-        )
-    endif()
     
     # Ensure kolosal-agent.exe is also copied to the main build directory for convenience
     add_custom_command(TARGET kolosal-agent POST_BUILD
@@ -259,10 +227,6 @@ elseif(APPLE)
     
     if(ZLIB_FOUND)
         target_link_libraries(kolosal-agent PRIVATE ZLIB::ZLIB)
-    endif()
-    
-    if(CURL_LIBRARY)
-        target_link_libraries(kolosal-agent PRIVATE ${CURL_LIBRARY})
     endif()
     
     # Set RPATH for runtime library search
@@ -295,10 +259,6 @@ else()
         target_link_libraries(kolosal-agent PRIVATE ZLIB::ZLIB)
     endif()
     
-    if(CURL_LIBRARY)
-        target_link_libraries(kolosal-agent PRIVATE ${CURL_LIBRARY})
-    endif()
-    
     # Link filesystem library for older GCC versions
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9.0")
         target_link_libraries(kolosal-agent PRIVATE stdc++fs)
@@ -317,7 +277,7 @@ if(BUILD_KOLOSAL_SERVER)
     message(STATUS "Building Kolosal Server component")
     
     # Ensure kolosal-server builds its executable in the same output directory
-    set(KOLOSAL_SERVER_OUTPUT_DIR "${CMAKE_BINARY_DIR}/bin" CACHE STRING "Output directory for kolosal-server")
+    set(KOLOSAL_SERVER_OUTPUT_DIR "${CMAKE_BINARY_DIR}" CACHE STRING "Output directory for kolosal-server")
     
     add_subdirectory(kolosal-server)
     
@@ -422,58 +382,209 @@ install(DIRECTORY include/
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
 )
 
-# Create and install configuration file
-set(CONFIG_CONTENT "# Kolosal Agent Configuration
+# Create and install configuration files
+set(AGENT_CONFIG_CONTENT "# Kolosal Agent System Configuration
 system:
-  name: \"Kolosal Agent\"
+  name: \"Kolosal Agent System\"
   version: \"${PROJECT_VERSION}\"
   host: \"127.0.0.1\"
   port: 8080
   log_level: \"info\"
   max_concurrent_requests: 100
 
+# System instruction/prompt that will be used for all agents
+system_instruction: |
+  You are a helpful AI assistant that is part of the Kolosal Agent System. You have been designed to assist users with various tasks including:
+  
+  - Answering questions and providing information
+  - Analyzing text and data
+  - Helping with research and problem-solving
+  - Providing explanations and tutorials
+  - Assisting with creative tasks
+  
+  You should always:
+  - Be helpful, accurate, and honest
+  - Admit when you don't know something
+  - Provide clear and well-structured responses
+  - Be respectful and professional
+  - Follow ethical guidelines
+  
+  Your responses should be informative and helpful while being concise when appropriate.
+
+# Default agents to create on startup
 agents:
   - name: \"Assistant\"
     capabilities: [\"chat\", \"analysis\", \"reasoning\"]
     auto_start: true
     model: \"default\"
+    system_prompt: |
+      You are an AI assistant specialized in general conversation and help. 
+      You excel at answering questions, providing explanations, and helping users with various tasks.
+      Be friendly, helpful, and informative in your responses.
   
   - name: \"Analyzer\" 
     capabilities: [\"analysis\", \"data_processing\", \"summarization\"]
     auto_start: true
     model: \"default\"
+    system_prompt: |
+      You are an AI analyst specialized in text and data analysis.
+      Your role is to examine, process, and summarize information effectively.
+      Provide detailed analysis with clear insights and actionable conclusions.
 
   - name: \"Researcher\"
     capabilities: [\"research\", \"web_search\", \"fact_checking\"]
     auto_start: false
     model: \"default\"
+    system_prompt: |
+      You are an AI researcher specialized in information gathering and fact-checking.
+      Your role is to help users find accurate information and verify facts.
+      Always cite sources when possible and present information objectively.
 
+# Available functions that agents can execute
 functions:
   chat:
     description: \"Interactive chat functionality\"
     timeout: 30000
+    parameters:
+      - name: \"message\"
+        type: \"string\"
+        required: true
+        description: \"Message to send to the agent\"
+  
   analyze:
     description: \"Text and data analysis functionality\"
     timeout: 60000
+    parameters:
+      - name: \"text\"
+        type: \"string\"
+        required: true
+        description: \"Text to analyze\"
+      - name: \"analysis_type\"
+        type: \"string\"
+        required: false
+        description: \"Type of analysis to perform (sentiment, summary, keywords, etc.)\"
+  
   research:
     description: \"Research and information gathering\"
     timeout: 120000
+    parameters:
+      - name: \"query\"
+        type: \"string\"
+        required: true
+        description: \"Research query or topic\"
+      - name: \"depth\"
+        type: \"string\"
+        required: false
+        description: \"Research depth (basic, detailed, comprehensive)\"
+  
   echo:
     description: \"Echo function for testing\"
     timeout: 5000
+    parameters:
+      - name: \"data\"
+        type: \"any\"
+        required: false
+        description: \"Data to echo back\"
+  
   status:
     description: \"Agent status information\"
     timeout: 5000
+    parameters: []
 
+# Performance and resource configuration
 performance:
   max_memory_usage: \"2GB\"
   cache_size: \"512MB\"
   worker_threads: 4
+  request_timeout: 30000
+  max_request_size: \"10MB\"
+
+# Logging configuration
+logging:
+  level: \"info\"
+  file: \"agent_system.log\"
+  max_file_size: \"100MB\"
+  max_files: 10
+  console_output: true
+
+# Security configuration
+security:
+  enable_cors: true
+  allowed_origins: [\"http://localhost:3000\", \"http://127.0.0.1:3000\"]
+  max_request_rate: 100  # requests per minute per IP
+  enable_auth: false
+  api_key: \"\"  # Set this if enable_auth is true
 ")
 
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/config.yaml" "${CONFIG_CONTENT}")
+set(KOLOSAL_SERVER_CONFIG_CONTENT "# Kolosal Server Configuration
+# This configuration is specifically for the kolosal-server component
+server:
+  name: \"Kolosal Server\"
+  version: \"${PROJECT_VERSION}\"
+  host: \"127.0.0.1\"
+  port: 3000
+  log_level: \"info\"
+  max_workers: 4
 
-# Install configuration file
+# Model configuration
+models:
+  default:
+    path: \"models/qwen2.5-0.5b-instruct-q4_k_m.gguf\"
+    context_length: 4096
+    threads: 4
+    gpu_layers: 0
+    
+  embedding:
+    path: \"models/all-MiniLM-L6-v2-bf16-q4_k.gguf\"
+    dimensions: 384
+
+# Inference settings
+inference:
+  temperature: 0.7
+  top_p: 0.9
+  top_k: 40
+  repeat_penalty: 1.1
+  max_tokens: 2048
+  stream: true
+
+# API configuration
+api:
+  cors_enabled: true
+  cors_origins: [\"http://localhost:8080\", \"http://127.0.0.1:8080\"]
+  rate_limit: 60  # requests per minute
+  timeout: 120000  # 2 minutes
+
+# Retrieval settings (if enabled)
+retrieval:
+  enabled: false
+  vector_store: \"faiss\"
+  chunk_size: 512
+  chunk_overlap: 50
+  similarity_threshold: 0.7
+
+# Performance tuning
+performance:
+  cache_size: \"1GB\"
+  batch_size: 32
+  prefill_cache: true
+  
+# Logging
+logging:
+  level: \"info\"
+  file: \"kolosal_server.log\"
+  max_file_size: \"50MB\"
+  max_files: 5
+")
+
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/agent.yaml" "${AGENT_CONFIG_CONTENT}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/config.yaml" "${KOLOSAL_SERVER_CONFIG_CONTENT}")
+
+# Install configuration files
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/agent.yaml"
+    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/kolosal-agent
+    COMPONENT Runtime
+)
+
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/config.yaml"
     DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/kolosal-agent
     COMPONENT Runtime
@@ -591,7 +702,8 @@ PORT=\"8080\"
 BASE_URL=\"http://\${HOST}:\${PORT}\"
 
 echo \"=== Kolosal Agent Examples ===\"
-echo \"Server: \${BASE_URL}\"
+echo \"Agent System Server: \${BASE_URL}\"
+echo \"Configuration: agent.yaml (agent system)\"
 echo \"\"
 
 echo \"1. Get system status:\"
@@ -630,6 +742,7 @@ echo \"\"
 
 echo \"=== Kolosal Server Examples (if built with retrieval support) ===\"
 echo \"Note: Kolosal Server typically runs on port 3000\"
+echo \"Configuration: config.yaml (kolosal server)\"
 echo \"SERVER_URL=\\\"http://\${HOST}:3000\\\"\"
 echo \"\"
 

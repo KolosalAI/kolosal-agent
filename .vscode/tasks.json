@@ -29,33 +29,15 @@
 			"group": "build"
 		},
 		{
-			"label": "CMake: Configure+Build Debug (out-of-source)",
-			"type": "shell",
-			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake ..; cmake --build . --config Debug",
-			"group": "build"
-		},
-		{
-			"label": "CMake: Build Simple Agent Only (no kolosal-server)",
-			"type": "shell",
-			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake .. -DBUILD_SIMPLE_ONLY=ON; cmake --build . --config Debug --target kolosal-agent-system",
-			"group": "build"
-		},
-		{
 			"label": "CMake: Build with Kolosal Server (minimal features)",
 			"type": "shell",
 			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_KOLOSAL_SERVER=ON -DUSE_PODOFO=OFF -DUSE_FAISS=OFF; cmake --build . --config Debug",
 			"group": "build"
 		},
 		{
-			"label": "CMake: Build Simple Agent System Only",
-			"type": "shell",
-			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake .. -DBUILD_SIMPLE_ONLY=ON; cmake --build . --config Debug",
-			"group": "build"
-		},
-		{
 			"label": "CMake: Build with Kolosal Server (main target only)",
 			"type": "shell",
-			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake .. -DBUILD_KOLOSAL_SERVER=ON -DUSE_PODOFO=OFF -DUSE_FAISS=OFF; cmake --build . --config Debug --target kolosal-agent-system",
+			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake .. -DBUILD_KOLOSAL_SERVER=ON -DUSE_PODOFO=OFF -DUSE_FAISS=OFF; cmake --build . --config Debug",
 			"group": "build"
 		}
 	]

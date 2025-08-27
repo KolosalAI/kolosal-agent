@@ -97,11 +97,21 @@ bool HTTPServer::start() {
     std::cout << "  PUT    /agents/{id}/start   - Start agent\n";
     std::cout << "  PUT    /agents/{id}/stop    - Stop agent\n";
     std::cout << "  DELETE /agents/{id}         - Delete agent\n";
-    std::cout << "  POST   /agents/{id}/execute - Execute function or execute_all_tools\n";
+    std::cout << "  POST   /agents/{id}/execute - Execute function (with model parameter)\n";
     std::cout << "  GET    /status              - System status\n";
+    std::cout << "\n";
+    std::cout << "Execute function format:\n";
+    std::cout << "  {\n";
+    std::cout << "    \"function\": \"chat\",\n";
+    std::cout << "    \"model\": \"model_name\",\n";
+    std::cout << "    \"params\": {\n";
+    std::cout << "      \"message\": \"your message\"\n";
+    std::cout << "    }\n";
+    std::cout << "  }\n";
     std::cout << "\n";
     std::cout << "Special execute functions:\n";
     std::cout << "  execute_all_tools - Run all tool functions and use results as LLM context\n";
+    std::cout << "  Note: Model parameter is required for AI-powered functions\n";
     
     return true;
 }
@@ -352,10 +362,16 @@ void HTTPServer::handle_execute_function(socket_t client_socket, const std::stri
         
         std::string function_name = request.value("function", "");
         json params = request.value("params", json::object());
+        std::string model = request.value("model", "");
         
         if (function_name.empty()) {
             send_error(client_socket, 400, "Missing 'function' parameter");
             return;
+        }
+        
+        // Add model parameter to the function parameters if provided
+        if (!model.empty()) {
+            params["model"] = model;
         }
         
         // Check if this is a special "execute_all_tools" request
@@ -370,6 +386,9 @@ void HTTPServer::handle_execute_function(socket_t client_socket, const std::stri
         response["result"] = result;
         response["agent_id"] = agent_id;
         response["function"] = function_name;
+        if (!model.empty()) {
+            response["model"] = model;
+        }
         
         send_response(client_socket, 200, response.dump(2));
     } catch (const std::exception& e) {
@@ -460,6 +479,11 @@ void HTTPServer::handle_execute_all_tools(socket_t client_socket, const std::str
         chat_params["context"] = context;
         chat_params["tool_results"] = tool_results;
         
+        // Pass model parameter if provided
+        if (params.contains("model") && !params["model"].empty()) {
+            chat_params["model"] = params["model"];
+        }
+        
         json chat_result;
         try {
             chat_result = agent->execute_function("chat", chat_params);
@@ -469,6 +493,7 @@ void HTTPServer::handle_execute_all_tools(socket_t client_socket, const std::str
             chat_result["response"] = "I executed " + std::to_string(tool_functions.size()) + 
                                     " tool functions for your query. Here's a summary of the results: " + context;
             chat_result["timestamp"] = std::to_string(std::time(nullptr));
+            chat_result["error"] = e.what();
         }
         
         // Build comprehensive response

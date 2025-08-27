@@ -2,6 +2,30 @@
 #include <iostream>
 #include <algorithm>
 
+AgentManager::AgentManager() {
+    config_manager_ = std::make_shared<AgentConfigManager>();
+}
+
+AgentManager::AgentManager(std::shared_ptr<AgentConfigManager> config_manager) 
+    : config_manager_(config_manager) {
+    if (!config_manager_) {
+        config_manager_ = std::make_shared<AgentConfigManager>();
+    }
+}
+
+bool AgentManager::load_configuration(const std::string& config_file) {
+    if (!config_manager_) {
+        config_manager_ = std::make_shared<AgentConfigManager>();
+    }
+    
+    bool loaded = config_manager_->load_config(config_file);
+    if (loaded && config_manager_->validate_config()) {
+        config_manager_->print_config_summary();
+        return true;
+    }
+    return loaded; // Still return true even if validation shows warnings
+}
+
 std::string AgentManager::create_agent(const std::string& name, const std::vector<std::string>& capabilities) {
     auto agent = std::make_unique<Agent>(name);
     std::string agent_id = agent->get_id();
@@ -9,6 +33,14 @@ std::string AgentManager::create_agent(const std::string& name, const std::vecto
     // Add capabilities
     for (const auto& capability : capabilities) {
         agent->add_capability(capability);
+    }
+    
+    // Apply system instruction if available
+    if (config_manager_) {
+        const std::string& system_instruction = config_manager_->get_system_instruction();
+        if (!system_instruction.empty()) {
+            agent->set_system_instruction(system_instruction);
+        }
     }
     
     agents_[agent_id] = std::move(agent);
@@ -35,10 +67,60 @@ std::string AgentManager::create_agent_with_config(const std::string& name, cons
         }
     }
     
+    // Apply system instruction if available
+    if (config_manager_) {
+        const std::string& system_instruction = config_manager_->get_system_instruction();
+        if (!system_instruction.empty()) {
+            agent->set_system_instruction(system_instruction);
+        }
+    }
+    
+    // Apply agent-specific system prompt if provided
+    if (config.contains("system_prompt") && !config["system_prompt"].empty()) {
+        std::string system_prompt = config["system_prompt"];
+        agent->set_agent_specific_prompt(system_prompt);
+    }
+    
     agents_[agent_id] = std::move(agent);
     
     std::cout << "Created agent '" << name << "' with config, ID: " << agent_id << "\n";
     return agent_id;
+}
+
+std::string AgentManager::create_agent_from_config(const AgentSystemConfig::AgentConfig& agent_config) {
+    json config_json;
+    config_json["capabilities"] = agent_config.capabilities;
+    config_json["system_prompt"] = agent_config.system_prompt;
+    
+    std::string agent_id = create_agent_with_config(agent_config.name, config_json);
+    
+    // Auto-start if configured
+    if (agent_config.auto_start) {
+        start_agent(agent_id);
+    }
+    
+    return agent_id;
+}
+
+void AgentManager::initialize_default_agents() {
+    if (!config_manager_) {
+        std::cout << "No configuration manager available for default agents\n";
+        return;
+    }
+    
+    const auto& agent_configs = config_manager_->get_agent_configs();
+    
+    std::cout << "Initializing " << agent_configs.size() << " default agents from configuration...\n";
+    
+    for (const auto& agent_config : agent_configs) {
+        try {
+            std::string agent_id = create_agent_from_config(agent_config);
+            std::cout << "  - " << agent_config.name << " (" << agent_id << ")"
+                      << (agent_config.auto_start ? " [auto-started]" : "") << "\n";
+        } catch (const std::exception& e) {
+            std::cerr << "Failed to create agent '" << agent_config.name << "': " << e.what() << "\n";
+        }
+    }
 }
 
 bool AgentManager::start_agent(const std::string& agent_id) {

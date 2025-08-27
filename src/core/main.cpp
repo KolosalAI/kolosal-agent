@@ -1,5 +1,6 @@
 #include "../include/agent.hpp"
 #include "../include/agent_manager.hpp"
+#include "../include/agent_config.hpp"
 #include "../include/http_server.hpp"
 #include <iostream>
 #include <memory>
@@ -35,14 +36,16 @@ Usage: )" << program_name << R"( [OPTIONS]
 Kolosal Agent System - A multi-agent platform
 
 OPTIONS:
-    --host HOST     Server host (default: 127.0.0.1)
-    --port PORT     Server port (default: 8080)
+    --host HOST     Server host (default: from agent.yaml or 127.0.0.1)
+    --port PORT     Server port (default: from agent.yaml or 8080)
+    --config FILE   Configuration file (default: agent.yaml)
     --help          Show this help message
 
 EXAMPLES:
-    )" << program_name << R"(                    # Start with default settings
-    )" << program_name << R"( --port 9090        # Start on custom port
-    )" << program_name << R"( --host 0.0.0.0     # Listen on all interfaces
+    )" << program_name << R"(                         # Start with default settings
+    )" << program_name << R"( --port 9090             # Start on custom port
+    )" << program_name << R"( --host 0.0.0.0          # Listen on all interfaces
+    )" << program_name << R"( --config my-config.yaml # Use custom config file
 
 API ENDPOINTS:
     GET    /agents              - List all agents
@@ -54,13 +57,20 @@ API ENDPOINTS:
     POST   /agents/{id}/execute - Execute function
     GET    /status              - System status
 
+Configuration:
+    - Agent system: agent.yaml (this file)
+    - Kolosal server: config.yaml (separate component)
+
 For more information, visit: https://github.com/KolosalAI/kolosal-agent
 )";
 }
 
 int main(int argc, char* argv[]) {
-    std::string host = "127.0.0.1";
-    int port = 8080;
+    std::string host;
+    int port = 0;
+    std::string config_file = "agent.yaml";
+    bool host_override = false;
+    bool port_override = false;
     
     // Parse command line arguments
     for (int i = 1; i < argc; ++i) {
@@ -71,8 +81,12 @@ int main(int argc, char* argv[]) {
             return 0;
         } else if (arg == "--host" && i + 1 < argc) {
             host = argv[++i];
+            host_override = true;
         } else if (arg == "--port" && i + 1 < argc) {
             port = std::stoi(argv[++i]);
+            port_override = true;
+        } else if (arg == "--config" && i + 1 < argc) {
+            config_file = argv[++i];
         } else {
             std::cerr << "Unknown argument: " << arg << "\n";
             print_usage(argv[0]);
@@ -87,20 +101,23 @@ int main(int argc, char* argv[]) {
         std::signal(SIGINT, signal_handler);
         std::signal(SIGTERM, signal_handler);
         
-        // Create agent manager
-        auto agent_manager = std::make_shared<AgentManager>();
+        // Create configuration manager and load configuration
+        auto config_manager = std::make_shared<AgentConfigManager>();
+        config_manager->load_config(config_file);
         
-        // Create some default agents
-        std::string assistant_id = agent_manager->create_agent("Assistant", {"chat", "analysis"});
-        std::string analyzer_id = agent_manager->create_agent("Analyzer", {"analysis", "data_processing"});
+        // Create agent manager with configuration
+        auto agent_manager = std::make_shared<AgentManager>(config_manager);
         
-        // Start the agents
-        agent_manager->start_agent(assistant_id);
-        agent_manager->start_agent(analyzer_id);
+        // Get host and port from config if not overridden
+        if (!host_override) {
+            host = config_manager->get_host();
+        }
+        if (!port_override) {
+            port = config_manager->get_port();
+        }
         
-        std::cout << "Created and started default agents:\n";
-        std::cout << "  - Assistant (" << assistant_id << ")\n";
-        std::cout << "  - Analyzer (" << analyzer_id << ")\n\n";
+        // Initialize default agents from configuration
+        agent_manager->initialize_default_agents();
         
         // Create and start HTTP server
         http_server = std::make_unique<HTTPServer>(agent_manager, host, port);
@@ -112,20 +129,35 @@ int main(int argc, char* argv[]) {
         
         std::cout << "🎯 Kolosal Agent System is now running!\n";
         std::cout << "   * Server: http://" << host << ":" << port << "\n";
+        std::cout << "   * Configuration: " << config_manager->get_config_file_path() << "\n";
         std::cout << "   * API Documentation: Available at endpoints above\n";
         std::cout << "   * Default agents created and ready\n\n";
+        
+        // Get the first available agent for examples
+        auto agents_list = agent_manager->list_agents();
+        std::string example_agent_id;
+        if (agents_list.contains("agents") && !agents_list["agents"].empty()) {
+            example_agent_id = agents_list["agents"][0]["id"];
+        }
         
         std::cout << "📋 Quick Start Examples:\n";
         std::cout << "   # List all agents\n";
         std::cout << "   curl http://" << host << ":" << port << "/agents\n\n";
-        std::cout << "   # Chat with assistant\n";
-        std::cout << "   curl -X POST http://" << host << ":" << port << "/agents/" << assistant_id << "/execute \\\n";
-        std::cout << "     -H \"Content-Type: application/json\" \\\n";
-        std::cout << "     -d '{\"function\": \"chat\", \"params\": {\"message\": \"Hello!\"}}'\n\n";
-        std::cout << "   # Analyze text\n";
-        std::cout << "   curl -X POST http://" << host << ":" << port << "/agents/" << analyzer_id << "/execute \\\n";
-        std::cout << "     -H \"Content-Type: application/json\" \\\n";
-        std::cout << "     -d '{\"function\": \"analyze\", \"params\": {\"text\": \"This is a test\"}}'\n\n";
+        
+        if (!example_agent_id.empty()) {
+            std::cout << "   # Chat with agent (specify model)\n";
+            std::cout << "   curl -X POST http://" << host << ":" << port << "/agents/" << example_agent_id << "/execute \\\n";
+            std::cout << "     -H \"Content-Type: application/json\" \\\n";
+            std::cout << "     -d '{\"function\": \"chat\", \"model\": \"your_model_name\", \"params\": {\"message\": \"Hello!\"}}'\n\n";
+            
+            std::cout << "   # Analyze text with AI assistance\n";
+            std::cout << "   curl -X POST http://" << host << ":" << port << "/agents/" << example_agent_id << "/execute \\\n";
+            std::cout << "     -H \"Content-Type: application/json\" \\\n";
+            std::cout << "     -d '{\"function\": \"analyze\", \"model\": \"your_model_name\", \"params\": {\"text\": \"Your text here\"}}'\n\n";
+        }
+        
+        std::cout << "   # System status\n";
+        std::cout << "   curl http://" << host << ":" << port << "/status\n\n";
         
         std::cout << "Press Ctrl+C to shutdown gracefully...\n\n";
         

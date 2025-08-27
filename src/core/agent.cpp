@@ -1,4 +1,5 @@
 #include "../include/agent.hpp"
+#include "../include/model_interface.hpp"
 #ifdef BUILD_WITH_RETRIEVAL
 #include "../include/retrieval_manager.hpp"
 #endif
@@ -45,6 +46,12 @@ namespace {
 
 Agent::Agent(const std::string& name) 
     : id_(generate_uuid()), name_(name.empty() ? "Agent-" + id_.substr(0, 8) : name) {
+    // Set default system instruction
+    system_instruction_ = "You are a helpful AI assistant. Be accurate, helpful, and professional in your responses.";
+    
+    // Initialize model interface
+    model_interface_ = std::make_unique<ModelInterface>();
+    
     setup_builtin_functions();
 #ifdef BUILD_WITH_RETRIEVAL
     setup_retrieval_functions();
@@ -103,12 +110,34 @@ void Agent::add_capability(const std::string& capability) {
     }
 }
 
+void Agent::set_system_instruction(const std::string& instruction) {
+    system_instruction_ = instruction;
+    std::cout << "[" << get_timestamp() << "] System instruction updated for agent '" << name_ << "'\n";
+}
+
+void Agent::set_agent_specific_prompt(const std::string& prompt) {
+    agent_specific_prompt_ = prompt;
+    std::cout << "[" << get_timestamp() << "] Agent-specific prompt updated for agent '" << name_ << "'\n";
+}
+
+std::string Agent::get_combined_prompt() const {
+    std::string combined = system_instruction_;
+    
+    if (!agent_specific_prompt_.empty()) {
+        combined += "\n\nRole-specific instructions:\n" + agent_specific_prompt_;
+    }
+    
+    return combined;
+}
+
 json Agent::get_info() const {
     json info;
     info["id"] = id_;
     info["name"] = name_;
     info["running"] = running_.load();
     info["capabilities"] = capabilities_;
+    info["system_instruction"] = system_instruction_;
+    info["agent_specific_prompt"] = agent_specific_prompt_;
     
     json available_functions = json::array();
     for (const auto& [func_name, _] : functions_) {
@@ -121,11 +150,16 @@ json Agent::get_info() const {
 }
 
 void Agent::setup_builtin_functions() {
-    // Basic chat function
+    // Basic chat function with model parameter support
     register_function("chat", [this](const json& params) -> json {
         std::string message = params.value("message", "");
         if (message.empty()) {
             throw std::runtime_error("Missing 'message' parameter");
+        }
+        
+        std::string model_name = params.value("model", "");
+        if (model_name.empty()) {
+            throw std::runtime_error("Missing 'model' parameter. Please specify which model to use.");
         }
         
         // Check if context from tool execution is provided
@@ -135,50 +169,86 @@ void Agent::setup_builtin_functions() {
         json response;
         response["agent"] = name_;
         response["timestamp"] = get_timestamp();
+        response["model_used"] = model_name;
+        response["system_prompt"] = get_combined_prompt();
         
-        if (!context.empty()) {
-            // Enhanced response with tool context
-            std::string enhanced_response = "Based on the tool execution results, I can provide you with the following information:\n\n";
-            
-            // Analyze tool results
-            if (tool_results.contains("analyze")) {
-                auto analyze_result = tool_results["analyze"];
-                if (!analyze_result.contains("error")) {
-                    enhanced_response += "Analysis: ";
-                    enhanced_response += "Text contains " + std::to_string(analyze_result.value("word_count", 0)) + " words. ";
+        try {
+            // Check if model is available
+            if (!model_interface_->is_model_available(model_name)) {
+                // Get available models for better error message
+                json available_models = model_interface_->get_available_models();
+                std::string error_msg = "Model '" + model_name + "' is not available. ";
+                
+                if (available_models.contains("models") && !available_models["models"].empty()) {
+                    error_msg += "Available models: ";
+                    for (const auto& model : available_models["models"]) {
+                        if (model.contains("model_id") && model.value("available", false)) {
+                            error_msg += model["model_id"].get<std::string>() + " ";
+                        }
+                    }
                 }
+                
+                throw std::runtime_error(error_msg);
             }
             
-            if (tool_results.contains("search_documents") || tool_results.contains("internet_search") || tool_results.contains("research")) {
-                enhanced_response += "Search results were retrieved from available sources. ";
+            std::string ai_response;
+            
+            if (!context.empty()) {
+                // Enhanced response with tool context
+                std::string enhanced_prompt = "Based on the following tool execution results, please provide a comprehensive response to the user's message.\n\n";
+                enhanced_prompt += "Tool Results:\n" + context + "\n\n";
+                enhanced_prompt += "User Message: " + message + "\n\n";
+                enhanced_prompt += "Please analyze the tool results and provide a helpful, informative response.";
+                
+                ai_response = model_interface_->chat_with_model(
+                    model_name, 
+                    enhanced_prompt, 
+                    get_combined_prompt()
+                );
+                
+                response["context_used"] = true;
+                response["tool_results_summary"] = tool_results;
+            } else {
+                // Direct chat with model
+                ai_response = model_interface_->chat_with_model(
+                    model_name, 
+                    message, 
+                    get_combined_prompt()
+                );
+                
+                response["context_used"] = false;
             }
             
-            if (tool_results.contains("list_documents")) {
-                enhanced_response += "Document repository was accessed. ";
+            response["response"] = ai_response;
+            response["status"] = "success";
+            
+        } catch (const std::exception& e) {
+            // Fallback response if model communication fails
+            std::string fallback_response = "I apologize, but I'm currently unable to connect to the specified model '" + model_name + "'. ";
+            fallback_response += "Error: " + std::string(e.what()) + "\n\n";
+            
+            if (!context.empty()) {
+                fallback_response += "However, I can provide information based on the tool execution results:\n" + context;
+            } else {
+                fallback_response += "Please check if the model is loaded and available, or try using a different model.";
             }
             
-            enhanced_response += "\n\nRegarding your message: \"" + message + "\"\n";
-            enhanced_response += "I have executed multiple tool functions to gather relevant information. ";
-            enhanced_response += "The detailed results are available in the tool_results section of this response.";
-            
-            response["response"] = enhanced_response;
-            response["context_used"] = true;
-            response["tool_results_summary"] = tool_results;
-        } else {
-            // Simple response without context
-            response["response"] = "Hello! I'm " + name_ + ". You said: " + message;
-            response["context_used"] = false;
+            response["response"] = fallback_response;
+            response["status"] = "error";
+            response["error"] = e.what();
         }
         
         return response;
     });
     
-    // Analysis function
+    // Analysis function with optional AI assistance
     register_function("analyze", [this](const json& params) -> json {
         std::string text = params.value("text", "");
         if (text.empty()) {
             throw std::runtime_error("Missing 'text' parameter");
         }
+        
+        std::string model_name = params.value("model", "");
         
         json analysis;
         analysis["agent"] = name_;
@@ -186,6 +256,40 @@ void Agent::setup_builtin_functions() {
         analysis["word_count"] = std::count(text.begin(), text.end(), ' ') + 1;
         analysis["char_count"] = text.length();
         analysis["analysis_time"] = get_timestamp();
+        
+        // Basic analysis
+        analysis["basic_stats"] = {
+            {"characters", text.length()},
+            {"words", std::count(text.begin(), text.end(), ' ') + 1},
+            {"lines", std::count(text.begin(), text.end(), '\n') + 1}
+        };
+        
+        // If model is specified, add AI-powered analysis
+        if (!model_name.empty()) {
+            try {
+                if (model_interface_->is_model_available(model_name)) {
+                    std::string ai_prompt = "Please analyze the following text and provide insights about its content, structure, tone, and key themes:\n\n" + text;
+                    std::string ai_analysis = model_interface_->chat_with_model(
+                        model_name, 
+                        ai_prompt, 
+                        "You are an expert text analyst. Provide comprehensive, structured analysis."
+                    );
+                    
+                    analysis["ai_analysis"] = ai_analysis;
+                    analysis["model_used"] = model_name;
+                    analysis["analysis_type"] = "enhanced";
+                } else {
+                    analysis["ai_analysis"] = "Model '" + model_name + "' not available for enhanced analysis";
+                    analysis["analysis_type"] = "basic";
+                }
+            } catch (const std::exception& e) {
+                analysis["ai_analysis_error"] = e.what();
+                analysis["analysis_type"] = "basic";
+            }
+        } else {
+            analysis["analysis_type"] = "basic";
+        }
+        
         analysis["summary"] = "Text analysis completed by " + name_;
         return analysis;
     });

@@ -7,6 +7,7 @@
 #include <memory>
 #include <atomic>
 #include <json.hpp>
+#include "model_interface.hpp"
 
 using json = nlohmann::json;
 
@@ -15,7 +16,7 @@ using json = nlohmann::json;
 #endif
 
 /**
- * @brief Agent Class - Core functionality
+ * @brief Agent Class - Core functionality with system prompt support
  */
 class Agent {
 private:
@@ -24,6 +25,13 @@ private:
     std::vector<std::string> capabilities_;
     std::map<std::string, std::function<json(const json&)>> functions_;
     std::atomic<bool> running_{false};
+    
+    // System instructions and prompts
+    std::string system_instruction_;
+    std::string agent_specific_prompt_;
+    
+    // Model interface for AI communication
+    std::unique_ptr<ModelInterface> model_interface_;
     
 #ifdef BUILD_WITH_RETRIEVAL
     std::unique_ptr<RetrievalManager> retrieval_manager_;
@@ -37,6 +45,13 @@ public:
     bool start();
     void stop();
     bool is_running() const { return running_.load(); }
+    
+    // System instruction and prompt management
+    void set_system_instruction(const std::string& instruction);
+    void set_agent_specific_prompt(const std::string& prompt);
+    const std::string& get_system_instruction() const { return system_instruction_; }
+    const std::string& get_agent_specific_prompt() const { return agent_specific_prompt_; }
+    std::string get_combined_prompt() const;
     
     // Function execution
     json execute_function(const std::string& function_name, const json& params);
