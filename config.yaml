@@ -1,9 +1,9 @@
 server:
   port: 8080
-  host: 127.0.0.1
+  host: 0.0.0.0
   idle_timeout: 300
-  allow_public_access: true
-  allow_internet_access: true
+  allow_public_access: false
+  allow_internet_access: false
 logging:
   level: INFO
   file: ""
@@ -11,7 +11,7 @@ logging:
   quiet_mode: false
   show_request_details: true
 auth:
-  enabled: true
+  enabled: false
   require_api_key: false
   api_key_header: X-API-Key
   api_keys:
@@ -52,22 +52,11 @@ search:
   default_language: en
   default_category: general
 database:
-  vector_database: qdrant
-  retrieval_embedding_model: text-embedding-3-small
-  qdrant:
-    enabled: true
-    host: localhost
-    port: 6333
-    collection_name: documents
-    default_embedding_model: text-embedding-3-small
-    timeout: 30
-    api_key: ""
-    max_connections: 10
-    connection_timeout: 5
-    embedding_batch_size: 5
+  vector_database: faiss
+  retrieval_embedding_model: qwen3-embedding-0.6b
   faiss:
     index_type: Flat
-    index_path: D:\Works\Genta\codes\kolosal-agent\data\faiss_index
+    index_path: .\data\faiss_index
     dimensions: 1536
     normalize_vectors: true
     nlist: 100
@@ -75,33 +64,48 @@ database:
     use_gpu: false
     gpu_device: 0
     metric_type: IP
-models: []
-  # Model configuration disabled until valid model files are downloaded
-  # To add a model:
-  # - id: model-name
-  #   path: /path/to/valid/model.gguf
-  #   type: llm
-  #   load_immediately: false
-  #   main_gpu_id: 0
-  #   inference_engine: llama-cpu
-  #   load_params:
-  #     n_ctx: 2048
-  #     n_keep: 1024
-  #     use_mmap: true
-  #     use_mlock: false
-  #     n_parallel: 1
-  #     cont_batching: true
-  #     warmup: false
-  #     n_gpu_layers: 0
-  #     n_batch: 512
-  #     n_ubatch: 256
+models:
+  - id: gemma3-1b
+    path: https://huggingface.co/kolosal/gemma-3-1b/resolve/main/google_gemma-3-1b-it_q4_k_m.gguf
+    type: llm
+    load_immediately: true
+    main_gpu_id: 0
+    inference_engine: llama-cpu
+    load_params:
+      n_ctx: 2048
+      n_keep: 1024
+      use_mmap: true
+      use_mlock: false
+      n_parallel: 1
+      cont_batching: true
+      warmup: false
+      n_gpu_layers: 100
+      n_batch: 2048
+      n_ubatch: 512
+  - id: qwen3-embedding-0.6b
+    path: https://huggingface.co/kolosal/qwen3-embedding-0.6b/resolve/main/Qwen3-Embedding-0.6B-Q8_0.gguf
+    type: embedding
+    load_immediately: true
+    main_gpu_id: 0
+    inference_engine: llama-cpu
+    load_params:
+      n_ctx: 512
+      n_keep: 0
+      use_mmap: true
+      use_mlock: false
+      n_parallel: 2
+      cont_batching: true
+      warmup: false
+      n_gpu_layers: 100
+      n_batch: 256
+      n_ubatch: 64
 inference_engines:
   - name: llama-cpu
-    library_path: D:\Works\Genta\codes\kolosal-agent\build\Debug\llama-cpu.dll
+    library_path: ./build/Release/llama-cpu.dll
     version: 1.0.0
     description: CPU-based inference engine for LLaMA models
     load_on_startup: true
 default_inference_engine: llama-cpu
 features:
   health_check: true
-  metrics: false
+  metrics: true

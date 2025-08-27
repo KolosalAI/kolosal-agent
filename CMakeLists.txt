@@ -1,803 +1,783 @@
-cmake_minimum_required(VERSION 3.14...4.0)
-
-# Force set policy version to avoid CMake 4.0 compatibility issues
-set(CMAKE_POLICY_VERSION_MINIMUM 3.14)
-set(CMAKE_POLICY_DEFAULT_CMP0048 NEW)
-set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
-set(CMAKE_POLICY_DEFAULT_CMP0074 NEW)
-
-# Set policy defaults for CMake 4.0 compatibility
-if(POLICY CMP0091)
-    cmake_policy(SET CMP0091 NEW)
-endif()
-if(POLICY CMP0077)
-    cmake_policy(SET CMP0077 NEW)
-endif()
-if(POLICY CMP0074)
-    cmake_policy(SET CMP0074 NEW)
-endif()
+cmake_minimum_required(VERSION 3.14)
 
 # Project configuration
 project(KolosalAgent 
-    VERSION 2.0.0
-    LANGUAGES CXX C
-    DESCRIPTION "Advanced Multi-Agent AI System with Unified LLM Server Integration"
+    VERSION 1.0.0
+    LANGUAGES C CXX
+    DESCRIPTION "Kolosal Agent - Multi-Agent System with LLM Integration"
 )
 
-# C++ Standards and compiler requirements
-set(CMAKE_CXX_STANDARD 17)
+# Include UCM for runtime library management (if available)
+if(EXISTS "${CMAKE_SOURCE_DIR}/cmake/ucm.cmake")
+    include(${CMAKE_SOURCE_DIR}/cmake/ucm.cmake)
+    # Static link the runtime libraries for better distribution
+    ucm_set_runtime(STATIC)
+endif()
+
+# C++ Standards
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Build type configuration
+# Build type
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the type of build" FORCE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build" FORCE)
 endif()
 
-set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
+# Set output directories for consistent build output
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-# Platform detection
+# Options
+option(BUILD_KOLOSAL_SERVER "Build the Kolosal Server component" ON)
+option(BUILD_WITH_RETRIEVAL "Enable retrieval functionality" ON)
+option(ENABLE_NATIVE_OPTIMIZATION "Enable native CPU optimization (-march=native)" OFF)
+option(BUILD_TESTS "Build unit tests" OFF)
+option(BUILD_EXAMPLES "Build example applications" OFF)
+
+# Ensure BUILD_WITH_RETRIEVAL is compatible with BUILD_KOLOSAL_SERVER
+if(BUILD_WITH_RETRIEVAL AND NOT BUILD_KOLOSAL_SERVER)
+    message(WARNING "BUILD_WITH_RETRIEVAL requires BUILD_KOLOSAL_SERVER - enabling it automatically")
+    set(BUILD_KOLOSAL_SERVER ON)
+endif()
+
+# macOS specific options
+if(APPLE)
+    option(BUILD_UNIVERSAL2 "Build universal (arm64;x86_64) binaries" OFF)
+    option(ENABLE_CODESIGN "Enable code signing on macOS" OFF)
+    set(CODESIGN_IDENTITY "" CACHE STRING "Code signing identity")
+    
+    if(BUILD_UNIVERSAL2)
+        set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Architectures for macOS build" FORCE)
+    endif()
+    
+    # Set minimum macOS version
+    if(NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET OR CMAKE_OSX_DEPLOYMENT_TARGET STREQUAL "")
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+            set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "macOS minimum deployment target" FORCE)
+        else()
+            set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "macOS minimum deployment target" FORCE)
+        endif()
+    endif()
+endif()
+
+# Compiler flags and platform detection
 if(WIN32)
-    set(PLATFORM_NAME "Windows")
     add_definitions(-DPLATFORM_WINDOWS)
+    add_definitions(-D_WIN32_WINNT=0x0601)
+    add_definitions(-DNOMINMAX)
+    add_definitions(-DWIN32_LEAN_AND_MEAN)
 elseif(APPLE)
-    set(PLATFORM_NAME "macOS")
     add_definitions(-DPLATFORM_MACOS)
+    add_definitions(-D__APPLE__)
+    add_definitions(-D__MACOS__)
 else()
-    set(PLATFORM_NAME "Linux")
     add_definitions(-DPLATFORM_LINUX)
+    add_definitions(-D_GNU_SOURCE)
+    add_definitions(-D__LINUX__)
 endif()
 
-# Build mode options (Simplified to 3 modes)
-option(BUILD_TESTS "Build with all tests (unit, integration, performance)" OFF)
-option(BUILD_DEEPRESEARCH_DEMO "Build deep research demo" OFF)
-option(ENABLE_LOGGING "Enable logging support" ON)
-
-# Configure build mode (Simplified - 3 modes)
-if(BUILD_TESTS)
-    message(STATUS "🧪 Test Mode Enabled - Building with all tests")
-    set(BUILD_UNIT_TESTS ON)
-    set(BUILD_INTEGRATION_TESTS ON)
-    set(BUILD_PERFORMANCE_TESTS ON)
-    set(ENABLE_LOGGING ON)
-elseif(BUILD_DEEPRESEARCH_DEMO)
-    message(STATUS "🔬 Deep Research Demo Mode Enabled")
-    set(BUILD_UNIT_TESTS OFF)
-    set(BUILD_INTEGRATION_TESTS OFF)
-    set(BUILD_PERFORMANCE_TESTS OFF)
-    set(ENABLE_LOGGING ON)
-else()
-    message(STATUS "📦 Standard Build Mode - No tests, no demo")
-    set(BUILD_UNIT_TESTS OFF)
-    set(BUILD_INTEGRATION_TESTS OFF)
-    set(BUILD_PERFORMANCE_TESTS OFF)
-endif()
-
-# Print configuration
-message(STATUS "========================================")
-message(STATUS "Kolosal Agent System v${PROJECT_VERSION}")
-message(STATUS "Platform: ${PLATFORM_NAME}")
-message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
-message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
-if(BUILD_TESTS)
-message(STATUS "🧪 TEST MODE: ENABLED (All tests included)")
-elseif(BUILD_DEEPRESEARCH_DEMO)
-message(STATUS "🔬 DEEP RESEARCH DEMO MODE: ENABLED")
-else()
-message(STATUS "📦 STANDARD BUILD: Default mode")
-endif()
-message(STATUS "========================================")
-
-# Compiler-specific settings
+# Compiler-specific flags
 if(MSVC)
-    # Visual Studio specific settings
-    add_compile_options(/W4 /WX- /utf-8)
+    add_compile_options(/W4 /utf-8)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-    add_compile_definitions(NOMINMAX)
-    add_compile_definitions(WIN32_LEAN_AND_MEAN)
-    add_compile_definitions(_WINSOCK_DEPRECATED_NO_WARNINGS)
     
-    # Enable C++17 features explicitly
-    add_compile_options(/std:c++17)
-    
-    # Enable parallel compilation
-    add_compile_options(/MP)
-    
+    # Fix for Debug builds with kolosal-server: avoid RTC/optimization conflicts
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        add_compile_options(/MDd /Od /Zi)
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebug")
+        # Remove default /RTC1 flag to avoid conflicts with subprojects using /O2
+        string(REPLACE "/RTC1" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        string(REPLACE "/RTC1" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
     else()
-        add_compile_options(/MD /O2)
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
     endif()
 else()
-    # GCC/Clang settings
     add_compile_options(-Wall -Wextra -Wpedantic)
-    
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_compile_options(-g -O0)
     else()
-        add_compile_options(-O3 -DNDEBUG)
+        if(ENABLE_NATIVE_OPTIMIZATION)
+            add_compile_options(-march=native -mtune=native -O3)
+        else()
+            add_compile_options(-O3)
+        endif()
     endif()
-endif()
-
-# Include directories
-include_directories(include)
-include_directories(kolosal-server/include)
-include_directories(kolosal-server/inference/include)
-
-# Add llama.cpp include directories
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/external/llama.cpp/include")
-    include_directories(kolosal-server/inference/external/llama.cpp/include)
-    include_directories(kolosal-server/inference/external/llama.cpp/common)
-    include_directories(kolosal-server/inference/external/llama.cpp/ggml/include)
-    message(STATUS "Added llama.cpp include directories from inference/external/llama.cpp")
-elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/include")
-    include_directories(kolosal-server/external/llama.cpp/include)
-    include_directories(kolosal-server/external/llama.cpp/common)
-    include_directories(kolosal-server/external/llama.cpp/ggml/include)
-    message(WARNING "Using legacy llama.cpp include path from kolosal-server/external/. Please migrate to inference/external/llama.cpp")
-else()
-    message(FATAL_ERROR "llama.cpp include directory not found. Please ensure llama.cpp is properly cloned in kolosal-server/inference/external/llama.cpp")
 endif()
 
 # Find required packages
 find_package(Threads REQUIRED)
 
-# External dependencies
-set(EXTERNAL_DIR "${CMAKE_SOURCE_DIR}/external")
-
-# nlohmann/json
-include_directories(${EXTERNAL_DIR}/nlohmann)
-
-# yaml-cpp
-if(EXISTS "${EXTERNAL_DIR}/yaml-cpp/CMakeLists.txt")
-    message(STATUS "Using yaml-cpp from external directory")
-    set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "disable yaml tests")
-    set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "disable yaml tools")
-    set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "disable yaml contrib")
-    set(YAML_CPP_INSTALL OFF CACHE BOOL "disable yaml install")
-    add_subdirectory(${EXTERNAL_DIR}/yaml-cpp EXCLUDE_FROM_ALL)
-    set(YAML_CPP_LIBRARIES yaml-cpp)
-    set(YAML_CPP_AVAILABLE TRUE)
-else()
-    message(WARNING "yaml-cpp not found in external directory")
-    set(YAML_CPP_AVAILABLE FALSE)
+# Platform-specific package requirements
+if(APPLE)
+    find_package(OpenSSL)
+    find_package(ZLIB)
+elseif(UNIX AND NOT APPLE)
+    find_package(OpenSSL)
+    find_package(ZLIB)
+    find_package(PkgConfig QUIET)
 endif()
 
-# cURL for HTTP client functionality (optional)
-find_package(CURL QUIET)
-if(NOT CURL_FOUND)
-    message(WARNING "CURL not found. HTTP client functionality will be disabled.")
-    add_definitions(-DNO_CURL_SUPPORT)
-    set(CURL_LIBRARIES "")
-    set(CURL_INCLUDE_DIRS "")
+# Include directories
+include_directories(include)
+
+# External libraries setup
+set(NLOHMANN_JSON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann")
+if(EXISTS "${NLOHMANN_JSON_DIR}/json.hpp")
+    include_directories(${NLOHMANN_JSON_DIR})
+    message(STATUS "Using nlohmann/json from: ${NLOHMANN_JSON_DIR}")
 else()
-    message(STATUS "CURL found: ${CURL_LIBRARIES}")
+    message(FATAL_ERROR "nlohmann/json not found at ${NLOHMANN_JSON_DIR}")
+endif()
+
+# YAML-CPP setup
+set(YAML_CPP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/yaml-cpp")
+if(EXISTS "${YAML_CPP_DIR}/CMakeLists.txt")
+    add_subdirectory(${YAML_CPP_DIR})
+    message(STATUS "Using yaml-cpp from: ${YAML_CPP_DIR}")
+else()
+    message(FATAL_ERROR "yaml-cpp not found at ${YAML_CPP_DIR}")
 endif()
 
 # Source files organization
-set(AGENT_CORE_SOURCES
-    src/agent/core/agent_core.cpp
-    src/agent/core/multi_agent_system.cpp
-    src/agent/core/agent_interfaces.cpp
-    src/agent/core/agent_roles.cpp
-    src/agent/core/agent_data.cpp
-    src/agent/core/agent_config_validator.cpp
-    src/agent/core/agent_factory.cpp
-    src/agent/core/agent_orchestrator.cpp
-)
-
-set(AGENT_MEMORY_SOURCES
-    src/agent/memory/agent_memory_manager.cpp
-)
-
-set(AGENT_PLANNING_SOURCES
-    src/agent/planning/agent_planning_system.cpp
-)
-
-set(AGENT_SERVICES_SOURCES
-    src/agent/services/agent_service.cpp
-    src/agent/services/document_agent_service.cpp
-    src/agent/services/workflow_agent_service.cpp
+set(CORE_SOURCES
+    src/core/agent.cpp
+    src/core/agent_manager.cpp
+    src/core/agent_config.cpp
+    src/core/model_interface.cpp
+    src/core/main.cpp
 )
 
 set(API_SOURCES
-    src/api/agent_management_route.cpp
-    src/api/workflow_route.cpp
-    src/api/simple_http_server.cpp
-    src/api/message_router.cpp
-    src/api/http_client.cpp
+    src/api/http_server.cpp
 )
 
-set(CONFIG_SOURCES
-    src/config/yaml_configuration_parser.cpp
+set(TOOL_SOURCES
+    # Add tool sources here when available
 )
 
-set(CORE_SOURCES
-    # Main executables are handled separately
-)
+# Add retrieval manager if kolosal-server is built
+if(BUILD_KOLOSAL_SERVER)
+    list(APPEND CORE_SOURCES src/core/retrieval_manager.cpp)
+endif()
 
-set(EXECUTION_SOURCES
-    src/execution/function_execution_manager.cpp
-    src/execution/task_job_manager.cpp
-)
-
-set(LOGGER_SOURCES
-    src/logger/logger_system.cpp
-    src/logger/server_logger_integration.cpp
-)
-
-set(SERVER_SOURCES
-    src/server/server_client_interface.cpp
-    src/server/unified_server.cpp
-)
-
-set(TOOLS_SOURCES
-    src/tools/system_event_manager.cpp
-    src/tools/system_tool_registry.cpp
-    src/tools/builtin_function_registry.cpp
-    src/tools/kolosal_server_functions.cpp
-    src/tools/enhanced_function_registry.cpp
-    src/tools/research_functions.cpp
-)
-
-set(UTILS_SOURCES
-    src/utils/document_service_manager.cpp
-    src/utils/loading_animation_utils.cpp
-)
-
-set(WORKFLOW_SOURCES
-    src/workflow/sequential_workflow.cpp
-    src/workflow/workflow_engine.cpp
-    src/workflow/workflow_loader.cpp
-)
-
-set(EXAMPLES_SOURCES
-    src/examples/deep_research_agent.cpp
-)
+# Collect all header files for IDE support
+file(GLOB_RECURSE HEADERS "include/*.h" "include/*.hpp")
 
 # Combine all sources
 set(ALL_SOURCES
-    ${AGENT_CORE_SOURCES}
-    ${AGENT_MEMORY_SOURCES}
-    ${AGENT_PLANNING_SOURCES}
-    ${AGENT_SERVICES_SOURCES}
+    ${CORE_SOURCES}
     ${API_SOURCES}
-    ${CONFIG_SOURCES}
-    ${EXECUTION_SOURCES}
-    ${LOGGER_SOURCES}
-    ${SERVER_SOURCES}
-    ${TOOLS_SOURCES}
-    ${UTILS_SOURCES}
-    ${WORKFLOW_SOURCES}
-    ${EXAMPLES_SOURCES}
+    ${TOOL_SOURCES}
 )
 
-# Create the main library
-add_library(kolosal_agent ${ALL_SOURCES})
+# Create main executable
+add_executable(kolosal-agent ${ALL_SOURCES} ${HEADERS})
 
-# Library properties
-set_target_properties(kolosal_agent PROPERTIES
-    VERSION ${PROJECT_VERSION}
-    SOVERSION ${PROJECT_VERSION_MAJOR}
-    CXX_STANDARD ${CMAKE_CXX_STANDARD}
-    CXX_STANDARD_REQUIRED ON
-    CXX_EXTENSIONS OFF
-    POSITION_INDEPENDENT_CODE ON
-)
+# Create an alias for the main target to ensure it's always built
+add_custom_target(kolosal-agent-system ALL DEPENDS kolosal-agent)
 
-# Include directories for the kolosal_agent target
-target_include_directories(kolosal_agent 
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann
-        ${CMAKE_CURRENT_SOURCE_DIR}/external/yaml-cpp/include
-)
-
-# Add llama.cpp include directories for the target
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/external/llama.cpp/include")
-    target_include_directories(kolosal_agent PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/external/llama.cpp/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/external/llama.cpp/common
-        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/external/llama.cpp/ggml/include
-    )
-elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/include")
-    target_include_directories(kolosal_agent PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/common
-        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/external/llama.cpp/ggml/include
-    )
-endif()
-
-# Preprocessor definitions
-target_compile_definitions(kolosal_agent 
-    PRIVATE
-        KOLOSAL_AGENT_VERSION="${PROJECT_VERSION}"
-        KOLOSAL_AGENT_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
-        KOLOSAL_AGENT_BUILD
-        KOLOSAL_SERVER_BUILD
-)
-
-# Test mode specific definitions
-if(BUILD_TESTS)
-    target_compile_definitions(kolosal_agent 
-        PRIVATE
-            KOLOSAL_AGENT_TEST_MODE
-            KOLOSAL_AGENT_DEBUG_VERBOSE
-    )
-endif()
-
-# Deep research demo specific definitions
-if(BUILD_DEEPRESEARCH_DEMO)
-    target_compile_definitions(kolosal_agent 
-        PRIVATE
-            KOLOSAL_AGENT_DEEPRESEARCH_MODE
-    )
-endif()
-
-if(ENABLE_LOGGING)
-    target_compile_definitions(kolosal_agent PRIVATE ENABLE_LOGGING)
-endif()
-
-# Link libraries
-target_link_libraries(kolosal_agent
-    PUBLIC
-        Threads::Threads
-        ${YAML_CPP_LIBRARIES}
-        kolosal_server
-)
-
-# Windows system libraries
-if(WIN32)
-    target_link_libraries(kolosal_agent PRIVATE
-        ws2_32
-        winmm
-        crypt32
-        advapi32
-        user32
-        gdi32
-        ole32
-        oleaut32
-        uuid
-        shell32
-        comdlg32
-        winspool
-    )
-endif()
-
-# CURL linking (optional)
-if(CURL_FOUND AND CURL_LIBRARIES)
-    target_link_libraries(kolosal_agent PRIVATE ${CURL_LIBRARIES})
-    target_include_directories(kolosal_agent PRIVATE ${CURL_INCLUDE_DIRS})
-    message(STATUS "HTTP client functionality enabled with CURL")
-else()
-    message(STATUS "HTTP client functionality disabled (CURL not available)")
-endif()
-
-# Platform-specific libraries
-if(WIN32)
-    target_link_libraries(kolosal_agent PRIVATE ws2_32 winmm)
-elseif(APPLE)
-    target_link_libraries(kolosal_agent PRIVATE "-framework Foundation" "-framework CoreFoundation")
-else()
-    target_link_libraries(kolosal_agent PRIVATE dl rt)
-endif()
-
-# Build kolosal-server as an external project
-include(ExternalProject)
-set(KOLOSAL_SERVER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server")
-set(KOLOSAL_SERVER_BINARY_DIR "${CMAKE_BINARY_DIR}/kolosal-server")
-
-ExternalProject_Add(ext_kolosal_server
-    SOURCE_DIR "${KOLOSAL_SERVER_SOURCE_DIR}"
-    BINARY_DIR "${KOLOSAL_SERVER_BINARY_DIR}"
-    CMAKE_GENERATOR "${CMAKE_GENERATOR}"
-    CMAKE_GENERATOR_PLATFORM "${CMAKE_VS_PLATFORM_NAME}"
-    CMAKE_ARGS
-        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-        -DBUILD_SHARED_LIBS=OFF
-        -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-        -DUSE_PODOFO=OFF
-    BUILD_ALWAYS OFF
-    INSTALL_COMMAND ""
-    TEST_COMMAND ""
-)
-
-# Add a custom target to copy the kolosal-server executable after build
-if(WIN32)
-    set(KOLOSAL_SERVER_EXE_PATH "${KOLOSAL_SERVER_BINARY_DIR}/$<CONFIG>/kolosal-server.exe")
-    set(KOLOSAL_SERVER_COPY_PATH "${CMAKE_BINARY_DIR}/$<CONFIG>/kolosal-server.exe")
-else()
-    set(KOLOSAL_SERVER_EXE_PATH "${KOLOSAL_SERVER_BINARY_DIR}/kolosal-server")
-    set(KOLOSAL_SERVER_COPY_PATH "${CMAKE_BINARY_DIR}/kolosal-server")
-endif()
-
-add_custom_target(kolosal-server-exe
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different 
-        "${KOLOSAL_SERVER_EXE_PATH}"
-        "${KOLOSAL_SERVER_COPY_PATH}"
-    DEPENDS ext_kolosal_server
-    COMMENT "Copying kolosal-server executable to output directory"
-)
-
-# Import the built kolosal_server library for linking  
-if(WIN32)
-    add_library(kolosal_server SHARED IMPORTED)
-    set_target_properties(kolosal_server PROPERTIES
-        IMPORTED_LOCATION_DEBUG         "${KOLOSAL_SERVER_BINARY_DIR}/Debug/kolosal_server.dll"
-        IMPORTED_LOCATION_RELEASE       "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.dll"
-        IMPORTED_LOCATION_RELWITHDEBINFO "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.dll"
-        IMPORTED_LOCATION_MINSIZEREL     "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.dll"
-        IMPORTED_IMPLIB_DEBUG           "${KOLOSAL_SERVER_BINARY_DIR}/Debug/kolosal_server.lib"
-        IMPORTED_IMPLIB_RELEASE         "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.lib"
-        IMPORTED_IMPLIB_RELWITHDEBINFO  "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.lib"
-        IMPORTED_IMPLIB_MINSIZEREL      "${KOLOSAL_SERVER_BINARY_DIR}/Release/kolosal_server.lib"
-    )
-else()
-    add_library(kolosal_server STATIC IMPORTED)
-    set_target_properties(kolosal_server PROPERTIES
-        IMPORTED_LOCATION_DEBUG         "${KOLOSAL_SERVER_BINARY_DIR}/Debug/libkolosal_server.a"
-        IMPORTED_LOCATION_RELEASE       "${KOLOSAL_SERVER_BINARY_DIR}/Release/libkolosal_server.a"
-        IMPORTED_LOCATION_RELWITHDEBINFO "${KOLOSAL_SERVER_BINARY_DIR}/Release/libkolosal_server.a"
-        IMPORTED_LOCATION_MINSIZEREL     "${KOLOSAL_SERVER_BINARY_DIR}/Release/libkolosal_server.a"
-    )
-endif()
-
-# Ensure kolosal-server external build completes before building agent targets
-add_dependencies(kolosal_agent ext_kolosal_server)
-set(KOLOSAL_SERVER_AVAILABLE TRUE)
-
-# Main executable
-add_executable(kolosal-agent src/core/main.cpp)
-target_link_libraries(kolosal-agent kolosal_agent)
+# Set target properties
 set_target_properties(kolosal-agent PROPERTIES
     CXX_STANDARD ${CMAKE_CXX_STANDARD}
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
     OUTPUT_NAME "kolosal-agent"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
-# Deep Research executable (optional)
-if(BUILD_DEEPRESEARCH_DEMO)
-    add_executable(deep_research examples/deep_research_agent_demo.cpp)
-    target_link_libraries(deep_research kolosal_agent)
-    set_target_properties(deep_research PROPERTIES
-        CXX_STANDARD ${CMAKE_CXX_STANDARD}
-        CXX_STANDARD_REQUIRED ON
-        CXX_EXTENSIONS OFF
-        OUTPUT_NAME "deep_research"
+# Define BUILD_WITH_RETRIEVAL if the option is enabled
+if(BUILD_WITH_RETRIEVAL)
+    target_compile_definitions(kolosal-agent PRIVATE BUILD_WITH_RETRIEVAL)
+endif()
+
+# Link basic libraries
+target_link_libraries(kolosal-agent PRIVATE Threads::Threads yaml-cpp)
+
+# Platform-specific libraries and configurations
+if(WIN32)
+    target_link_libraries(kolosal-agent PRIVATE
+        ws2_32
+        rpcrt4
+        winmm
+        bcrypt
     )
     
-    # Make sure kolosal-server executable is built
-    add_dependencies(deep_research kolosal-server-exe)
+    # Ensure kolosal-agent.exe is also copied to the main build directory for convenience
+    add_custom_command(TARGET kolosal-agent POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:kolosal-agent>"
+        "${CMAKE_BINARY_DIR}/kolosal-agent.exe"
+        COMMENT "Copying kolosal-agent.exe to main build directory"
+    )
     
-    # Copy required DLLs for deep_research (Windows)
+elseif(APPLE)
+    target_link_libraries(kolosal-agent PRIVATE
+        "-framework Foundation"
+        "-framework CoreFoundation"
+        "-framework Security"
+        pthread
+        dl
+    )
+    
+    # Link found system libraries
+    if(OpenSSL_FOUND)
+        target_link_libraries(kolosal-agent PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+    endif()
+    
+    if(ZLIB_FOUND)
+        target_link_libraries(kolosal-agent PRIVATE ZLIB::ZLIB)
+    endif()
+    
+    # Set RPATH for runtime library search
+    set_target_properties(kolosal-agent PROPERTIES
+        INSTALL_RPATH "@executable_path;@executable_path/../lib;/usr/local/lib;/opt/homebrew/lib"
+        BUILD_WITH_INSTALL_RPATH TRUE
+        INSTALL_RPATH_USE_LINK_PATH TRUE
+    )
+    
+else()
+    # Linux
+    target_link_libraries(kolosal-agent PRIVATE
+        pthread
+        dl
+        rt
+    )
+    
+    # Find and link UUID library if available
+    find_library(UUID_LIBRARY uuid)
+    if(UUID_LIBRARY)
+        target_link_libraries(kolosal-agent PRIVATE ${UUID_LIBRARY})
+    endif()
+    
+    # Link found system libraries
+    if(OpenSSL_FOUND)
+        target_link_libraries(kolosal-agent PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+    endif()
+    
+    if(ZLIB_FOUND)
+        target_link_libraries(kolosal-agent PRIVATE ZLIB::ZLIB)
+    endif()
+    
+    # Link filesystem library for older GCC versions
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9.0")
+        target_link_libraries(kolosal-agent PRIVATE stdc++fs)
+    endif()
+    
+    # Set RPATH for runtime library search
+    set_target_properties(kolosal-agent PROPERTIES
+        INSTALL_RPATH "$ORIGIN/../lib:$ORIGIN:/usr/lib/kolosal:/usr/lib"
+        BUILD_WITH_INSTALL_RPATH TRUE
+        INSTALL_RPATH_USE_LINK_PATH TRUE
+    )
+endif()
+
+# Add kolosal-server subdirectory if enabled
+if(BUILD_KOLOSAL_SERVER)
+    message(STATUS "Building Kolosal Server component")
+    
+    # Ensure kolosal-server builds its executable in the same output directory
+    set(KOLOSAL_SERVER_OUTPUT_DIR "${CMAKE_BINARY_DIR}" CACHE STRING "Output directory for kolosal-server")
+    
+    add_subdirectory(kolosal-server)
+    
+    # Add kolosal-server include directories for retrieval functionality
+    target_include_directories(kolosal-agent PRIVATE 
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/kolosal-server/inference/include
+    )
+    
+    # Link kolosal-server to main executable for retrieval capabilities
+    target_link_libraries(kolosal-agent PRIVATE kolosal_server)
+    
+    # Always define BUILD_WITH_RETRIEVAL when kolosal-server is built
+    target_compile_definitions(kolosal-agent PRIVATE BUILD_WITH_RETRIEVAL)
+    
+    # Copy kolosal-server files to output directory for all platforms
+    add_custom_command(TARGET kolosal-agent POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:kolosal_server>"
+        "$<TARGET_FILE_DIR:kolosal-agent>/"
+        COMMENT "Copying kolosal_server library to output directory"
+    )
+    
+    # Always copy kolosal-server executable to the same directory as kolosal-agent
+    if(TARGET kolosal_server_exe)
+        add_custom_command(TARGET kolosal-agent POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:kolosal_server_exe>"
+            "$<TARGET_FILE_DIR:kolosal-agent>/"
+            COMMENT "Copying kolosal-server executable to output directory"
+        )
+    endif()
+    
+    # For platforms where the executable might have different names or locations
     if(WIN32)
-        add_custom_command(TARGET deep_research POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${CMAKE_BINARY_DIR}/kolosal-server/Debug/kolosal_server.dll
-                $<TARGET_FILE_DIR:deep_research>
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${CMAKE_BINARY_DIR}/kolosal-server/Debug/libcurl.dll
-                $<TARGET_FILE_DIR:deep_research>
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${CMAKE_BINARY_DIR}/kolosal-server/Debug/llama-cpu.dll
-                $<TARGET_FILE_DIR:deep_research>
-            COMMENT "Copying required DLLs for deep_research.exe"
-            VERBATIM
+        # Windows specific handling for DLLs and executables
+        if(TARGET kolosal_server_exe)
+            add_custom_command(TARGET kolosal-agent POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE_DIR:kolosal_server_exe>/kolosal-server.exe"
+                "$<TARGET_FILE_DIR:kolosal-agent>/kolosal-server.exe"
+                COMMENT "Ensuring kolosal-server.exe is in the same directory as kolosal-agent"
+                VERBATIM
+            )
+        endif()
+    elseif(UNIX)
+        # Unix/Linux/macOS specific handling
+        if(TARGET kolosal_server_exe)
+            add_custom_command(TARGET kolosal-agent POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE_DIR:kolosal_server_exe>/kolosal-server"
+                "$<TARGET_FILE_DIR:kolosal-agent>/kolosal-server"
+                COMMENT "Ensuring kolosal-server binary is in the same directory as kolosal-agent"
+                VERBATIM
+            )
+        endif()
+    endif()
+endif()
+
+# Testing support
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
+# Examples support
+if(BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()
+
+# Installation
+include(GNUInstallDirs)
+
+# Install main executable
+install(TARGETS kolosal-agent
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    COMPONENT Runtime
+)
+
+# Install kolosal-server targets if built
+if(BUILD_KOLOSAL_SERVER)
+    if(TARGET kolosal_server_exe)
+        install(TARGETS kolosal_server_exe
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            COMPONENT Runtime
+        )
+    endif()
+    
+    if(TARGET kolosal_server)
+        install(TARGETS kolosal_server
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            COMPONENT Runtime
         )
     endif()
 endif()
 
-# Standalone Deep Research executable (always available)
-add_executable(deep_research_standalone examples/deep_research.cpp)
-target_link_libraries(deep_research_standalone kolosal_agent)
-set_target_properties(deep_research_standalone PROPERTIES
-    CXX_STANDARD ${CMAKE_CXX_STANDARD}
-    CXX_STANDARD_REQUIRED ON
-    CXX_EXTENSIONS OFF
-    OUTPUT_NAME "deep_research"
-)
-
-# Make sure kolosal-server executable is built for deep_research_standalone
-add_dependencies(deep_research_standalone kolosal-server-exe)
-
-# Copy required DLLs for deep_research_standalone (Windows)
-if(WIN32)
-    add_custom_command(TARGET deep_research_standalone POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/kolosal_server.dll
-            $<TARGET_FILE_DIR:deep_research_standalone>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/libcurl.dll
-            $<TARGET_FILE_DIR:deep_research_standalone>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/llama-cpu.dll
-            $<TARGET_FILE_DIR:deep_research_standalone>
-        COMMENT "Copying required DLLs for deep_research_standalone.exe"
-        VERBATIM
-    )
-endif()
-
-# Real Deep Research executable with full API integration
-add_executable(real_deep_research examples/deep_research.cpp)
-target_link_libraries(real_deep_research kolosal_agent)
-set_target_properties(real_deep_research PROPERTIES
-    CXX_STANDARD ${CMAKE_CXX_STANDARD}
-    CXX_STANDARD_REQUIRED ON
-    CXX_EXTENSIONS OFF
-    OUTPUT_NAME "real_deep_research"
-)
-
-# Make sure kolosal-server executable is built for real_deep_research
-add_dependencies(real_deep_research kolosal-server-exe)
-
-# Copy required DLLs for real_deep_research (Windows)
-if(WIN32)
-    add_custom_command(TARGET real_deep_research POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/kolosal_server.dll
-            $<TARGET_FILE_DIR:real_deep_research>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/libcurl.dll
-            $<TARGET_FILE_DIR:real_deep_research>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/llama-cpu.dll
-            $<TARGET_FILE_DIR:real_deep_research>
-        COMMENT "Copying required DLLs for real_deep_research.exe"
-        VERBATIM
-    )
-endif()
-
-# Ensure all main executables are built by default (ALL target)
-if(BUILD_DEEPRESEARCH_DEMO)
-    add_custom_target(ALL_BUILD_TARGETS ALL
-        DEPENDS kolosal-agent kolosal-server-exe deep_research deep_research_standalone real_deep_research
-        COMMENT "Building all main targets: kolosal-agent, kolosal-server, and deep_research variants"
-    )
-else()
-    add_custom_target(ALL_BUILD_TARGETS ALL
-        DEPENDS kolosal-agent kolosal-server-exe deep_research_standalone real_deep_research
-        COMMENT "Building main targets: kolosal-agent, kolosal-server, and deep_research variants"
-    )
-endif()
-
-# Make sure kolosal-server executable is built by default
-add_dependencies(kolosal-agent kolosal-server-exe)
-
-# Copy required DLLs for kolosal-agent (Windows)
-if(WIN32)
-    add_custom_command(TARGET kolosal-agent POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/kolosal_server.dll
-            $<TARGET_FILE_DIR:kolosal-agent>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/libcurl.dll
-            $<TARGET_FILE_DIR:kolosal-agent>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_BINARY_DIR}/kolosal-server/Debug/llama-cpu.dll
-            $<TARGET_FILE_DIR:kolosal-agent>
-        COMMENT "Copying required DLLs for kolosal-agent.exe"
-        VERBATIM
-    )
-endif()
-
-# Installation configuration
-include(GNUInstallDirs)
-
-# Install binaries
-install(TARGETS kolosal-agent kolosal_agent
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-
-# Install kolosal-server executable
-install(FILES "${KOLOSAL_SERVER_COPY_PATH}"
-    DESTINATION ${CMAKE_INSTALL_BINDIR}
-    PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE 
-                GROUP_READ GROUP_EXECUTE 
-                WORLD_READ WORLD_EXECUTE
-)
-
-# Install headers
+# Install headers for development
 install(DIRECTORY include/
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/kolosal-agent
-    FILES_MATCHING PATTERN "*.hpp" PATTERN "*.h"
+    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
 )
+
+# Create and install configuration files
+set(AGENT_CONFIG_CONTENT "# Kolosal Agent System Configuration
+system:
+  name: \"Kolosal Agent System\"
+  version: \"${PROJECT_VERSION}\"
+  host: \"127.0.0.1\"
+  port: 8080
+  log_level: \"info\"
+  max_concurrent_requests: 100
+
+# System instruction/prompt that will be used for all agents
+system_instruction: |
+  You are a helpful AI assistant that is part of the Kolosal Agent System. You have been designed to assist users with various tasks including:
+  
+  - Answering questions and providing information
+  - Analyzing text and data
+  - Helping with research and problem-solving
+  - Providing explanations and tutorials
+  - Assisting with creative tasks
+  
+  You should always:
+  - Be helpful, accurate, and honest
+  - Admit when you don't know something
+  - Provide clear and well-structured responses
+  - Be respectful and professional
+  - Follow ethical guidelines
+  
+  Your responses should be informative and helpful while being concise when appropriate.
+
+# Default agents to create on startup
+agents:
+  - name: \"Assistant\"
+    capabilities: [\"chat\", \"analysis\", \"reasoning\"]
+    auto_start: true
+    model: \"default\"
+    system_prompt: |
+      You are an AI assistant specialized in general conversation and help. 
+      You excel at answering questions, providing explanations, and helping users with various tasks.
+      Be friendly, helpful, and informative in your responses.
+  
+  - name: \"Analyzer\" 
+    capabilities: [\"analysis\", \"data_processing\", \"summarization\"]
+    auto_start: true
+    model: \"default\"
+    system_prompt: |
+      You are an AI analyst specialized in text and data analysis.
+      Your role is to examine, process, and summarize information effectively.
+      Provide detailed analysis with clear insights and actionable conclusions.
+
+  - name: \"Researcher\"
+    capabilities: [\"research\", \"web_search\", \"fact_checking\"]
+    auto_start: false
+    model: \"default\"
+    system_prompt: |
+      You are an AI researcher specialized in information gathering and fact-checking.
+      Your role is to help users find accurate information and verify facts.
+      Always cite sources when possible and present information objectively.
+
+# Available functions that agents can execute
+functions:
+  chat:
+    description: \"Interactive chat functionality\"
+    timeout: 30000
+    parameters:
+      - name: \"message\"
+        type: \"string\"
+        required: true
+        description: \"Message to send to the agent\"
+  
+  analyze:
+    description: \"Text and data analysis functionality\"
+    timeout: 60000
+    parameters:
+      - name: \"text\"
+        type: \"string\"
+        required: true
+        description: \"Text to analyze\"
+      - name: \"analysis_type\"
+        type: \"string\"
+        required: false
+        description: \"Type of analysis to perform (sentiment, summary, keywords, etc.)\"
+  
+  research:
+    description: \"Research and information gathering\"
+    timeout: 120000
+    parameters:
+      - name: \"query\"
+        type: \"string\"
+        required: true
+        description: \"Research query or topic\"
+      - name: \"depth\"
+        type: \"string\"
+        required: false
+        description: \"Research depth (basic, detailed, comprehensive)\"
+  
+  echo:
+    description: \"Echo function for testing\"
+    timeout: 5000
+    parameters:
+      - name: \"data\"
+        type: \"any\"
+        required: false
+        description: \"Data to echo back\"
+  
+  status:
+    description: \"Agent status information\"
+    timeout: 5000
+    parameters: []
+
+# Performance and resource configuration
+performance:
+  max_memory_usage: \"2GB\"
+  cache_size: \"512MB\"
+  worker_threads: 4
+  request_timeout: 30000
+  max_request_size: \"10MB\"
+
+# Logging configuration
+logging:
+  level: \"info\"
+  file: \"agent_system.log\"
+  max_file_size: \"100MB\"
+  max_files: 10
+  console_output: true
+
+# Security configuration
+security:
+  enable_cors: true
+  allowed_origins: [\"http://localhost:3000\", \"http://127.0.0.1:3000\"]
+  max_request_rate: 100  # requests per minute per IP
+  enable_auth: false
+  api_key: \"\"  # Set this if enable_auth is true
+")
+
+set(KOLOSAL_SERVER_CONFIG_CONTENT "# Kolosal Server Configuration
+# This configuration is specifically for the kolosal-server component
+server:
+  name: \"Kolosal Server\"
+  version: \"${PROJECT_VERSION}\"
+  host: \"127.0.0.1\"
+  port: 3000
+  log_level: \"info\"
+  max_workers: 4
+
+# Model configuration
+models:
+  default:
+    path: \"models/qwen2.5-0.5b-instruct-q4_k_m.gguf\"
+    context_length: 4096
+    threads: 4
+    gpu_layers: 0
+    
+  embedding:
+    path: \"models/all-MiniLM-L6-v2-bf16-q4_k.gguf\"
+    dimensions: 384
+
+# Inference settings
+inference:
+  temperature: 0.7
+  top_p: 0.9
+  top_k: 40
+  repeat_penalty: 1.1
+  max_tokens: 2048
+  stream: true
+
+# API configuration
+api:
+  cors_enabled: true
+  cors_origins: [\"http://localhost:8080\", \"http://127.0.0.1:8080\"]
+  rate_limit: 60  # requests per minute
+  timeout: 120000  # 2 minutes
+
+# Retrieval settings (if enabled)
+retrieval:
+  enabled: false
+  vector_store: \"faiss\"
+  chunk_size: 512
+  chunk_overlap: 50
+  similarity_threshold: 0.7
+
+# Performance tuning
+performance:
+  cache_size: \"1GB\"
+  batch_size: 32
+  prefill_cache: true
+  
+# Logging
+logging:
+  level: \"info\"
+  file: \"kolosal_server.log\"
+  max_file_size: \"50MB\"
+  max_files: 5
+")
+
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/agent.yaml" "${AGENT_CONFIG_CONTENT}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/config.yaml" "${KOLOSAL_SERVER_CONFIG_CONTENT}")
 
 # Install configuration files
-install(FILES config.example.yaml
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/agent.yaml"
     DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/kolosal-agent
-    RENAME config.yaml
+    COMPONENT Runtime
 )
 
-# Tests configuration (only when BUILD_TESTS=ON)
-if(BUILD_TESTS)
-    enable_testing()
-    
-    # Find GoogleTest
-    find_package(GTest QUIET)
-    if(NOT GTest_FOUND)
-        # Use local GoogleTest from external directory
-        if(EXISTS "${CMAKE_SOURCE_DIR}/external/googletest/CMakeLists.txt")
-            message(STATUS "Using local GoogleTest from external/googletest")
-            
-            set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-            set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
-            set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
-            
-            add_subdirectory(${CMAKE_SOURCE_DIR}/external/googletest EXCLUDE_FROM_ALL)
-            
-            if(NOT TARGET GTest::gtest)
-                add_library(GTest::gtest ALIAS gtest)
-            endif()
-            if(NOT TARGET GTest::gtest_main)
-                add_library(GTest::gtest_main ALIAS gtest_main)
-            endif()
-            
-            set(GTest_FOUND TRUE)
-            message(STATUS "GoogleTest configured from external/googletest")
-        else()
-            message(WARNING "GoogleTest not found in external/googletest directory")
-        endif()
-    endif()
-    
-    if(GTest_FOUND)
-        add_subdirectory(tests)
-        message(STATUS "🧪 All tests enabled with Google Test")
-    else()
-        message(WARNING "Tests requested but Google Test not found")
-    endif()
-else()
-    message(STATUS "📦 Tests disabled - standard build mode")
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/config.yaml"
+    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/kolosal-agent
+    COMPONENT Runtime
+)
+
+# Install documentation if available
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
+        DESTINATION ${CMAKE_INSTALL_DOCDIR}
+        COMPONENT Documentation
+    )
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
+        DESTINATION ${CMAKE_INSTALL_DOCDIR}
+        COMPONENT Documentation
+    )
 endif()
 
 # CPack configuration for packaging
-set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
-set(CPACK_PACKAGE_VENDOR "Kolosal AI")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_DESCRIPTION}")
-set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-set(CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
-set(CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
-set(CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
-
-if(WIN32)
-    set(CPACK_GENERATOR "ZIP;NSIS")
-    set(CPACK_NSIS_DISPLAY_NAME "Kolosal Agent System")
-    set(CPACK_NSIS_PACKAGE_NAME "Kolosal Agent System")
-    set(CPACK_NSIS_HELP_LINK "https://github.com/kolosalai/kolosal-agent")
-    set(CPACK_NSIS_URL_INFO_ABOUT "https://github.com/kolosalai/kolosal-agent")
-    set(CPACK_NSIS_CONTACT "support@kolosal.ai")
-elseif(APPLE)
-    set(CPACK_GENERATOR "TGZ;DragNDrop")
-else()
-    set(CPACK_GENERATOR "TGZ;DEB;RPM")
-    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Kolosal AI <support@kolosal.ai>")
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6, libstdc++6, libcurl4, libyaml-cpp0.6")
-    set(CPACK_RPM_PACKAGE_REQUIRES "glibc, libstdc++, libcurl, yaml-cpp")
-endif()
-
 include(CPack)
 
-# Custom targets
+# Package configuration
+set(CPACK_PACKAGE_NAME "kolosal-agent")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Kolosal Agent - Multi-Agent LLM System")
+set(CPACK_PACKAGE_DESCRIPTION "A sophisticated multi-agent system for Large Language Models with advanced capabilities including chat, analysis, research, and retrieval.")
+set(CPACK_PACKAGE_VENDOR "Kolosal Project")
+set(CPACK_PACKAGE_CONTACT "dev@kolosal.com")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/kolosalai/kolosal-agent")
 
-# Clean all target
-add_custom_target(clean-all
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_SOURCE_DIR}/CMakeFiles
-    COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_SOURCE_DIR}/CMakeCache.txt
-    COMMENT "Cleaning all build artifacts and CMake cache"
-)
+# Components
+set(CPACK_COMPONENTS_ALL Runtime Development Documentation)
+set(CPACK_COMPONENT_RUNTIME_DISPLAY_NAME "Runtime")
+set(CPACK_COMPONENT_RUNTIME_DESCRIPTION "Main executable and runtime libraries")
+set(CPACK_COMPONENT_RUNTIME_REQUIRED TRUE)
+set(CPACK_COMPONENT_DEVELOPMENT_DISPLAY_NAME "Development")
+set(CPACK_COMPONENT_DEVELOPMENT_DESCRIPTION "Headers and development files")
+set(CPACK_COMPONENT_DOCUMENTATION_DISPLAY_NAME "Documentation")
+set(CPACK_COMPONENT_DOCUMENTATION_DESCRIPTION "Documentation and examples")
 
-# System info target
-add_custom_target(info
-    COMMAND ${CMAKE_COMMAND} -E echo "========================================="
-    COMMAND ${CMAKE_COMMAND} -E echo "Kolosal Agent System v${PROJECT_VERSION}"
-    COMMAND ${CMAKE_COMMAND} -E echo "Platform: ${PLATFORM_NAME}"
-    COMMAND ${CMAKE_COMMAND} -E echo "Build Type: ${CMAKE_BUILD_TYPE}"
-    COMMAND ${CMAKE_COMMAND} -E echo "C++ Standard: ${CMAKE_CXX_STANDARD}"
-    COMMAND ${CMAKE_COMMAND} -E echo "CMake Version: ${CMAKE_VERSION}"
-    COMMAND ${CMAKE_COMMAND} -E echo "Generator: ${CMAKE_GENERATOR}"
-    COMMAND ${CMAKE_COMMAND} -E echo "Source Dir: ${CMAKE_SOURCE_DIR}"
-    COMMAND ${CMAKE_COMMAND} -E echo "Binary Dir: ${CMAKE_BINARY_DIR}"
-    COMMAND ${CMAKE_COMMAND} -E echo "========================================="
-    COMMENT "Displaying system and build information"
-)
-
-# Build only kolosal-server target
-add_custom_target(build-server
-    DEPENDS kolosal-server-exe
-    COMMENT "Building only the kolosal-server executable"
-)
-
-# Build only kolosal-agent target
-add_custom_target(build-agent
-    DEPENDS kolosal-agent
-    COMMENT "Building only the kolosal-agent executable"
-)
-
-# Build both main targets
-add_custom_target(build-all
-    DEPENDS kolosal-agent kolosal-server-exe
-    COMMENT "Building both kolosal-agent and kolosal-server executables"
-)
+# Platform-specific package settings
+if(WIN32)
+    set(CPACK_GENERATOR "NSIS;ZIP")
+    set(CPACK_NSIS_DISPLAY_NAME "Kolosal Agent")
+    set(CPACK_NSIS_PACKAGE_NAME "Kolosal Agent")
+    set(CPACK_NSIS_HELP_LINK "https://github.com/kolosalai/kolosal-agent")
+    set(CPACK_NSIS_URL_INFO_ABOUT "https://github.com/kolosalai/kolosal-agent")
+    set(CPACK_NSIS_CONTACT "dev@kolosal.com")
+    set(CPACK_NSIS_MODIFY_PATH ON)
+    
+elseif(APPLE)
+    set(CPACK_GENERATOR "DragNDrop;TGZ")
+    set(CPACK_DMG_VOLUME_NAME "Kolosal Agent")
+    set(CPACK_DMG_FORMAT "UDBZ")
+    
+elseif(UNIX)
+    set(CPACK_GENERATOR "DEB;RPM;TGZ")
+    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Kolosal Project <dev@kolosal.com>")
+    set(CPACK_DEBIAN_PACKAGE_SECTION "devel")
+    set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6, libgcc-s1, libstdc++6")
+    set(CPACK_RPM_PACKAGE_GROUP "Development/Tools")
+    set(CPACK_RPM_PACKAGE_LICENSE "MIT")
+endif()
 
 # Summary
-message(STATUS "========================================")
-message(STATUS "Configuration Summary:")
-message(STATUS "  Version: ${PROJECT_VERSION}")
-message(STATUS "  Platform: ${PLATFORM_NAME}")
-message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
-if(BUILD_TESTS)
-message(STATUS "  🧪 Build Mode: WITH ALL TESTS")
-message(STATUS "    - Unit Tests: YES")
-message(STATUS "    - Integration Tests: YES")
-message(STATUS "    - Performance Tests: YES")
-elseif(BUILD_DEEPRESEARCH_DEMO)
-message(STATUS "  🔬 Build Mode: DEEP RESEARCH DEMO")
-message(STATUS "    - Deep Research Demo: YES")
+message(STATUS "=== Kolosal Agent Configuration ===")
+message(STATUS "Version: ${PROJECT_VERSION}")
+message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
+message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
+message(STATUS "Default Target: kolosal-agent-system (builds kolosal-agent.exe)")
+if(BUILD_KOLOSAL_SERVER)
+    message(STATUS "Kolosal Server: Enabled")
 else()
-message(STATUS "  📦 Build Mode: STANDARD (Default)")
+    message(STATUS "Kolosal Server: Disabled")
 endif()
-message(STATUS "  Features:")
-message(STATUS "    - Logging: ${ENABLE_LOGGING}")
-message(STATUS "    - HTTP Client: ${CURL_FOUND}")
-message(STATUS "========================================")
-message(STATUS "")
-message(STATUS "🔧 Build Instructions:")
-message(STATUS "")
-message(STATUS "  ══════════════════════════════════════")
-message(STATUS "  📦 STANDARD BUILD (Default)")
-message(STATUS "  ══════════════════════════════════════")
-message(STATUS "    cmake .. -DCMAKE_BUILD_TYPE=Debug")
-message(STATUS "    cmake --build . --config Debug")
-message(STATUS "  ")
-message(STATUS "  ══════════════════════════════════════")
-message(STATUS "  🧪 BUILD WITH ALL TESTS")
-message(STATUS "  ══════════════════════════════════════")
-message(STATUS "    cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON")
-message(STATUS "    cmake --build . --config Debug")
-message(STATUS "  ")
-message(STATUS "  ══════════════════════════════════════")
-message(STATUS "  🔬 BUILD WITH DEEP RESEARCH DEMO")
-message(STATUS "  ══════════════════════════════════════")
-message(STATUS "    cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_DEEPRESEARCH_DEMO=ON")
-message(STATUS "    cmake --build . --config Debug")
-message(STATUS "  ")
-message(STATUS "  ══════════════════════════════════════")
-message(STATUS "  📁 OUTPUT EXECUTABLES")
-message(STATUS "  ══════════════════════════════════════")
-message(STATUS "    Location: build/Debug/ or build/")
-message(STATUS "    - kolosal-agent(.exe) - Main agent system")
-message(STATUS "    - kolosal-server(.exe) - Standalone LLM server")
-if(BUILD_DEEPRESEARCH_DEMO)
-message(STATUS "    - deep-research-demo(.exe) - Deep research demo")
+if(BUILD_WITH_RETRIEVAL)
+    message(STATUS "Retrieval Support: Enabled")
+else()
+    message(STATUS "Retrieval Support: Disabled")
 endif()
-message(STATUS "  ")
-message(STATUS "  ══════════════════════════════════════")
-message(STATUS "  🎯 BUILD TARGETS")
-message(STATUS "  ══════════════════════════════════════")
-message(STATUS "    cmake --build . --config Debug                     # Build everything")
-message(STATUS "    cmake --build . --target build-agent --config Debug    # Build only kolosal-agent")
-message(STATUS "    cmake --build . --target build-server --config Debug   # Build only kolosal-server")
-message(STATUS "    cmake --build . --target build-all --config Debug      # Build both main executables")
 if(BUILD_TESTS)
-message(STATUS "  ")
-message(STATUS "  ══════════════════════════════════════")
-message(STATUS "  🧪 TEST TARGETS (Available)")
-message(STATUS "  ══════════════════════════════════════")
-message(STATUS "    ctest --output-on-failure                              # Run tests manually")
+    message(STATUS "Tests: Enabled")
+else()
+    message(STATUS "Tests: Disabled")
 endif()
-message(STATUS "  ")
-message(STATUS "  ══════════════════════════════════════")
-message(STATUS "  🛠️  UTILITY TARGETS")
-message(STATUS "  ══════════════════════════════════════")
-message(STATUS "    cmake --build . --target clean-all      # Clean everything")
-message(STATUS "    cmake --build . --target info           # Show system info")
-message(STATUS "    cmake --install . --config Debug        # Install binaries")
-message(STATUS "    cpack                                    # Create packages")
-message(STATUS "  ")
-message(STATUS "========================================")
+if(BUILD_EXAMPLES)
+    message(STATUS "Examples: Enabled")
+else()
+    message(STATUS "Examples: Disabled")
+endif()
+if(ENABLE_NATIVE_OPTIMIZATION)
+    message(STATUS "Native Optimization: Enabled")
+else()
+    message(STATUS "Native Optimization: Disabled")
+endif()
+message(STATUS "Installation Prefix: ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "======================================")
+
+# Development helpers
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(STATUS "Debug build - enabling additional development features")
+    add_compile_definitions(DEBUG_BUILD)
+endif()
+
+# Create example usage script
+set(EXAMPLE_CONTENT "#!/bin/bash
+# Kolosal Agent - Quick Start Examples
+
+HOST=\"127.0.0.1\"
+PORT=\"8080\"
+BASE_URL=\"http://\${HOST}:\${PORT}\"
+
+echo \"=== Kolosal Agent Examples ===\"
+echo \"Agent System Server: \${BASE_URL}\"
+echo \"Configuration: agent.yaml (agent system)\"
+echo \"\"
+
+echo \"1. Get system status:\"
+echo \"curl \${BASE_URL}/status\"
+echo \"\"
+
+echo \"2. List all agents:\"
+echo \"curl \${BASE_URL}/agents\"
+echo \"\"
+
+echo \"3. Get agent details (replace AGENT_ID):\"
+echo \"curl \${BASE_URL}/agents/AGENT_ID\"
+echo \"\"
+
+echo \"4. Chat with assistant:\"
+echo \"curl -X POST \${BASE_URL}/agents/assistant/execute \\\\\"
+echo \"  -H \\\"Content-Type: application/json\\\" \\\\\"
+echo \"  -d '{\\\"function\\\": \\\"chat\\\", \\\"params\\\": {\\\"message\\\": \\\"Hello, how can you help me?\\\"}}'\"
+echo \"\"
+
+echo \"5. Analyze text:\"
+echo \"curl -X POST \${BASE_URL}/agents/analyzer/execute \\\\\"
+echo \"  -H \\\"Content-Type: application/json\\\" \\\\\"
+echo \"  -d '{\\\"function\\\": \\\"analyze\\\", \\\"params\\\": {\\\"text\\\": \\\"This is a sample text for analysis\\\"}}'\"
+echo \"\"
+
+echo \"6. Create new agent:\"
+echo \"curl -X POST \${BASE_URL}/agents \\\\\"
+echo \"  -H \\\"Content-Type: application/json\\\" \\\\\"
+echo \"  -d '{\\\"name\\\": \\\"CustomAgent\\\", \\\"capabilities\\\": [\\\"chat\\\", \\\"research\\\"]}'\"
+echo \"\"
+
+echo \"7. Health check:\"
+echo \"curl \${BASE_URL}/health\"
+echo \"\"
+
+echo \"=== Kolosal Server Examples (if built with retrieval support) ===\"
+echo \"Note: Kolosal Server typically runs on port 3000\"
+echo \"Configuration: config.yaml (kolosal server)\"
+echo \"SERVER_URL=\\\"http://\${HOST}:3000\\\"\"
+echo \"\"
+
+echo \"8. Server status:\"
+echo \"curl \${SERVER_URL}/status\"
+echo \"\"
+
+echo \"9. List models:\"
+echo \"curl \${SERVER_URL}/v1/models\"
+echo \"\"
+
+echo \"10. Text completion:\"
+echo \"curl -X POST \${SERVER_URL}/v1/completions \\\\\"
+echo \"  -H \\\"Content-Type: application/json\\\" \\\\\"
+echo \"  -d '{\\\"model\\\": \\\"default\\\", \\\"prompt\\\": \\\"Explain machine learning\\\", \\\"max_tokens\\\": 100}'\"
+echo \"\"
+
+echo \"11. Chat completion:\"
+echo \"curl -X POST \${SERVER_URL}/v1/chat/completions \\\\\"
+echo \"  -H \\\"Content-Type: application/json\\\" \\\\\"
+echo \"  -d '{\\\"model\\\": \\\"default\\\", \\\"messages\\\": [{\\\"role\\\": \\\"user\\\", \\\"content\\\": \\\"What is AI?\\\"}]}'\"
+echo \"\"
+")
+
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/examples.sh" "${EXAMPLE_CONTENT}")
+
+# Make executable on Unix systems
+if(UNIX)
+    file(CHMOD "${CMAKE_CURRENT_BINARY_DIR}/examples.sh" 
+         PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE 
+                     GROUP_READ GROUP_EXECUTE 
+                     WORLD_READ WORLD_EXECUTE)
+endif()
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/examples.sh"
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}
+    COMPONENT Documentation
+)

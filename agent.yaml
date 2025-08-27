@@ -1,0 +1,136 @@
+# Kolosal Agent System Configuration
+system:
+  name: "Kolosal Agent System"
+  version: "1.0.0"
+  host: "127.0.0.1"
+  port: 8080
+  log_level: "info"
+  max_concurrent_requests: 100
+
+# System instruction/prompt that will be used for all agents
+system_instruction: |
+  You are a helpful AI assistant that is part of the Kolosal Agent System. You have been designed to assist users with various tasks including:
+  
+  - Answering questions and providing information
+  - Analyzing text and data
+  - Helping with research and problem-solving
+  - Providing explanations and tutorials
+  - Assisting with creative tasks
+  
+  You should always:
+  - Be helpful, accurate, and honest
+  - Admit when you don't know something
+  - Provide clear and well-structured responses
+  - Be respectful and professional
+  - Follow ethical guidelines
+  
+  Your responses should be informative and helpful while being concise when appropriate.
+
+# Default agents to create on startup
+agents:
+  - name: "Assistant"
+    capabilities: ["chat", "analysis", "reasoning"]
+    auto_start: true
+    system_prompt: |
+      You are an AI assistant specialized in general conversation and help. 
+      You excel at answering questions, providing explanations, and helping users with various tasks.
+      Be friendly, helpful, and informative in your responses.
+  
+  - name: "Analyzer" 
+    capabilities: ["analysis", "data_processing", "summarization"]
+    auto_start: true
+    system_prompt: |
+      You are an AI analyst specialized in text and data analysis.
+      Your role is to examine, process, and summarize information effectively.
+      Provide detailed analysis with clear insights and actionable conclusions.
+
+  - name: "Researcher"
+    capabilities: ["research", "web_search", "fact_checking"]
+    auto_start: false
+    system_prompt: |
+      You are an AI researcher specialized in information gathering and fact-checking.
+      Your role is to help users find accurate information and verify facts.
+      Always cite sources when possible and present information objectively.
+
+# Available functions that agents can execute
+functions:
+  chat:
+    description: "Interactive chat functionality with AI model support"
+    timeout: 30000
+    parameters:
+      - name: "message"
+        type: "string"
+        required: true
+        description: "Message to send to the agent"
+      - name: "model"
+        type: "string"
+        required: true
+        description: "Name of the AI model to use for chat"
+  
+  analyze:
+    description: "Text and data analysis functionality with optional AI assistance"
+    timeout: 60000
+    parameters:
+      - name: "text"
+        type: "string"
+        required: true
+        description: "Text to analyze"
+      - name: "model"
+        type: "string"
+        required: false
+        description: "Name of the AI model to use for enhanced analysis"
+      - name: "analysis_type"
+        type: "string"
+        required: false
+        description: "Type of analysis to perform (sentiment, summary, keywords, etc.)"
+  
+  research:
+    description: "Research and information gathering"
+    timeout: 120000
+    parameters:
+      - name: "query"
+        type: "string"
+        required: true
+        description: "Research query or topic"
+      - name: "depth"
+        type: "string"
+        required: false
+        description: "Research depth (basic, detailed, comprehensive)"
+  
+  echo:
+    description: "Echo function for testing"
+    timeout: 5000
+    parameters:
+      - name: "data"
+        type: "any"
+        required: false
+        description: "Data to echo back"
+  
+  status:
+    description: "Agent status information"
+    timeout: 5000
+    parameters: []
+
+# Performance and resource configuration
+performance:
+  max_memory_usage: "2GB"
+  cache_size: "512MB"
+  worker_threads: 4
+  request_timeout: 30000
+  max_request_size: "10MB"
+
+# Logging configuration
+logging:
+  level: "info"
+  file: "agent_system.log"
+  max_file_size: "100MB"
+  max_files: 10
+  console_output: true
+
+# Security configuration
+security:
+  enable_cors: true
+  allowed_origins: ["http://localhost:3000", "http://127.0.0.1:3000"]
+  max_request_rate: 100  # requests per minute per IP
+  enable_auth: false
+  api_key: ""  # Set this if enable_auth is true

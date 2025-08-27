@@ -53,3 +53,5 @@ models/*
 pythons/*
 .venv*
 __pycache__/
+
+tests_build/
