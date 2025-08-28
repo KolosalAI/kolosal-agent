@@ -9,9 +9,22 @@ AgentConfigManager::AgentConfigManager() {
 }
 
 bool AgentConfigManager::load_config(const std::string& file_path) {
-    // Try to load from specified path or default locations
+    // If a specific file path is provided, only try that file
+    if (!file_path.empty() && file_path != "agent.yaml") {
+        if (std::filesystem::exists(file_path)) {
+            if (load_from_file(file_path)) {
+                config_file_path_ = std::filesystem::absolute(file_path).string();
+                std::cout << "Loaded agent configuration from: " << config_file_path_ << std::endl;
+                return true;
+            }
+        }
+        // For tests expecting failure, don't fall back to default files
+        std::cout << "Could not load configuration from: " << file_path << std::endl;
+        return false;
+    }
+    
+    // Default behavior: search for agent.yaml in multiple locations
     std::vector<std::string> search_paths = {
-        file_path,
         "agent.yaml",
         "./agent.yaml",
         "../agent.yaml"
@@ -41,6 +54,12 @@ bool AgentConfigManager::reload_config() {
 bool AgentConfigManager::load_from_file(const std::string& file_path) {
     try {
         YAML::Node config = YAML::LoadFile(file_path);
+        
+        // Check if config is empty or null
+        if (!config || config.IsNull() || config.size() == 0) {
+            std::cout << "Configuration file is empty or invalid: " << file_path << std::endl;
+            return false;
+        }
         
         // Load system configuration
         if (config["system"]) {

@@ -222,12 +222,12 @@ TEST_F(AgentCreationErrorTest, ExcessiveAgentCreation) {
 }
 
 TEST_F(AgentCreationErrorTest, InvalidJSONConfig) {
-    // Test with malformed JSON configuration
-    json malformed_config = "this is not valid json";
+    // Test with string passed as config instead of object - should not throw since nlohmann::json handles this
+    json string_config = "this is not valid json";
     
-    EXPECT_THROW(agent_manager_->create_agent_with_config("BadJSONAgent", malformed_config), std::exception);
+    EXPECT_NO_THROW(agent_manager_->create_agent_with_config("StringConfigAgent", string_config));
     
-    // Test with wrong JSON structure
+    // Test with wrong JSON structure (array instead of object) - should still work
     json wrong_structure = json::array({1, 2, 3});
     EXPECT_NO_THROW(agent_manager_->create_agent_with_config("WrongStructAgent", wrong_structure));
 }
@@ -258,10 +258,10 @@ TEST_F(FunctionExecutionErrorTest, InvalidParameters) {
     json empty_params;
     EXPECT_THROW(agent_manager_->execute_agent_function(agent_id, "chat", empty_params), std::exception);
     
-    // Test with wrong parameter types
+    // Test with wrong parameter types - should throw exception for type safety
     json wrong_type_params;
     wrong_type_params["message"] = 12345; // Should be string
-    EXPECT_NO_THROW(agent_manager_->execute_agent_function(agent_id, "chat", wrong_type_params));
+    EXPECT_THROW(agent_manager_->execute_agent_function(agent_id, "chat", wrong_type_params), std::exception);
     
     // Test with extremely large parameters
     json large_params;

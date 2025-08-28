@@ -58,6 +58,12 @@ bool HTTPServer::start() {
         return true;
     }
     
+    // Validate port number
+    if (port_ < 1 || port_ > 65535) {
+        std::cerr << "Invalid port number: " << port_ << ". Port must be between 1 and 65535\n";
+        return false;
+    }
+    
     // Create socket
     server_socket_ = socket(AF_INET, SOCK_STREAM, 0);
     if (server_socket_ == INVALID_SOCKET) {

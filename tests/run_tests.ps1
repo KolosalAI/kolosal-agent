@@ -146,7 +146,7 @@ function Build-Tests {
         )
         
         if ($VerboseOutput) {
-            $cmakeArgs += "--verbose"
+            Write-ColorOutput "Running CMake with verbose output..." $Colors.Blue
         }
         
         & cmake @cmakeArgs
