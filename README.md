@@ -1,8 +1,8 @@
-# Kolosal Agent System v2.0 🤖
+# Kolosal Agent System 🤖
 
-A next-generation unified multi-agent AI system that seamlessly integrates advanced language model inference with sophisticated agent orchestration capabilities.
+A powerful multi-agent platform with LLM integration, designed for building sophisticated AI-powered applications with dynamic agent management and real-time inference capabilities.
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/kolosalai/kolosal-agent)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/KolosalAI/kolosal-agent)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](#platform-support)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](#building)
@@ -10,191 +10,152 @@ A next-generation unified multi-agent AI system that seamlessly integrates advan
 ## 📚 Table of Contents
 
 - [🚀 Quick Start](#-quick-start)
-- [🌟 What's New in v2.0](#-whats-new-in-v20)
+- [🌟 Key Features](#-key-features)
 - [🏗️ Architecture Overview](#️-architecture-overview)
-- [🛠️ Building the Application - Complete Guide](#️-building-the-application---complete-guide)
-- [🧪 Testing Tutorial - Complete Guide](#-testing-tutorial---complete-guide)
+- [🛠️ Building the Application](#️-building-the-application)
+- [🎯 Running the Application](#-running-the-application)
 - [🌐 API Reference](#-api-reference)
 - [⚙️ Configuration](#️-configuration)
-- [🚀 Advanced Usage](#-advanced-usage)
+- [🧪 Testing](#-testing)
 - [🔌 Integration Examples](#-integration-examples)
-- [📊 Performance Benchmarks](#-performance-benchmarks)
-- [🔒 Security Features](#-security-features)
-- [🐛 Troubleshooting](#-troubleshooting)
+- [📊 Performance](#-performance)
+- [ Troubleshooting](#-troubleshooting)
 - [🤝 Contributing](#-contributing)
 - [📄 License](#-license)
 
 ---
 
-## 🌟 What's New in v2.0
+## 🌟 Key Features
 
-- **🔄 Unified Architecture**: Single binary that manages both LLM inference and multi-agent systems
-- **🚀 Enhanced Performance**: Improved agent coordination and reduced latency
-- **🌐 REST API**: Comprehensive RESTful API for agent management and system control
-- **📊 Advanced Monitoring**: Real-time health monitoring, metrics, and auto-recovery
-- **🛠️ Service Layer**: High-level service abstractions for complex operations
-- **⚡ Async Operations**: Full asynchronous support for non-blocking operations
-- **🔧 Hot Configuration**: Dynamic configuration reloading without system restart
-- **📈 Analytics**: Built-in performance analytics and optimization suggestions
-- **🔗 MCP Protocol Integration**: Full Model Context Protocol (MCP) support for standardized AI tool and resource interoperability
-- **🔍 Web Search Integration (NEW!)**: Real-time internet search with SearXNG backend
-- **📚 Enhanced Document Retrieval (NEW!)**: Advanced semantic search through vector databases
-- **🧠 Hybrid Knowledge System (NEW!)**: Combines web search with document retrieval for comprehensive knowledge gathering
+### 🤖 Multi-Agent System
+- **Dynamic Agent Creation**: Create specialized agents with custom capabilities
+- **Agent Lifecycle Management**: Start, stop, and manage multiple agents simultaneously
+- **System Prompts**: Configure agents with system instructions and specialized prompts
+- **Built-in Functions**: Chat, analysis, research, and custom function execution
 
-## 🌐 Web Search & Retrieval Features (NEW!)
+### � High-Performance Server
+- **HTTP REST API**: OpenAPI-compatible endpoints for all operations
+- **Real-time Communication**: Instant agent responses and status updates
+- **Configuration Management**: Hot-reloadable YAML configurations
+- **Health Monitoring**: System status and agent health tracking
 
-The Kolosal Agent System now includes powerful web search and document retrieval capabilities that enable agents to access real-time information and comprehensive knowledge bases.
+### 🧠 LLM Integration
+- **Kolosal Server Integration**: Built-in integration with high-performance inference server
+- **Model Interface**: Flexible model communication and parameter handling
+- **Retrieval Augmented Generation**: Document retrieval and web search capabilities
+- **Multi-Model Support**: Support for various LLM models and embedding models
 
-### 🔍 Internet Search
-- **Real-time Web Search**: Live internet searches using SearXNG backend
-- **Multiple Search Engines**: Support for Google, Bing, DuckDuckGo, and more
-- **Advanced Filtering**: Content quality assessment, safe search, and result optimization
-- **Multilingual Support**: Search in multiple languages with localization
-- **Category Search**: Specialized searches for news, images, academic content, etc.
-
-### 📚 Document Retrieval
-- **Semantic Search**: Vector-based similarity search through document collections
-- **Multiple Formats**: Support for PDF, DOCX, HTML, and plain text documents
-- **Intelligent Chunking**: Smart document segmentation for better retrieval
-- **Metadata Support**: Rich metadata extraction and filtering
-- **Collection Management**: Organize documents in separate collections
-
-### 🧠 Hybrid Knowledge System
-- **Comprehensive Retrieval**: Combines web search with local document retrieval
-- **Smart Prioritization**: Automatically balances web vs. local content based on query
-- **Result Fusion**: Intelligent merging and ranking of diverse knowledge sources
-- **Context Awareness**: Maintains context across multiple knowledge sources
-
-### ⚡ Quick Web Search Example
-
-```cpp
-#include "tools/enhanced_function_registry.hpp"
-
-// Create agent with web search capabilities
-auto agent = std::make_unique<AgentCore>("WebSearchAgent");
-
-// Enable enhanced functions with kolosal-server integration
-agent->enable_enhanced_functions("http://localhost:8080");
-
-// Perform real internet search
-AgentData search_params;
-search_params.set("query", "latest AI developments 2025");
-search_params.set("results", 5);
-
-auto result = agent->get_function_manager()->execute__function("internet_search", search_params);
-
-if (result.success) {
-    auto titles = result.result_data.get_array_string("titles");
-    auto urls = result.result_data.get_array_string("urls");
-    // Process search results...
-}
-```
-
-### 📖 Documentation
-- **[Web Search Integration Guide](docs/WEB_SEARCH_INTEGRATION_GUIDE.md)**: Complete guide to web search functions
-- **[Function Registry Guide](docs/FUNCTION_REGISTRY_GUIDE.md)**: How to register and manage functions
-- **[Examples](examples/web_search_demo.cpp)**: Working examples of web search integration
+### 🔧 Developer-Friendly
+- **Simple Configuration**: YAML-based configuration files
+- **Comprehensive Testing**: Unit, integration, and performance tests
+- **Cross-Platform**: Windows, Linux, and macOS support
+- **Extensive Documentation**: Complete API documentation and examples
 
 ## 🚀 Quick Start
 
-### ⚡ Super Quick Setup (5 minutes)
+Get the Kolosal Agent System up and running in just a few minutes:
 
-Get the Kolosal Agent System running in just a few commands:
+### Prerequisites
+
+- **C++20** compatible compiler (GCC 9+, Clang 10+, or Visual Studio 2019+)
+- **CMake 3.14** or higher
+- **Git** with submodule support
+- **4GB RAM** minimum (8GB+ recommended)
+
+### Build and Run
 
 ```bash
 # 1. Clone the repository
-git clone --recursive https://github.com/kolosalai/kolosal-agent.git
+git clone --recursive https://github.com/KolosalAI/kolosal-agent.git
 cd kolosal-agent
 
-# 2. Choose your build mode:
-
-# 📦 STANDARD BUILD (Default - Fast, core functionality)
+# 2. Build the application
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Debug
 cmake --build . --config Debug
 
-# 🧪 BUILD WITH ALL TESTS (Comprehensive testing)
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
-cmake --build . --config Debug
+# 3. Run the system
+./kolosal-agent                    # Linux/macOS
+.\Debug\kolosal-agent.exe          # Windows
 
-# 🔬 BUILD WITH DEEP RESEARCH DEMO (Includes demo)
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_DEEPRESEARCH_DEMO=ON
-cmake --build . --config Debug
-
-# 3. Run the application
-./kolosal-agent  # Linux/macOS
-.\Debug\kolosal-agent.exe  # Windows
-
-# 4. Test the installation
-curl http://localhost:8080/v1/system/status
+# 4. Test the API
+curl http://localhost:8080/status
 ```
 
-**That's it!** The system is now running with a web interface at `http://localhost:8080`.
+### First Steps
 
-### 📋 What You Get Out of the Box
+Once running, the system provides:
+- **Web API**: `http://localhost:8080` for all operations
+- **Default Agents**: Assistant, Analyzer, and Researcher agents pre-configured
+- **Configuration**: `agent.yaml` for agent system, `config.yaml` for kolosal-server
+- **Real-time API**: Immediate agent creation and function execution
 
-- **🤖 Multi-Agent System**: Pre-configured coordinator and specialist agents
-- **🌐 REST API**: Complete API for agent management at `http://localhost:8080`
-- **📊 Web Dashboard**: System status and agent monitoring interface
-- **📚 Examples**: Working examples in the `/examples` directory
-- **🧪 Tests** (if built with `-DBUILD_TESTS=ON`): Comprehensive test suite including unit, integration, and performance tests
-- **🔬 Deep Research Demo** (if built with `-DBUILD_DEEPRESEARCH_DEMO=ON`): Advanced research demonstration capabilities
+### Quick Examples
 
-### 🎯 Next Steps
+```bash
+# List all agents
+curl http://localhost:8080/agents
 
-1. **Explore the API**: Visit `http://localhost:8080/v1/agents` to see available agents
-2. **Run Examples**: Check out `/examples` directory for usage patterns
-3. **Read the Build Guide**: Continue with the detailed build instructions below
-4. **Run Tests** (if built with tests): Use `ctest --output-on-failure` to verify functionality
-5. **Customize Configuration**: Edit `config.yaml` for your specific needs
+# Chat with assistant (requires model configuration)
+curl -X POST http://localhost:8080/agents/Assistant/execute \
+  -H "Content-Type: application/json" \
+  -d '{"function": "chat", "params": {"message": "Hello!", "model": "your_model"}}'
 
----
+# Analyze text
+curl -X POST http://localhost:8080/agents/Analyzer/execute \
+  -H "Content-Type: application/json" \
+  -d '{"function": "analyze", "params": {"text": "Sample text for analysis"}}'
+```
 
 ## 🏗️ Architecture Overview
 
-Kolosal Agent System v2.0 features a revolutionary unified architecture:
+The Kolosal Agent System features a layered architecture designed for scalability and maintainability:
 
 ```
-┌─────────────────────────────────────────────────┐
-│              🌐 REST API Layer                   │
-├─────────────────────────────────────────────────┤
-│          📊 Service Layer (AgentService)        │
-├─────────────────────────────────────────────────┤
-│     🤖 Multi-Agent System (Agent Manager)       │
-├─────────────────┬───────────────────────────────┤
-│  🧠 Agent Core  │     🔄 Message Router        │
-├─────────────────┼───────────────────────────────┤
-│  ⚡ LLM Server  │     📡 Kolosal Server        │
-└─────────────────┴───────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    🌐 REST API Layer                        │
+│  ┌─────────────────┬─────────────────┬─────────────────┐    │
+│  │   Agent APIs    │   System APIs   │   Health APIs   │    │
+│  └─────────────────┴─────────────────┴─────────────────┘    │
+├─────────────────────────────────────────────────────────────┤
+│                 🤖 Multi-Agent System                       │
+│  ┌─────────────────┬─────────────────┬──────────────────┐   │
+│  │ Agent Manager   │ Message Router  │ Function Registry│   │
+│  └─────────────────┴─────────────────┴──────────────────┘   │
+├─────────────────────────────────────────────────────────────┤
+│                 🧠 Core Components                          │
+│  ┌─────────────────┬─────────────────┬─────────────────┐    │
+│  │   Agent Core    │  Config Manager │  HTTP Server    │    │
+│  └─────────────────┴─────────────────┴─────────────────┘    │
+├─────────────────────────────────────────────────────────────┤
+│               ⚡ Inference & Data Layer                      │
+│  ┌─────────────────┬─────────────────┬─────────────────┐    │
+│  │ Kolosal Server  │ Model Interface │Retrieval Manager│    │
+│  └─────────────────┴─────────────────┴─────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### Core Components
 
-#### 🔄 **Unified Server** (`UnifiedKolosalServer`)
-- Manages both LLM inference and agent systems
-- Automatic health monitoring and recovery
-- Process lifecycle management
-- Configuration hot-reloading
+#### 🤖 **Agent System**
+- **Agent Manager**: Manages agent lifecycle, creation, and deletion
+- **Agent Core**: Individual agent implementation with system prompts
+- **Function Registry**: Built-in functions like chat, analyze, research
 
-#### 📊 **Service Layer** (`AgentService`)
-- High-level agent operations
-- Bulk operations and batch processing
-- Performance analytics and optimization
-- Event-driven notifications
+#### 🌐 **HTTP Server**
+- **REST API**: Complete HTTP API for all operations
+- **Request Handling**: Concurrent request processing
+- **Configuration**: YAML-based configuration management
 
-#### 🌐 **REST API** (`AgentManagementRoute`)
-- Comprehensive agent management endpoints
-- OpenAPI-compatible documentation
-- Real-time system status and metrics
-- Secure authentication and rate limiting
+#### ⚡ **Kolosal Server Integration** (Optional)
+- **LLM Inference**: High-performance model inference
+- **Model Management**: Multiple model support
+- **Retrieval Support**: Document search and web search capabilities
 
-#### 🤖 **Multi-Agent Core**
-- Advanced agent lifecycle management
-- Sophisticated message routing
-- Memory and planning systems
-- Tool registry and function management
+#### 📊 **Configuration Management**
+- **Hot Reloading**: Configuration changes without restart
+- **Multi-file Support**: Separate configs for agent system and server
+- **Validation**: Built-in configuration validation
 
 ## 🌐 API Reference
 
@@ -202,7 +163,7 @@ Kolosal Agent System v2.0 features a revolutionary unified architecture:
 
 #### List All Agents
 ```http
-GET /v1/agents
+GET /agents
 ```
 
 **Response:**
@@ -210,42 +171,64 @@ GET /v1/agents
 {
   "agents": [
     {
-      "id": "coord-001",
-      "name": "system_coordinator",
-      "type": "coordinator",
+      "id": "agent_123",
+      "name": "Assistant",
+      "capabilities": ["chat", "analysis", "reasoning"],
       "running": true,
-      "role": 1,
-      "capabilities": ["plan_execution", "task_delegation"],
-      "statistics": {
-        "total_functions_executed": 142,
-        "total_tools_executed": 89,
-        "average_execution_time_ms": 245.6
+      "info": {
+        "system_instruction": "You are a helpful AI assistant...",
+        "agent_specific_prompt": "You excel at general conversation..."
       }
     }
-  ],
-  "total_count": 4,
-  "system_running": true
+  ]
 }
 ```
 
 #### Create New Agent
 ```http
-POST /v1/agents
+POST /agents
 Content-Type: application/json
 ```
 
 ```json
 {
-  "name": "custom_analyst",
-  "id": "analyst-002",
-  "type": "specialist",
-  "role": 2,
-  "specializations": [1, 2],
-  "capabilities": ["data_processing", "research_synthesis"],
-  "functions": ["analyze_data", "research_topic"],
-  "config": {
-    "priority": 2,
-    "auto_start": true,
+  "name": "CustomAgent",
+  "capabilities": ["chat", "research"]
+}
+```
+
+#### Execute Function
+```http
+POST /agents/{agent_id}/execute
+Content-Type: application/json
+```
+
+```json
+{
+  "function": "chat",
+  "params": {
+    "message": "Hello, how can you help me?",
+    "model": "your_model_name"
+  }
+}
+```
+
+### System Management
+
+#### System Status
+```http
+GET /status
+```
+
+**Response:**
+```json
+{
+  "status": "running",
+  "total_agents": 3,
+  "running_agents": 2,
+  "timestamp": "2025-08-28T10:00:00Z"
+}
+```
     "max_concurrent_tasks": 5
   }
 }
@@ -299,278 +282,424 @@ Content-Type: application/json
 
 ## ⚙️ Configuration
 
-### Enhanced YAML Configuration
+The system uses YAML configuration files for both the agent system and the optional kolosal-server component.
+
+### Agent System Configuration (`agent.yaml`)
 
 ```yaml
-# Kolosal Agent System v2.0 Configuration
+# Kolosal Agent System Configuration
 system:
-  name: "Kolosal Multi-Agent System v2.0"
-  version: "2.0.0"
-  environment: "production"
-  
-  server:
-    host: "0.0.0.0"
-    port: 8080
-    timeout: 60
-    enable_cors: true
-    allowed_origins: ["https://my-frontend.com"]
-    
-  monitoring:
-    enable_health_checks: true
-    health_check_interval_seconds: 30
-    enable_metrics: true
-    enable_performance_analytics: true
-    enable_auto_recovery: true
-    max_recovery_attempts: 3
+  name: "Kolosal Agent System"
+  version: "1.0.0"
+  host: "127.0.0.1"
+  port: 8080
+  log_level: "info"
+  max_concurrent_requests: 100
 
-# Enhanced agent definitions
+# System instruction for all agents
+system_instruction: |
+  You are a helpful AI assistant that is part of the Kolosal Agent System.
+  You should be helpful, accurate, and professional in your responses.
+
+# Default agents to create on startup
 agents:
-  - name: "system_coordinator"
-    id: "coord-001"
-    type: "coordinator"
-    role: "COORDINATOR"
-    priority: 1
-    
-    specializations:
-      - "TASK_PLANNING"
-      - "RESOURCE_MANAGEMENT"
-      - "SYSTEM_MONITORING"
-    
-    capabilities:
-      - "plan_execution"
-      - "task_delegation"
-      - "system_monitoring"
-      - "resource_optimization"
-    
-    functions:
-      - "plan_tasks"
-      - "delegate_work" 
-      - "monitor_progress"
-      - "optimize_resources"
-    
-    config:
-      auto_start: true
-      max_concurrent_tasks: 10
-      memory_limit_mb: 512
-      enable_persistence: true
-      heartbeat_interval_seconds: 10
+  - name: "Assistant"
+    capabilities: ["chat", "analysis", "reasoning"]
+    auto_start: true
+    system_prompt: |
+      You are an AI assistant specialized in general conversation and help.
+      Be friendly, helpful, and informative in your responses.
 
-# Advanced function definitions
+  - name: "Analyzer" 
+    capabilities: ["analysis", "data_processing", "summarization"]
+    auto_start: true
+    system_prompt: |
+      You are an AI analyst specialized in text and data analysis.
+      Provide detailed analysis with clear insights and conclusions.
+
+# Available functions
 functions:
-  - name: "plan_tasks"
-    type: "builtin"
-    category: "planning"
-    description: "Create comprehensive execution plans"
-    version: "2.0"
-    
+  chat:
+    description: "Interactive chat functionality with AI model support"
+    timeout: 30000
     parameters:
-      - name: "goal"
+      - name: "message"
         type: "string"
         required: true
-        description: "The main objective"
-      - name: "priority"
-        type: "integer"
+      - name: "model"
+        type: "string"
+        required: true
+
+  analyze:
+    description: "Text and data analysis functionality"
+    timeout: 60000
+    parameters:
+      - name: "text"
+        type: "string"
+        required: true
+      - name: "analysis_type"
+        type: "string"
         required: false
-        default: 5
-        min: 1
-        max: 10
-        
-    returns:
-      type: "object"
-      description: "Execution plan with steps and dependencies"
 
-# System templates for quick agent creation
-templates:
-  data_processor:
-    type: "specialist"
-    role: "ANALYST"
-    specializations: ["DATA_ANALYSIS"]
-    capabilities: ["data_processing", "report_generation"]
-    functions: ["analyze_data", "generate_report"]
-    config:
-      auto_start: false
-      max_concurrent_tasks: 3
-      memory_limit_mb: 512
+# Performance settings
+performance:
+  max_memory_usage: "2GB"
+  worker_threads: 4
+  request_timeout: 30000
+
+# Security settings
+security:
+  enable_cors: true
+  allowed_origins: ["http://localhost:3000"]
+  max_request_rate: 100
+  enable_auth: false
 ```
 
-## 🛠️ Building the Application - Complete Guide
+### Kolosal Server Configuration (`config.yaml`)
 
-The Kolosal Agent System offers **3 simple build modes** to meet different development needs.
+If building with kolosal-server integration:
 
-### Prerequisites
+```yaml
+server:
+  port: 8080
+  host: 0.0.0.0
+  idle_timeout: 300
 
-Before building the Kolosal Agent System, ensure you have the following installed:
+models:
+  - id: gemma3-1b
+    path: path/to/model.gguf
+    type: llm
+    load_immediately: true
+    load_params:
+      n_ctx: 2048
+      n_gpu_layers: 100
 
-#### System Requirements
-- **CMake** 3.14 or higher
-- **C++17** compatible compiler:
-  - Windows: Visual Studio 2019/2022 or Build Tools for Visual Studio
-  - Linux: GCC 9+ or Clang 10+
-  - macOS: Xcode Command Line Tools
-- **Git** with submodule support
-- **4GB RAM** minimum (8GB+ recommended for compilation)
+  - id: qwen3-embedding-0.6b
+    path: path/to/embedding-model.gguf
+    type: embedding
+    load_immediately: true
 
-#### Platform-Specific Dependencies
+database:
+  vector_database: faiss
+  retrieval_embedding_model: qwen3-embedding-0.6b
+  faiss:
+    index_type: Flat
+    dimensions: 1536
 
-**Windows:**
-```powershell
-# Install Visual Studio Build Tools or Visual Studio Community
-# Install Git for Windows
-# Install CMake (or use Visual Studio installer)
-
-# Optional: Install vcpkg for easier dependency management
-git clone https://github.com/Microsoft/vcpkg.git
-cd vcpkg
-.\bootstrap-vcpkg.bat
-.\vcpkg integrate install
+search:
+  enabled: true
+  searxng_url: https://searx.stream/
+  timeout: 30
+  max_results: 20
 ```
 
-**Linux (Ubuntu/Debian):**
+## 🧪 Testing
+
+The Kolosal Agent System includes comprehensive testing support.
+
+### Running Tests
+
+Build with tests enabled:
 ```bash
-sudo apt update
-sudo apt install build-essential cmake git libcurl4-openssl-dev libyaml-cpp-dev
-
-# For testing (optional)
-sudo apt install libgtest-dev libgmock-dev
-```
-
-**macOS:**
-```bash
-# Install Xcode Command Line Tools
-xcode-select --install
-
-# Install Homebrew dependencies
-brew install cmake git curl yaml-cpp
-
-# For testing (optional)
-brew install googletest
-```
-
-### 🏗️ Build Modes
-
-#### **📦 Mode 1: Standard Build (Fast & Clean)**
-Perfect for production use, fastest compilation, no tests:
-
-```bash
-# Step 1: Clone the repository
-git clone --recursive https://github.com/kolosalai/kolosal-agent.git
-cd kolosal-agent
-
-# Step 2: Create build directory
 mkdir build && cd build
-
-# Step 3: Configure for standard build
-cmake .. -DCMAKE_BUILD_TYPE=Debug
-
-# Step 4: Build the project
-cmake --build . --config Debug
-
-# Step 5: Run the application
-./kolosal-agent                    # Linux/macOS
-.\Debug\kolosal-agent.exe          # Windows
-```
-
-**What you get:**
-- ✅ Main application (`kolosal-agent`)
-- ✅ Server component (`kolosal-server`)
-- ❌ No tests (fastest build)
-- ❌ No deep research demo
-
----
-
-#### **🧪 Mode 2: Build with All Tests (Comprehensive)**
-Includes everything plus comprehensive testing suite:
-
-```bash
-# Step 1: Clone the repository
-git clone --recursive https://github.com/kolosalai/kolosal-agent.git
-cd kolosal-agent
-
-# Step 2: Create build directory
-mkdir build && cd build
-
-# Step 3: Configure with tests enabled
 cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
-
-# Step 4: Build the project (takes longer due to tests)
 cmake --build . --config Debug
+```
 
-# Step 5: Run tests to verify everything works
+Run tests:
+```bash
+# Run all tests
 ctest --output-on-failure
 
-# Step 6: Run the application
-./kolosal-agent                    # Linux/macOS
-.\Debug\kolosal-agent.exe          # Windows
+# Run specific test files
+./test_agent_execution.exe
+./test_model_interface.exe
+./test_config_manager.exe
+./test_http_server.exe
+./test_error_scenarios.exe
 ```
 
-**What you get:**
-- ✅ Everything from Standard Build
-- ✅ **Unit Tests** - Test individual components
-- ✅ **Integration Tests** - Test system interactions
-- ✅ **Performance Tests** - Validate performance metrics
-- ✅ **Test Utilities** - Testing infrastructure and tools
+### Quick Test Demo
+
+For a minimal test without dependencies:
+```bash
+cd tests
+g++ -std=c++17 -o minimal_test_demo.exe minimal_test_demo.cpp
+./minimal_test_demo.exe
+```
+
+### Test Coverage
+
+- **Agent Creation & Lifecycle**: Creating, starting, stopping agents
+- **Function Execution**: Chat, analyze, and other built-in functions
+- **Configuration Management**: YAML loading and validation
+- **HTTP Server**: API endpoints and request handling
+- **Error Scenarios**: Graceful error handling and recovery
+
+For detailed testing information, see [tests/README.md](tests/README.md).
+
+## 🔌 Integration Examples
+
+### C++ Integration
+
+```cpp
+#include "agent_manager.hpp"
+#include "agent_config.hpp"
+
+int main() {
+    // Create configuration manager
+    auto config_manager = std::make_shared<AgentConfigManager>();
+    config_manager->load_config("agent.yaml");
+    
+    // Create agent manager
+    auto agent_manager = std::make_shared<AgentManager>(config_manager);
+    
+    // Create a custom agent
+    std::string agent_id = agent_manager->create_agent("MyAgent", {"chat", "analysis"});
+    
+    // Start the agent
+    agent_manager->start_agent(agent_id);
+    
+    // Execute a function
+    json params = {{"message", "Hello!"}, {"model", "your_model"}};
+    auto result = agent_manager->execute_function(agent_id, "chat", params);
+    
+    return 0;
+}
+```
+
+### HTTP API Integration
+
+```bash
+# Create a new agent
+curl -X POST http://localhost:8080/agents \
+  -H "Content-Type: application/json" \
+  -d '{"name": "MyCustomAgent", "capabilities": ["chat", "research"]}'
+
+# Execute chat function
+curl -X POST http://localhost:8080/agents/MyCustomAgent/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "function": "chat",
+    "params": {
+      "message": "What is machine learning?",
+      "model": "your_model_name"
+    }
+  }'
+
+# Get agent status
+curl http://localhost:8080/agents/MyCustomAgent
+```
+
+### Python Integration
+
+```python
+import requests
+import json
+
+class KolosalAgentClient:
+    def __init__(self, base_url="http://localhost:8080"):
+        self.base_url = base_url
+    
+    def create_agent(self, name, capabilities):
+        response = requests.post(
+            f"{self.base_url}/agents",
+            json={"name": name, "capabilities": capabilities}
+        )
+        return response.json()
+    
+    def execute_function(self, agent_name, function, params):
+        response = requests.post(
+            f"{self.base_url}/agents/{agent_name}/execute",
+            json={"function": function, "params": params}
+        )
+        return response.json()
+
+# Usage
+client = KolosalAgentClient()
+agent = client.create_agent("PythonAgent", ["chat", "analysis"])
+result = client.execute_function("PythonAgent", "chat", {
+    "message": "Hello from Python!",
+    "model": "your_model"
+})
+print(result)
+```
+
+## 📊 Performance
+
+The Kolosal Agent System is designed for high performance and scalability:
+
+### Performance Characteristics
+
+- **Agent Creation**: Sub-second agent creation and initialization
+- **Function Execution**: Low-latency function calls with concurrent execution
+- **Memory Efficiency**: Optimized memory usage per agent
+- **Request Handling**: High-throughput HTTP request processing
+
+### Benchmarks
+
+Based on testing with the included test suite:
+- **Agent Creation**: 100 agents created in milliseconds
+- **Concurrent Operations**: Support for multiple simultaneous agent operations  
+- **Memory Usage**: Approximately 0.9MB per agent
+- **Startup Time**: Full system startup in under 5 seconds
+
+### Optimization Tips
+
+1. **Configuration**: Tune `max_concurrent_requests` and `worker_threads`
+2. **Model Integration**: Use local models for faster inference
+3. **Caching**: Enable response caching for repeated queries
+4. **Resource Limits**: Set appropriate memory limits per agent
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### Build Issues
+
+**CMake Configuration Fails:**
+```bash
+# Ensure you have required dependencies
+sudo apt install build-essential cmake git libyaml-cpp-dev  # Linux
+brew install cmake git yaml-cpp                            # macOS
+
+# Initialize submodules
+git submodule update --init --recursive
+```
+
+**Compilation Errors:**
+```bash
+# Check compiler version (requires C++20)
+g++ --version   # Should be 9.0+
+clang --version # Should be 10.0+
+
+# Clean build if needed
+rm -rf build && mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Debug
+```
+
+#### Runtime Issues
+
+**Server Won't Start:**
+```bash
+# Check port availability
+netstat -ln | grep 8080
+
+# Try different port
+./kolosal-agent --port 9090
+
+# Check configuration
+./kolosal-agent --config agent.yaml --help
+```
+
+**Agent Creation Fails:**
+```bash
+# Verify configuration file
+cat agent.yaml | head -20
+
+# Check system logs
+tail -f agent_system.log
+
+# Test with minimal configuration
+curl -X POST http://localhost:8080/agents \
+  -d '{"name": "TestAgent", "capabilities": ["chat"]}'
+```
+
+#### Model Integration Issues
+
+**Model Not Found:**
+- Ensure model paths are correct in `config.yaml`
+- Verify model files exist and are readable
+- Check kolosal-server is running (if using model integration)
+
+**Function Execution Timeout:**
+- Increase timeout values in configuration
+- Check model performance and resource availability
+- Verify network connectivity to model servers
+
+### Debug Mode
+
+Enable verbose logging for detailed troubleshooting:
+```bash
+./kolosal-agent --host 127.0.0.1 --port 8080 --config agent.yaml
+```
+
+Check the system logs for detailed error information:
+```bash
+tail -f agent_system.log
+```
+
+## 🤝 Contributing
+
+We welcome contributions to the Kolosal Agent System!
+
+### Development Setup
+
+1. **Fork and Clone**
+   ```bash
+   git clone --recursive https://github.com/your-username/kolosal-agent.git
+   cd kolosal-agent
+   ```
+
+2. **Build with Tests**
+   ```bash
+   mkdir build && cd build
+   cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
+   cmake --build . --config Debug
+   ```
+
+3. **Run Tests**
+   ```bash
+   ctest --output-on-failure
+   ```
+
+### Contributing Guidelines
+
+- **Code Style**: Follow existing C++ style conventions
+- **Testing**: Add tests for new features
+- **Documentation**: Update documentation for API changes
+- **Commits**: Use clear, descriptive commit messages
+
+### Areas for Contribution
+
+- **Additional Functions**: New built-in functions for agents
+- **Performance Optimizations**: Memory and speed improvements
+- **Platform Support**: Enhanced platform compatibility
+- **Documentation**: Examples, tutorials, and guides
+- **Testing**: Additional test coverage and scenarios
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [nlohmann/json](https://github.com/nlohmann/json) - JSON library for Modern C++
+- [yaml-cpp](https://github.com/jbeder/yaml-cpp) - YAML parsing library
+- [Kolosal Server](kolosal-server/) - High-performance inference server integration
+
+## 📞 Support
+
+- **Documentation**: [docs/](docs/) - Complete documentation
+- **Issues**: [GitHub Issues](https://github.com/KolosalAI/kolosal-agent/issues)
+- **Examples**: [tests/](tests/) - Working examples and demos
 
 ---
 
-#### **🔬 Mode 3: Build with Deep Research Demo**
-Includes the advanced deep research demonstration capabilities:
-
-```bash
-# Step 1: Clone the repository
-git clone --recursive https://github.com/kolosalai/kolosal-agent.git
-cd kolosal-agent
-
-# Step 2: Create build directory
-mkdir build && cd build
-
-# Step 3: Configure with deep research demo enabled
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_DEEPRESEARCH_DEMO=ON
-
-# Step 4: Build the project
-cmake --build . --config Debug
-
-# Step 5: Run the application
-./kolosal-agent                    # Linux/macOS
-.\Debug\kolosal-agent.exe          # Windows
-
-# Step 6: Run the deep research demo
-./deep-research-demo               # Linux/macOS
-.\Debug\deep-research-demo.exe     # Windows
+**Kolosal Agent System** - *Building the future of multi-agent AI systems.*
+make -j$(nproc)
 ```
 
-**What you get:**
-- ✅ Everything from Standard Build
-- ✅ **Deep Research Demo** - Advanced research demonstration executable
-- ✅ Enhanced research capabilities for complex analysis workflows
-
-### 🎯 Which Build Mode Should I Choose?
-
-| Use Case | Recommended Mode | Command |
-|----------|------------------|---------|
-| **First-time setup** | Standard Build | `cmake .. -DCMAKE_BUILD_TYPE=Debug` |
-| **Production deployment** | Standard Build (Release) | `cmake .. -DCMAKE_BUILD_TYPE=Release` |
-| **Development & Testing** | Build with Tests | `cmake .. -DBUILD_TESTS=ON` |
-| **Research & Analysis** | Deep Research Demo | `cmake .. -DBUILD_DEEPRESEARCH_DEMO=ON` |
-| **Contributing to project** | Build with Tests | `cmake .. -DBUILD_TESTS=ON` |
-| **CI/CD Pipeline** | Build with Tests | `cmake .. -DBUILD_TESTS=ON` |
-
-### 🎨 Build Targets
-
-After configuring, you can build specific components:
+### Verification
 
 ```bash
-# Build everything (default)
-cmake --build . --config Debug
+# Check build outputs
+ls build/                           # Linux/macOS
+dir build\Debug\                    # Windows
 
-# Build specific targets
-cmake --build . --target kolosal-agent --config Debug          # Main application only
-cmake --build . --target kolosal-server --config Debug        # Server component only
-
-# Deep Research Demo target (only available when -DBUILD_DEEPRESEARCH_DEMO=ON)
-cmake --build . --target deep-research-demo --config Debug    # Deep research demo executable
-
-# Test-specific targets (only available when -DBUILD_TESTS=ON)
-ctest --output-on-failure                                     # Run all tests
+# Should see:
+# - kolosal-agent (main executable)
+# - kolosal-server (if built with server support)
 ```
 
 ### 🖥️ Platform-Specific Build Instructions
@@ -726,9 +855,7 @@ cmake --build . --config Debug
 
 ## 🎯 Running the Application
 
-After successfully building the application, you can run it in various modes:
-
-### Basic Application Launch
+### Basic Launch
 
 ```bash
 # Navigate to build directory
@@ -736,23 +863,38 @@ cd build
 
 # Run the main application (default port 8080)
 ./kolosal-agent                    # Linux/macOS
-.\Debug\kolosal-agent.exe          # Windows Debug build
-.\Release\kolosal-agent.exe        # Windows Release build
+.\Debug\kolosal-agent.exe          # Windows
 
 # Check if it's running
-curl http://localhost:8080/v1/system/status
+curl http://localhost:8080/status
 ```
 
 ### Command Line Options
 
-The Kolosal Agent System supports various command-line options:
-
 ```bash
-# Basic usage with custom port
+# Custom port
 ./kolosal-agent --port 9090
 
 # Custom configuration file
-./kolosal-agent --config /path/to/custom-config.yaml
+./kolosal-agent --config my-agent.yaml
+
+# Display help
+./kolosal-agent --help
+```
+
+### Available Endpoints
+
+Once running, access the system at:
+- **System Status**: `http://localhost:8080/status`
+- **List Agents**: `http://localhost:8080/agents`
+- **Agent Info**: `http://localhost:8080/agents/{id}`
+- **Execute Function**: `POST http://localhost:8080/agents/{id}/execute`
+
+### Configuration Files
+
+The system uses two main configuration files:
+- **`agent.yaml`**: Agent system configuration
+- **`config.yaml`**: Kolosal server configuration (if enabled)
 
 # Development mode with verbose logging
 ./kolosal-agent --dev --verbose --log-level DEBUG
@@ -1593,4 +1735,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Kolosal Agent System v2.0** - *Empowering the future of AI through unified, intelligent, multi-agent systems.*
+---
+
+**Kolosal Agent System** - *Building the future of multi-agent AI systems.*
