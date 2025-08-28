@@ -171,13 +171,23 @@ json WorkflowManager::get_request_result(const std::string& request_id) {
 }
 
 bool WorkflowManager::cancel_request(const std::string& request_id) {
-    std::lock_guard<std::mutex> lock(requests_mutex_);
+    std::shared_ptr<WorkflowRequest> request_to_move = nullptr;
     
-    auto it = active_requests_.find(request_id);
-    if (it != active_requests_.end() && it->second->state == WorkflowState::PENDING) {
-        it->second->state = WorkflowState::CANCELLED;
-        it->second->error = "Request cancelled by user";
-        move_to_completed(it->second);
+    {
+        std::lock_guard<std::mutex> lock(requests_mutex_);
+        
+        auto it = active_requests_.find(request_id);
+        if (it != active_requests_.end() && 
+            (it->second->state == WorkflowState::PENDING || it->second->state == WorkflowState::PROCESSING)) {
+            it->second->state = WorkflowState::CANCELLED;
+            it->second->error = "Request cancelled by user";
+            request_to_move = it->second;
+        }
+    }
+    
+    // Move to completed outside of the lock to avoid deadlock
+    if (request_to_move) {
+        move_to_completed(request_to_move);
         return true;
     }
     
@@ -321,14 +331,26 @@ void WorkflowManager::worker_thread() {
 }
 
 void WorkflowManager::process_request(std::shared_ptr<WorkflowRequest> request) {
-    request->state = WorkflowState::PROCESSING;
+    // Only set to PROCESSING if not already cancelled (protected by mutex)
+    {
+        std::lock_guard<std::mutex> lock(requests_mutex_);
+        if (request->state != WorkflowState::CANCELLED) {
+            request->state = WorkflowState::PROCESSING;
+        }
+    }
     
     try {
         execute_request_with_timeout(request);
     } catch (const std::exception& e) {
-        request->state = WorkflowState::FAILED;
-        request->error = e.what();
-        stats_.failed_requests++;
+        // Only set to FAILED if not already cancelled (protected by mutex)
+        {
+            std::lock_guard<std::mutex> lock(requests_mutex_);
+            if (request->state != WorkflowState::CANCELLED) {
+                request->state = WorkflowState::FAILED;
+                request->error = e.what();
+                stats_.failed_requests++;
+            }
+        }
     }
     
     // Move to completed requests
@@ -366,17 +388,35 @@ void WorkflowManager::execute_request_with_timeout(std::shared_ptr<WorkflowReque
     if (status == std::future_status::ready) {
         try {
             request->result = future.get();
-            request->state = WorkflowState::COMPLETED;
-            stats_.completed_requests++;
+            // Only set to COMPLETED if not already cancelled (protected by mutex)
+            {
+                std::lock_guard<std::mutex> lock(requests_mutex_);
+                if (request->state != WorkflowState::CANCELLED) {
+                    request->state = WorkflowState::COMPLETED;
+                    stats_.completed_requests++;
+                }
+            }
         } catch (const std::exception& e) {
-            request->state = WorkflowState::FAILED;
-            request->error = e.what();
-            stats_.failed_requests++;
+            // Only set to FAILED if not already cancelled (protected by mutex)
+            {
+                std::lock_guard<std::mutex> lock(requests_mutex_);
+                if (request->state != WorkflowState::CANCELLED) {
+                    request->state = WorkflowState::FAILED;
+                    request->error = e.what();
+                    stats_.failed_requests++;
+                }
+            }
         }
     } else {
-        request->state = WorkflowState::TIMEOUT;
-        request->error = "Request execution timed out";
-        stats_.timeout_requests++;
+        // Only set to TIMEOUT if not already cancelled (protected by mutex)
+        {
+            std::lock_guard<std::mutex> lock(requests_mutex_);
+            if (request->state != WorkflowState::CANCELLED) {
+                request->state = WorkflowState::TIMEOUT;
+                request->error = "Request execution timed out";
+                stats_.timeout_requests++;
+            }
+        }
     }
 }
 

@@ -1,4 +1,5 @@
 #include "../include/workflow_types.hpp"
+#include "../include/workflow_manager.hpp"
 #include <random>
 #include <future>
 #include <algorithm>
@@ -993,7 +994,15 @@ WorkflowDefinition WorkflowOrchestrator::parse_workflow_from_yaml(const YAML::No
             
             std::string llm_model;
             if (step_config["llm_model"] && !step_config["llm_model"].IsNull()) {
-                llm_model = step_config["llm_model"].as<std::string>("");
+                llm_model = step_config["llm_model"].as<std::string>();
+                if (llm_model.empty()) {
+                    // If llm_model is explicitly empty in YAML, leave it empty
+                    // But ensure it's not due to parsing error
+                    std::cout << "DEBUG: Found empty llm_model for step: " << step_id << std::endl;
+                }
+            } else {
+                // llm_model field is missing or null, leave empty
+                std::cout << "DEBUG: No llm_model field found for step: " << step_id << std::endl;
             }
             
             // Convert YAML parameters to JSON for compatibility with existing code

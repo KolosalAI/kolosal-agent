@@ -24,7 +24,7 @@
 
 param(
     [Parameter()]
-    [ValidateSet("all", "demo", "quick", "integration", "stress", "simple_demo", "agent_execution", "model_interface", "config_manager", "http_server", "error_scenarios")]
+    [ValidateSet("all", "demo", "quick", "workflow", "integration", "stress", "simple_demo", "minimal_demo", "agent_execution", "model_interface", "config_manager", "workflow_config", "workflow_manager", "workflow_orchestrator", "http_server", "error_scenarios")]
     [string]$TestType = "all",
     
     [Parameter()]
@@ -236,42 +236,106 @@ function Run-TestExecutable {
     }
 }
 
-function Run-Tests {
-    param([string]$TestType)
+function Get-AvailableTests {
+    param([string]$BuildDir)
     
-    Write-Section "Running Tests: $TestType"
+    $availableTests = @{}
+    $debugDir = Join-Path $BuildDir "Debug"
     
-    $testExecutables = @{
+    # If Debug directory doesn't exist, try the build directory directly
+    if (-not (Test-Path $debugDir)) {
+        $debugDir = $BuildDir
+    }
+    
+    # Look for all .exe files that look like tests
+    $testPatterns = @("test_*.exe", "*_test.exe", "*test_demo.exe")
+    
+    foreach ($pattern in $testPatterns) {
+        $testFiles = Get-ChildItem -Path $debugDir -Name $pattern -ErrorAction SilentlyContinue
+        foreach ($testFile in $testFiles) {
+            $testName = [System.IO.Path]::GetFileNameWithoutExtension($testFile)
+            $testKey = $testName -replace "^test_", "" -replace "_test$", "" -replace "test_demo$", "demo"
+            $availableTests[$testKey] = $testFile
+        }
+    }
+    
+    # Also include the predefined mappings for consistency
+    $predefinedTests = @{
         "simple_demo" = "simple_test_demo.exe"
         "minimal_demo" = "minimal_test_demo.exe"
         "agent_execution" = "test_agent_execution.exe"
         "model_interface" = "test_model_interface.exe"
         "config_manager" = "test_config_manager.exe"
+        "workflow_config" = "test_workflow_config.exe"
+        "workflow_manager" = "test_workflow_manager.exe"
+        "workflow_orchestrator" = "test_workflow_orchestrator.exe"
         "http_server" = "test_http_server.exe"
         "error_scenarios" = "test_error_scenarios.exe"
     }
     
+    # Merge discovered tests with predefined ones, checking if they actually exist
+    foreach ($key in $predefinedTests.Keys) {
+        $executablePath = Join-Path $debugDir $predefinedTests[$key]
+        if (Test-Path $executablePath) {
+            $availableTests[$key] = $predefinedTests[$key]
+        }
+    }
+    
+    return $availableTests
+}
+
+function Run-Tests {
+    param([string]$TestType)
+    
+    Write-Section "Running Tests: $TestType"
+    
+    # Dynamically discover available tests
+    $testExecutables = Get-AvailableTests -BuildDir $BUILD_DIR
+    
+    # Get all available test names for the "all" category
+    $allAvailableTests = $testExecutables.Keys | Sort-Object
+    
     $testCategories = @{
         "demo" = @("minimal_demo")
-        "quick" = @("minimal_demo", "model_interface", "config_manager")
+        "quick" = @("minimal_demo", "model_interface", "config_manager", "workflow_config")
+        "workflow" = @("workflow_config", "workflow_manager", "workflow_orchestrator")
         "integration" = @("agent_execution", "http_server")
         "stress" = @("error_scenarios")
-        "all" = @("simple_demo", "model_interface", "config_manager", "agent_execution", "http_server", "error_scenarios")
+        "all" = $allAvailableTests
     }
     
     # Determine which tests to run
     $testsToRun = @()
     
     if ($testCategories.ContainsKey($TestType)) {
-        $testsToRun = $testCategories[$TestType]
+        $requestedTests = $testCategories[$TestType]
+        # Filter to only include tests that actually exist
+        $testsToRun = $requestedTests | Where-Object { $testExecutables.ContainsKey($_) }
     } elseif ($testExecutables.ContainsKey($TestType)) {
         $testsToRun = @($TestType)
     } else {
         Write-ColorOutput "Unknown test type: $TestType" $Colors.Red
+        Write-ColorOutput "Available tests: $($testExecutables.Keys -join ', ')" $Colors.Blue
+        return $false
+    }
+    
+    if ($testsToRun.Count -eq 0) {
+        Write-ColorOutput "No tests found to run for type: $TestType" $Colors.Yellow
+        Write-ColorOutput "Available tests: $($testExecutables.Keys -join ', ')" $Colors.Blue
         return $false
     }
     
     Write-ColorOutput "Tests to run: $($testsToRun -join ', ')" $Colors.Blue
+    
+    if ($VerboseOutput) {
+        Write-ColorOutput "Available test executables:" $Colors.Blue
+        foreach ($key in $testExecutables.Keys | Sort-Object) {
+            $executablePath = Join-Path $BUILD_DIR "Debug" $testExecutables[$key]
+            $exists = Test-Path $executablePath
+            $status = if ($exists) { "✓" } else { "✗" }
+            Write-ColorOutput "  $status $key -> $($testExecutables[$key])" $(if ($exists) { $Colors.Green } else { $Colors.Red })
+        }
+    }
     
     # Run tests
     $results = @{}
@@ -345,10 +409,12 @@ function Show-Usage {
     Write-ColorOutput ""
     Write-ColorOutput "Test Types:" $Colors.Yellow
     Write-ColorOutput "  all          - Run all tests (default)" $Colors.Blue
-    Write-ColorOutput "  quick        - Run quick unit tests (model_interface, config_manager)" $Colors.Blue
+    Write-ColorOutput "  demo         - Run demo tests (minimal_demo)" $Colors.Blue
+    Write-ColorOutput "  quick        - Run quick unit tests (minimal_demo, model_interface, config_manager, workflow_config)" $Colors.Blue
+    Write-ColorOutput "  workflow     - Run workflow tests (workflow_config, workflow_manager, workflow_orchestrator)" $Colors.Blue
     Write-ColorOutput "  integration  - Run integration tests (agent_execution, http_server)" $Colors.Blue
     Write-ColorOutput "  stress       - Run stress and error tests (error_scenarios)" $Colors.Blue
-    Write-ColorOutput "  <test_name>  - Run specific test (agent_execution, model_interface, etc.)" $Colors.Blue
+    Write-ColorOutput "  <test_name>  - Run specific test (any individual test name)" $Colors.Blue
     Write-ColorOutput ""
     Write-ColorOutput "Options:" $Colors.Yellow
     Write-ColorOutput "  -BuildFirst <bool>   - Build tests before running (default: true)" $Colors.Blue
@@ -358,7 +424,8 @@ function Show-Usage {
     Write-ColorOutput "Examples:" $Colors.Yellow
     Write-ColorOutput "  .\run_tests.ps1 -TestType all" $Colors.Blue
     Write-ColorOutput "  .\run_tests.ps1 -TestType quick -VerboseOutput" $Colors.Blue
-    Write-ColorOutput "  .\run_tests.ps1 -TestType integration -OutputFile results.json" $Colors.Blue
+    Write-ColorOutput "  .\run_tests.ps1 -TestType workflow -OutputFile results.json" $Colors.Blue
+    Write-ColorOutput "  .\run_tests.ps1 -TestType model_interface -VerboseOutput" $Colors.Blue
 }
 
 # Main execution

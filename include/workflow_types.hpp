@@ -2,9 +2,18 @@
 
 #include <string>
 #include <memory>
+#include <vector>
+#include <map>
+#include <chrono>
+#include <atomic>
+#include <mutex>
+#include <condition_variable>
+#include <thread>
 #include <json.hpp>
 #include <yaml-cpp/yaml.h>
-#include "workflow_manager.hpp"
+
+// Forward declaration to avoid circular dependency
+class WorkflowManager;
 
 using json = nlohmann::json;
 
@@ -40,8 +49,8 @@ struct WorkflowStep {
                 const std::string& function,
                 const json& params = json::array(),  // Default to empty array for new format
                 const std::string& model = "")
-        : id(step_id), agent_name(agent), function_name(function), 
-          parameters(params), llm_model(model), timeout_ms(30000), optional(false) {}
+        : id(step_id), agent_name(agent), llm_model(model), function_name(function), 
+          parameters(params), timeout_ms(30000), optional(false) {}
 };
 
 /**
