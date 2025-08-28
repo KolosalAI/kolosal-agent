@@ -152,6 +152,11 @@ set(API_SOURCES
     src/api/http_server.cpp
 )
 
+set(WORKFLOW_SOURCES
+    src/workflows/workflow_manager.cpp
+    src/workflows/workflow_types.cpp
+)
+
 set(TOOL_SOURCES
     # Add tool sources here when available
 )
@@ -168,6 +173,7 @@ file(GLOB_RECURSE HEADERS "include/*.h" "include/*.hpp")
 set(ALL_SOURCES
     ${CORE_SOURCES}
     ${API_SOURCES}
+    ${WORKFLOW_SOURCES}
     ${TOOL_SOURCES}
 )
 

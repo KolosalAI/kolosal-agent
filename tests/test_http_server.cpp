@@ -1,6 +1,6 @@
 /**
  * @file test_http_server.cpp
- * @brief Tests for HTTP Server component
+ * @brief Tests for HTTP Server component with Workflow Support
  * @version 2.0.0
  * @author Kolosal AI Team
  * @date 2025
@@ -9,6 +9,8 @@
 #include "../external/yaml-cpp/test/gtest-1.11.0/googletest/include/gtest/gtest.h"
 #include "../include/http_server.hpp"
 #include "../include/agent_manager.hpp"
+#include "../include/workflow_manager.hpp"
+#include "../include/workflow_types.hpp"
 #include <json.hpp>
 #include <chrono>
 #include <thread>
@@ -22,6 +24,14 @@ protected:
         // Create agent manager with test configuration
         config_manager_ = std::make_shared<AgentConfigManager>();
         agent_manager_ = std::make_shared<AgentManager>(config_manager_);
+        
+        // Create workflow manager and orchestrator
+        workflow_manager_ = std::make_shared<WorkflowManager>(agent_manager_);
+        workflow_orchestrator_ = std::make_shared<WorkflowOrchestrator>(workflow_manager_);
+        
+        // Start workflow systems
+        workflow_manager_->start();
+        workflow_orchestrator_->start();
         
         // Create test agents
         test_agent_id_ = agent_manager_->create_agent("HTTPTestAgent", {"chat", "analysis"});
@@ -42,13 +52,20 @@ protected:
         if (http_server_) {
             http_server_->stop();
         }
+        if (workflow_orchestrator_) {
+            workflow_orchestrator_->stop();
+        }
+        if (workflow_manager_) {
+            workflow_manager_->stop();
+        }
         if (agent_manager_) {
             agent_manager_->stop_all_agents();
         }
     }
     
     void startTestServer(int port = 8084) {
-        http_server_ = std::make_unique<HTTPServer>(agent_manager_, "127.0.0.1", port);
+        // Updated constructor to include workflow support
+        http_server_ = std::make_unique<HTTPServer>(agent_manager_, workflow_manager_, workflow_orchestrator_, "127.0.0.1", port);
         ASSERT_TRUE(http_server_->start());
         
         // Give server time to start
@@ -58,6 +75,8 @@ protected:
 protected:
     std::shared_ptr<AgentConfigManager> config_manager_;
     std::shared_ptr<AgentManager> agent_manager_;
+    std::shared_ptr<WorkflowManager> workflow_manager_;
+    std::shared_ptr<WorkflowOrchestrator> workflow_orchestrator_;
     std::unique_ptr<HTTPServer> http_server_;
     std::string test_agent_id_;
 };
@@ -80,8 +99,8 @@ TEST_F(HTTPServerTest, ServerStartupAndShutdown) {
 
 TEST_F(HTTPServerTest, MultipleServerInstances) {
     // Test that we can create multiple server instances on different ports
-    auto server1 = std::make_unique<HTTPServer>(agent_manager_, "127.0.0.1", 8086);
-    auto server2 = std::make_unique<HTTPServer>(agent_manager_, "127.0.0.1", 8087);
+    auto server1 = std::make_unique<HTTPServer>(agent_manager_, workflow_manager_, workflow_orchestrator_, "127.0.0.1", 8086);
+    auto server2 = std::make_unique<HTTPServer>(agent_manager_, workflow_manager_, workflow_orchestrator_, "127.0.0.1", 8087);
     
     EXPECT_TRUE(server1->start());
     EXPECT_TRUE(server2->start());
@@ -94,7 +113,7 @@ TEST_F(HTTPServerTest, MultipleServerInstances) {
 
 TEST_F(HTTPServerTest, InvalidPortHandling) {
     // Test with invalid port (negative)
-    auto invalid_server = std::make_unique<HTTPServer>(agent_manager_, "127.0.0.1", -1);
+    auto invalid_server = std::make_unique<HTTPServer>(agent_manager_, workflow_manager_, workflow_orchestrator_, "127.0.0.1", -1);
     EXPECT_FALSE(invalid_server->start());
     
     // Test with port already in use
@@ -300,6 +319,249 @@ TEST_F(HTTPServerTest, LongRunningOperations) {
 
 // Test HTTP request parsing functionality
 class HTTPRequestParsingTest : public HTTPServerTest {};
+
+// Test Workflow Endpoints
+class HTTPWorkflowTest : public HTTPServerTest {
+protected:
+    void SetUp() override {
+        HTTPServerTest::SetUp();
+        
+        // Load function configurations for workflow tests
+        json function_config;
+        function_config["functions"]["chat"] = {
+            {"description", "Chat function for testing"},
+            {"timeout", 10000},
+            {"parameters", json::array({
+                {{"name", "message"}, {"type", "string"}, {"required", true}},
+                {{"name", "model"}, {"type", "string"}, {"required", false}}
+            })}
+        };
+        function_config["functions"]["analyze"] = {
+            {"description", "Analysis function for testing"},
+            {"timeout", 15000},
+            {"parameters", json::array({
+                {{"name", "text"}, {"type", "string"}, {"required", true}},
+                {{"name", "analysis_type"}, {"type", "string"}, {"required", false}}
+            })}
+        };
+        
+        workflow_manager_->load_function_configs(function_config);
+    }
+};
+
+TEST_F(HTTPWorkflowTest, WorkflowRequestSubmission) {
+    startTestServer(8200);
+    
+    // Test workflow request submission endpoint: POST /workflow/execute
+    // Since we can't make actual HTTP calls in this test, we'll test the underlying functionality
+    
+    json request_params;
+    request_params["message"] = "Test workflow request";
+    request_params["model"] = "test-model";
+    
+    std::string request_id;
+    EXPECT_NO_THROW(request_id = workflow_manager_->submit_request(test_agent_id_, "chat", request_params));
+    EXPECT_FALSE(request_id.empty());
+    
+    // Test getting request status
+    auto request_status = workflow_manager_->get_request_status(request_id);
+    EXPECT_NE(request_status, nullptr);
+    EXPECT_EQ(request_status->agent_name, "HTTPTestAgent");
+}
+
+TEST_F(HTTPWorkflowTest, WorkflowRequestListing) {
+    startTestServer(8201);
+    
+    // Test workflow request listing endpoint: GET /workflow/requests
+    
+    // Submit multiple requests
+    std::vector<std::string> request_ids;
+    for (int i = 0; i < 3; ++i) {
+        json params;
+        params["message"] = "Test request " + std::to_string(i);
+        
+        std::string request_id = workflow_manager_->submit_request(test_agent_id_, "chat", params);
+        request_ids.push_back(request_id);
+    }
+    
+    // List recent requests
+    json requests_list = workflow_manager_->list_recent_requests(10);
+    EXPECT_TRUE(requests_list.is_array());
+    EXPECT_GE(requests_list.size(), 3);
+    
+    // List active requests
+    json active_requests = workflow_manager_->list_active_requests();
+    EXPECT_TRUE(active_requests.is_array());
+}
+
+TEST_F(HTTPWorkflowTest, WorkflowSystemStatus) {
+    startTestServer(8202);
+    
+    // Test workflow system status endpoint: GET /workflow/status
+    
+    json system_status = workflow_manager_->get_system_status();
+    EXPECT_TRUE(system_status["running"].get<bool>());
+    EXPECT_GT(system_status["max_workers"].get<size_t>(), 0);
+    EXPECT_TRUE(system_status.contains("statistics"));
+    
+    auto stats = system_status["statistics"];
+    EXPECT_TRUE(stats.contains("total_requests"));
+    EXPECT_TRUE(stats.contains("active_requests"));
+}
+
+TEST_F(HTTPWorkflowTest, WorkflowOrchestrationEndpoints) {
+    startTestServer(8203);
+    
+    // Test workflow orchestration endpoints
+    
+    // Create a test workflow
+    WorkflowDefinition test_workflow("http_test_workflow", "HTTP Test Workflow");
+    test_workflow.type = WorkflowType::SEQUENTIAL;
+    
+    WorkflowStep step("test_step", "HTTPTestAgent", "chat", json::array({"message", "model"}));
+    test_workflow.steps.push_back(step);
+    
+    // Register workflow (simulates POST /workflows)
+    workflow_orchestrator_->register_workflow(test_workflow);
+    
+    // List workflows (simulates GET /workflows)
+    auto workflows = workflow_orchestrator_->list_workflows();
+    EXPECT_GT(workflows.size(), 0);
+    
+    bool found_test_workflow = false;
+    for (const auto& workflow : workflows) {
+        if (workflow.id == "http_test_workflow") {
+            found_test_workflow = true;
+            EXPECT_EQ(workflow.name, "HTTP Test Workflow");
+            break;
+        }
+    }
+    EXPECT_TRUE(found_test_workflow);
+    
+    // Execute workflow (simulates POST /workflows/execute)
+    json input_data;
+    input_data["message"] = "Test HTTP workflow execution";
+    
+    std::string execution_id;
+    EXPECT_NO_THROW(execution_id = workflow_orchestrator_->execute_workflow_async("http_test_workflow", input_data));
+    EXPECT_FALSE(execution_id.empty());
+    
+    // Get execution status (simulates GET /workflows/executions/{id})
+    auto execution = workflow_orchestrator_->get_execution_status(execution_id);
+    EXPECT_NE(execution, nullptr);
+    EXPECT_EQ(execution->workflow_id, "http_test_workflow");
+}
+
+TEST_F(HTTPWorkflowTest, WorkflowExecutionControl) {
+    startTestServer(8204);
+    
+    // Test workflow execution control endpoints
+    
+    // Create and register a workflow
+    WorkflowDefinition control_workflow("control_test_workflow", "Control Test Workflow");
+    control_workflow.type = WorkflowType::SEQUENTIAL;
+    
+    WorkflowStep step1("step1", "HTTPTestAgent", "chat", json::array({"message", "model"}));
+    WorkflowStep step2("step2", "HTTPTestAgent", "chat", json::array({"message", "model"}));
+    step2.dependencies.push_back("step1");
+    
+    control_workflow.steps.push_back(step1);
+    control_workflow.steps.push_back(step2);
+    
+    workflow_orchestrator_->register_workflow(control_workflow);
+    
+    // Execute workflow
+    json input_data;
+    input_data["message"] = "Control test";
+    
+    std::string execution_id = workflow_orchestrator_->execute_workflow_async("control_test_workflow", input_data);
+    
+    // Test pause execution (simulates PUT /workflows/executions/{id}/pause)
+    EXPECT_TRUE(workflow_orchestrator_->pause_execution(execution_id));
+    
+    auto execution = workflow_orchestrator_->get_execution_status(execution_id);
+    EXPECT_EQ(execution->state, WorkflowExecutionState::PAUSED);
+    
+    // Test resume execution (simulates PUT /workflows/executions/{id}/resume)
+    EXPECT_TRUE(workflow_orchestrator_->resume_execution(execution_id));
+    
+    execution = workflow_orchestrator_->get_execution_status(execution_id);
+    EXPECT_EQ(execution->state, WorkflowExecutionState::RUNNING);
+    
+    // Test cancel execution (simulates PUT /workflows/executions/{id}/cancel)
+    EXPECT_TRUE(workflow_orchestrator_->cancel_execution(execution_id));
+    
+    execution = workflow_orchestrator_->get_execution_status(execution_id);
+    EXPECT_EQ(execution->state, WorkflowExecutionState::CANCELLED);
+}
+
+TEST_F(HTTPWorkflowTest, WorkflowConfigurationLoading) {
+    startTestServer(8205);
+    
+    // Test workflow configuration loading from YAML
+    // This simulates loading workflow.yaml through the HTTP interface
+    
+    // Try to load the test workflow configuration
+    bool config_loaded = workflow_orchestrator_->load_workflow_config("../../../workflow.yaml");
+    if (config_loaded) {
+        // If config loaded successfully, verify workflows were registered
+        auto workflows = workflow_orchestrator_->list_workflows();
+        EXPECT_GT(workflows.size(), 0);
+        
+        // Look for workflows from the configuration file
+        bool found_simple_research = false;
+        bool found_analysis_workflow = false;
+        
+        for (const auto& workflow : workflows) {
+            if (workflow.id == "simple_research") {
+                found_simple_research = true;
+            } else if (workflow.id == "analysis_workflow") {
+                found_analysis_workflow = true;
+            }
+        }
+        
+        // These should be present if the config loaded correctly
+        EXPECT_TRUE(found_simple_research || found_analysis_workflow);
+    } else {
+        // If config didn't load, at least built-in workflows should be available
+        auto workflows = workflow_orchestrator_->list_workflows();
+        EXPECT_GT(workflows.size(), 0);
+    }
+}
+
+TEST_F(HTTPWorkflowTest, ConcurrentWorkflowRequests) {
+    startTestServer(8206);
+    
+    // Test concurrent workflow requests handling
+    const int num_concurrent_requests = 10;
+    std::vector<std::future<std::string>> futures;
+    
+    for (int i = 0; i < num_concurrent_requests; ++i) {
+        auto future = std::async(std::launch::async, [&, i]() {
+            json params;
+            params["message"] = "Concurrent workflow test " + std::to_string(i);
+            
+            return workflow_manager_->submit_request(test_agent_id_, "chat", params);
+        });
+        futures.push_back(std::move(future));
+    }
+    
+    // Wait for all requests to be submitted
+    std::vector<std::string> request_ids;
+    for (auto& future : futures) {
+        EXPECT_NO_THROW({
+            std::string request_id = future.get();
+            EXPECT_FALSE(request_id.empty());
+            request_ids.push_back(request_id);
+        });
+    }
+    
+    EXPECT_EQ(request_ids.size(), num_concurrent_requests);
+    
+    // Verify all requests were processed
+    auto stats = workflow_manager_->get_statistics();
+    EXPECT_GE(stats.total_requests.load(), num_concurrent_requests);
+}
 
 TEST_F(HTTPRequestParsingTest, ParseHTTPRequestBasic) {
     startTestServer(8100);

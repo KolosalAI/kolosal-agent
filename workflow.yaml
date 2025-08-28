@@ -1,0 +1,274 @@
+# Workflow Configuration for Kolosal Agent System
+# This file defines workflows that use agents from agent.yaml with specific LLM models
+
+# Default workflow settings
+settings:
+  max_concurrent_workflows: 10
+  default_timeout_ms: 300000
+  cleanup_completed_after_hours: 24
+  enable_workflow_logging: true
+  log_level: "info"
+
+# Workflow definitions - each workflow pairs agents with specific LLM models
+workflows:
+  # Simple Research Workflow
+  - id: "simple_research"
+    name: "Simple Research Workflow"
+    description: "Basic research workflow using a single agent with specific LLM"
+    type: "sequential"
+    max_execution_time_ms: 180000
+    allow_partial_failure: false
+    steps:
+      - id: "research_step"
+        agent_name: "Researcher"  # References agent from agent.yaml
+        llm_model: "gemma3-1b"    # Specific LLM model from config.yaml
+        function_name: "research"
+        parameters:
+          - "query"
+          - "depth"
+        timeout_ms: 120000
+        optional: false
+
+  # Analysis Workflow with Agent-LLM pairs
+  - id: "analysis_workflow"
+    name: "Text Analysis Workflow"
+    description: "Multi-step analysis using different agents with specific LLMs"
+    type: "sequential"
+    max_execution_time_ms: 240000
+    allow_partial_failure: false
+    steps:
+      - id: "initial_analysis"
+        agent_name: "Analyzer"
+        llm_model: "gemma3-1b"
+        function_name: "analyze"
+        parameters:
+          - "text"
+          - "analysis_type"
+        timeout_ms: 60000
+        optional: false
+      
+      - id: "detailed_analysis"
+        agent_name: "Analyzer"
+        llm_model: "gemma3-1b"
+        function_name: "analyze"
+        parameters:
+          - "text"
+          - "analysis_type"
+          - "context"
+        timeout_ms: 90000
+        optional: false
+        dependencies: ["initial_analysis"]
+
+  # Conversational Workflow
+  - id: "conversation_workflow"
+    name: "Multi-Agent Conversation"
+    description: "Workflow where different agents converse using specific LLMs"
+    type: "sequential"
+    max_execution_time_ms: 300000
+    allow_partial_failure: true
+    steps:
+      - id: "assistant_response"
+        agent_name: "Assistant"
+        llm_model: "gemma3-1b"
+        function_name: "chat"
+        parameters:
+          - "message"
+          - "model"
+        timeout_ms: 30000
+        optional: false
+      
+      - id: "analysis_feedback"
+        agent_name: "Analyzer"
+        llm_model: "gemma3-1b"
+        function_name: "analyze"
+        parameters:
+          - "text"
+          - "analysis_type"
+        timeout_ms: 45000
+        optional: true
+        dependencies: ["assistant_response"]
+
+  # Research and Analysis Pipeline
+  - id: "research_analysis_pipeline"
+    name: "Research and Analysis Pipeline"
+    description: "Complete research pipeline with multiple agents and LLM pairing"
+    type: "sequential"
+    max_execution_time_ms: 600000
+    allow_partial_failure: false
+    steps:
+      - id: "research_phase"
+        agent_name: "Researcher"
+        llm_model: "gemma3-1b"
+        function_name: "research"
+        parameters:
+          - "query"
+          - "depth"
+        timeout_ms: 180000
+        optional: false
+      
+      - id: "analysis_phase"
+        agent_name: "Analyzer"
+        llm_model: "gemma3-1b"
+        function_name: "analyze"
+        parameters:
+          - "text"
+          - "analysis_type"
+        timeout_ms: 120000
+        optional: false
+        dependencies: ["research_phase"]
+      
+      - id: "final_summary"
+        agent_name: "Assistant"
+        llm_model: "gemma3-1b"
+        function_name: "chat"
+        parameters:
+          - "message"
+          - "model"
+        timeout_ms: 60000
+        optional: false
+        dependencies: ["analysis_phase"]
+
+  # Parallel Processing Workflow
+  - id: "parallel_analysis"
+    name: "Parallel Analysis Workflow"
+    description: "Process multiple aspects in parallel using different agent-LLM pairs"
+    type: "parallel"
+    max_execution_time_ms: 180000
+    allow_partial_failure: true
+    steps:
+      - id: "sentiment_analysis"
+        agent_name: "Analyzer"
+        llm_model: "gemma3-1b"
+        function_name: "analyze"
+        parameters:
+          - "text"
+          - "analysis_type"
+        timeout_ms: 60000
+        optional: false
+      
+      - id: "keyword_extraction"
+        agent_name: "Analyzer"
+        llm_model: "gemma3-1b"
+        function_name: "analyze"
+        parameters:
+          - "text"
+          - "analysis_type"
+        timeout_ms: 60000
+        optional: false
+      
+      - id: "summary_generation"
+        agent_name: "Assistant"
+        llm_model: "gemma3-1b"
+        function_name: "chat"
+        parameters:
+          - "message"
+          - "model"
+        timeout_ms: 45000
+        optional: false
+
+  # Conditional Workflow Example
+  - id: "conditional_processing"
+    name: "Conditional Processing Workflow"
+    description: "Workflow with conditional steps based on previous results"
+    type: "conditional"
+    max_execution_time_ms: 240000
+    allow_partial_failure: false
+    steps:
+      - id: "initial_check"
+        agent_name: "Assistant"
+        llm_model: "gemma3-1b"
+        function_name: "chat"
+        parameters:
+          - "message"
+          - "model"
+        timeout_ms: 30000
+        optional: false
+      
+      - id: "detailed_processing"
+        agent_name: "Analyzer"
+        llm_model: "gemma3-1b"
+        function_name: "analyze"
+        parameters:
+          - "text"
+          - "analysis_type"
+        timeout_ms: 90000
+        optional: false
+        condition:
+          type: "contains"
+          field: "steps.initial_check.result"
+          value: "needs processing"
+        dependencies: ["initial_check"]
+
+# Agent-LLM Model Mappings
+# This section defines valid pairings of agents with LLM models
+agent_llm_mappings:
+  Assistant:
+    default_model: "gemma3-1b"
+    supported_models: ["gemma3-1b"]
+    
+  Analyzer:
+    default_model: "gemma3-1b"
+    supported_models: ["gemma3-1b"]
+    
+  Researcher:
+    default_model: "gemma3-1b"
+    supported_models: ["gemma3-1b"]
+
+# Workflow execution settings
+execution:
+  # Maximum number of concurrent workflow executions
+  max_concurrent_executions: 5
+  
+  # Default step timeout if not specified
+  default_step_timeout_ms: 60000
+  
+  # Retry settings for failed steps
+  retry:
+    enabled: true
+    max_attempts: 3
+    backoff_factor: 2.0
+    initial_delay_ms: 1000
+  
+  # Resource limits
+  resources:
+    max_memory_per_workflow: "1GB"
+    max_cpu_usage_percent: 80
+  
+  # Monitoring and logging
+  monitoring:
+    enable_step_metrics: true
+    enable_performance_tracking: true
+    log_step_inputs: false  # Set to true for debugging
+    log_step_outputs: false # Set to true for debugging
+
+# Template workflows for common patterns
+templates:
+  basic_chat:
+    description: "Simple chat interaction with an agent"
+    parameters:
+      - name: "agent_name"
+        type: "string"
+        required: true
+        description: "Name of the agent to use"
+      - name: "message"
+        type: "string"
+        required: true
+        description: "Message to send to agent"
+      - name: "model"
+        type: "string"
+        required: false
+        default: "gemma3-1b"
+        description: "LLM model to use"
+  
+  basic_analysis:
+    description: "Simple text analysis workflow"
+    parameters:
+      - name: "text"
+        type: "string"
+        required: true
+        description: "Text to analyze"
+      - name: "analysis_type"
+        type: "string"
+        required: false
+        default: "summary"
+        description: "Type of analysis to perform"

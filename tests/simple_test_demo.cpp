@@ -12,6 +12,7 @@
 #include <vector>
 #include <chrono>
 #include <memory>
+#include <functional>
 
 // Simple test framework
 class SimpleTest {

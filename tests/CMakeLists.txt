@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Include directories
 include_directories(../include)
 include_directories(../external/nlohmann)
+include_directories(../external/yaml-cpp/include)
 
 # For Windows-specific socket functions
 if(WIN32)
@@ -43,6 +44,15 @@ else()
     # Create a minimal test framework if gtest is not available
 endif()
 
+# YAML-CPP setup
+set(YAML_CPP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../external/yaml-cpp")
+if(EXISTS "${YAML_CPP_DIR}/CMakeLists.txt")
+    add_subdirectory(${YAML_CPP_DIR} "${CMAKE_CURRENT_BINARY_DIR}/yaml-cpp" EXCLUDE_FROM_ALL)
+    message(STATUS "Using yaml-cpp from: ${YAML_CPP_DIR}")
+else()
+    message(FATAL_ERROR "yaml-cpp not found at ${YAML_CPP_DIR}")
+endif()
+
 # Source files for the main project (needed for testing)
 set(KOLOSAL_AGENT_SOURCES
     ../src/core/agent.cpp
@@ -50,6 +60,8 @@ set(KOLOSAL_AGENT_SOURCES
     ../src/core/agent_config.cpp
     ../src/core/model_interface.cpp
     ../src/api/http_server.cpp
+    ../src/workflows/workflow_manager.cpp
+    ../src/workflows/workflow_types.cpp
 )
 
 # Check which source files exist
@@ -80,6 +92,9 @@ function(create_test_executable target_name source_file)
             target_link_libraries(${target_name} gtest)
         endif()
         
+        # Link yaml-cpp library
+        target_link_libraries(${target_name} yaml-cpp)
+        
         target_link_libraries(${target_name} ${PLATFORM_LIBS})
         
         # Set properties
@@ -96,6 +111,9 @@ endfunction()
 # Create test executables
 create_test_executable(test_model_interface test_model_interface.cpp)
 create_test_executable(test_config_manager test_config_manager.cpp)
+create_test_executable(test_workflow_config test_workflow_config.cpp)
+create_test_executable(test_workflow_manager test_workflow_manager.cpp)
+create_test_executable(test_workflow_orchestrator test_workflow_orchestrator.cpp)
 create_test_executable(simple_test_demo simple_test_demo.cpp)
 
 # Add minimal test demo (standalone, no external dependencies)
@@ -140,6 +158,21 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.20")
         set_tests_properties(ConfigManagerTests PROPERTIES TIMEOUT 60)
     endif()
     
+    if(TARGET test_workflow_config)
+        add_test(NAME WorkflowConfigTests COMMAND test_workflow_config)
+        set_tests_properties(WorkflowConfigTests PROPERTIES TIMEOUT 120)
+    endif()
+    
+    if(TARGET test_workflow_manager)
+        add_test(NAME WorkflowManagerTests COMMAND test_workflow_manager)
+        set_tests_properties(WorkflowManagerTests PROPERTIES TIMEOUT 180)
+    endif()
+    
+    if(TARGET test_workflow_orchestrator)
+        add_test(NAME WorkflowOrchestratorTests COMMAND test_workflow_orchestrator)
+        set_tests_properties(WorkflowOrchestratorTests PROPERTIES TIMEOUT 300)
+    endif()
+    
     if(TARGET test_agent_execution)
         add_test(NAME AgentExecutionTests COMMAND test_agent_execution)
         set_tests_properties(AgentExecutionTests PROPERTIES TIMEOUT 300)
@@ -173,7 +206,17 @@ if(TARGET test_model_interface AND TARGET test_config_manager)
     add_custom_target(run_quick_tests
         COMMAND test_model_interface
         COMMAND test_config_manager
-        DEPENDS test_model_interface test_config_manager
+        COMMAND test_workflow_config
+        DEPENDS test_model_interface test_config_manager test_workflow_config
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+endif()
+
+if(TARGET test_workflow_manager AND TARGET test_workflow_orchestrator)
+    add_custom_target(run_workflow_tests
+        COMMAND test_workflow_manager
+        COMMAND test_workflow_orchestrator
+        DEPENDS test_workflow_manager test_workflow_orchestrator
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 endif()

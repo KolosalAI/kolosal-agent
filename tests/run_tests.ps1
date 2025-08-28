@@ -281,7 +281,7 @@ function Run-Tests {
     
     foreach ($testName in $testsToRun) {
         $executableName = $testExecutables[$testName]
-        $executablePath = Join-Path $BUILD_DIR $executableName
+        $executablePath = Join-Path $BUILD_DIR "Debug" $executableName
         
         # Check if executable exists
         if (-not (Test-Path $executablePath)) {

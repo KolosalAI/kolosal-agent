@@ -1,6 +1,8 @@
 #pragma once
 
 #include "agent_manager.hpp"
+#include "workflow_manager.hpp"
+#include "workflow_types.hpp"
 #include <string>
 #include <memory>
 #include <thread>
@@ -31,6 +33,8 @@ using json = nlohmann::json;
 class HTTPServer {
 private:
     std::shared_ptr<AgentManager> agent_manager_;
+    std::shared_ptr<WorkflowManager> workflow_manager_;
+    std::shared_ptr<WorkflowOrchestrator> workflow_orchestrator_;
     std::string host_;
     int port_;
     socket_t server_socket_;
@@ -55,11 +59,31 @@ private:
     void handle_execute_all_tools(socket_t client_socket, const std::string& agent_id, const json& params);
     void handle_system_status(socket_t client_socket);
     
+    // Workflow route handlers
+    void handle_submit_workflow_request(socket_t client_socket, const std::string& body);
+    void handle_get_request_status(socket_t client_socket, const std::string& request_id);
+    void handle_cancel_request(socket_t client_socket, const std::string& request_id);
+    void handle_list_workflow_requests(socket_t client_socket);
+    void handle_workflow_system_status(socket_t client_socket);
+    
+    // Workflow orchestrator handlers
+    void handle_list_workflows(socket_t client_socket);
+    void handle_register_workflow(socket_t client_socket, const std::string& body);
+    void handle_execute_workflow(socket_t client_socket, const std::string& body);
+    void handle_get_workflow_execution(socket_t client_socket, const std::string& execution_id);
+    void handle_control_workflow_execution(socket_t client_socket, const std::string& execution_id, const std::string& action);
+    void handle_list_workflow_executions(socket_t client_socket);
+    
     // Utility
     std::string extract_path_parameter(const std::string& path, const std::string& prefix);
     
 public:
     HTTPServer(std::shared_ptr<AgentManager> agent_manager, 
+               const std::string& host = "127.0.0.1", 
+               int port = 8080);
+    HTTPServer(std::shared_ptr<AgentManager> agent_manager,
+               std::shared_ptr<WorkflowManager> workflow_manager,
+               std::shared_ptr<WorkflowOrchestrator> workflow_orchestrator,
                const std::string& host = "127.0.0.1", 
                int port = 8080);
     ~HTTPServer();

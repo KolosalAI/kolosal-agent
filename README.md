@@ -32,6 +32,14 @@ A powerful multi-agent platform with LLM integration, designed for building soph
 - **Agent Lifecycle Management**: Start, stop, and manage multiple agents simultaneously
 - **System Prompts**: Configure agents with system instructions and specialized prompts
 - **Built-in Functions**: Chat, analysis, research, and custom function execution
+- **Workflow Orchestration**: Complex multi-agent workflows with sequential, parallel, and conditional execution
+
+### 🔄 Advanced Workflow System
+- **Workflow Templates**: Pre-built workflows for research, analysis, and decision-making
+- **Custom Workflows**: Design and register your own multi-step workflows
+- **Execution Control**: Pause, resume, and cancel long-running workflows
+- **Pipeline Processing**: Chain agent outputs as inputs to subsequent steps
+- **Conditional Logic**: Execute steps based on dynamic conditions and results
 
 ### � High-Performance Server
 - **HTTP REST API**: OpenAPI-compatible endpoints for all operations
@@ -105,6 +113,16 @@ curl -X POST http://localhost:8080/agents/Assistant/execute \
 curl -X POST http://localhost:8080/agents/Analyzer/execute \
   -H "Content-Type: application/json" \
   -d '{"function": "analyze", "params": {"text": "Sample text for analysis"}}'
+
+# Execute a research workflow
+curl -X POST http://localhost:8080/workflows/execute \
+  -H "Content-Type: application/json" \
+  -d '{"workflow_id": "research_workflow", "input_data": {"question": "What is AI?"}}'
+
+# Submit a workflow request
+curl -X POST http://localhost:8080/workflow/execute \
+  -H "Content-Type: application/json" \
+  -d '{"agent_name": "Assistant", "function_name": "chat", "parameters": {"message": "Hello!", "model": "default"}}'
 ```
 
 ## 🏗️ Architecture Overview

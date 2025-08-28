@@ -37,6 +37,17 @@ HTTPServer::HTTPServer(std::shared_ptr<AgentManager> agent_manager,
     init_winsock();
 }
 
+HTTPServer::HTTPServer(std::shared_ptr<AgentManager> agent_manager,
+                       std::shared_ptr<WorkflowManager> workflow_manager,
+                       std::shared_ptr<WorkflowOrchestrator> workflow_orchestrator,
+                       const std::string& host, 
+                       int port)
+    : agent_manager_(agent_manager), workflow_manager_(workflow_manager), 
+      workflow_orchestrator_(workflow_orchestrator), host_(host), port_(port), 
+      server_socket_(INVALID_SOCKET) {
+    init_winsock();
+}
+
 HTTPServer::~HTTPServer() {
     stop();
     cleanup_winsock();
@@ -99,6 +110,25 @@ bool HTTPServer::start() {
     std::cout << "  DELETE /agents/{id}         - Delete agent\n";
     std::cout << "  POST   /agents/{id}/execute - Execute function (with model parameter)\n";
     std::cout << "  GET    /status              - System status\n";
+    
+    if (workflow_manager_) {
+        std::cout << "\nWorkflow Management endpoints:\n";
+        std::cout << "  POST   /workflow/execute      - Submit workflow request\n";
+        std::cout << "  GET    /workflow/status/{id}  - Get request status\n";
+        std::cout << "  DELETE /workflow/cancel/{id}  - Cancel request\n";
+        std::cout << "  GET    /workflow/requests     - List workflow requests\n";
+        std::cout << "  GET    /workflow/status       - Workflow system status\n";
+    }
+    
+    if (workflow_orchestrator_) {
+        std::cout << "\nWorkflow Orchestration endpoints:\n";
+        std::cout << "  GET    /workflows             - List workflow definitions\n";
+        std::cout << "  POST   /workflows             - Register workflow definition\n";
+        std::cout << "  POST   /workflows/execute     - Execute workflow\n";
+        std::cout << "  GET    /workflows/executions/{id} - Get execution status\n";
+        std::cout << "  PUT    /workflows/executions/{id}/{action} - Control execution (pause/resume/cancel)\n";
+        std::cout << "  GET    /workflows/executions  - List workflow executions\n";
+    }
     std::cout << "\n";
     std::cout << "Execute function format:\n";
     std::cout << "  {\n";
@@ -197,6 +227,49 @@ void HTTPServer::handle_client(socket_t client_socket) {
             handle_delete_agent(client_socket, agent_id);
         } else if (path == "/status" && method == "GET") {
             handle_system_status(client_socket);
+        }
+        // Workflow Management routes
+        else if (workflow_manager_ && path == "/workflow/execute" && method == "POST") {
+            handle_submit_workflow_request(client_socket, body);
+        } else if (workflow_manager_ && path.find("/workflow/status/") == 0 && method == "GET") {
+            std::string request_id = extract_path_parameter(path, "/workflow/status/");
+            handle_get_request_status(client_socket, request_id);
+        } else if (workflow_manager_ && path.find("/workflow/cancel/") == 0 && method == "DELETE") {
+            std::string request_id = extract_path_parameter(path, "/workflow/cancel/");
+            handle_cancel_request(client_socket, request_id);
+        } else if (workflow_manager_ && path == "/workflow/requests" && method == "GET") {
+            handle_list_workflow_requests(client_socket);
+        } else if (workflow_manager_ && path == "/workflow/status" && method == "GET") {
+            handle_workflow_system_status(client_socket);
+        }
+        // Workflow Orchestration routes
+        else if (workflow_orchestrator_ && path == "/workflows" && method == "GET") {
+            handle_list_workflows(client_socket);
+        } else if (workflow_orchestrator_ && path == "/workflows" && method == "POST") {
+            handle_register_workflow(client_socket, body);
+        } else if (workflow_orchestrator_ && path == "/workflows/execute" && method == "POST") {
+            handle_execute_workflow(client_socket, body);
+        } else if (workflow_orchestrator_ && path.find("/workflows/executions/") == 0 && method == "GET") {
+            std::string execution_id = extract_path_parameter(path, "/workflows/executions/");
+            if (execution_id.find("/") != std::string::npos) {
+                // This is a control action like /workflows/executions/{id}/pause
+                size_t slash_pos = execution_id.find("/");
+                std::string action = execution_id.substr(slash_pos + 1);
+                execution_id = execution_id.substr(0, slash_pos);
+                handle_control_workflow_execution(client_socket, execution_id, action);
+            } else {
+                handle_get_workflow_execution(client_socket, execution_id);
+            }
+        } else if (workflow_orchestrator_ && path.find("/workflows/executions/") == 0 && method == "PUT") {
+            std::string path_part = extract_path_parameter(path, "/workflows/executions/");
+            size_t slash_pos = path_part.find("/");
+            if (slash_pos != std::string::npos) {
+                std::string execution_id = path_part.substr(0, slash_pos);
+                std::string action = path_part.substr(slash_pos + 1);
+                handle_control_workflow_execution(client_socket, execution_id, action);
+            }
+        } else if (workflow_orchestrator_ && path == "/workflows/executions" && method == "GET") {
+            handle_list_workflow_executions(client_socket);
         } else {
             send_error(client_socket, 404, "Not Found");
         }
@@ -547,4 +620,303 @@ std::string HTTPServer::extract_path_parameter(const std::string& path, const st
         return path.substr(prefix.length());
     }
     return "";
+}
+
+// Workflow Management Handlers
+void HTTPServer::handle_submit_workflow_request(socket_t client_socket, const std::string& body) {
+    try {
+        json request_data = json::parse(body);
+        
+        if (!request_data.contains("agent_name") || !request_data.contains("function_name")) {
+            send_error(client_socket, 400, "Missing required fields: agent_name, function_name");
+            return;
+        }
+        
+        std::string agent_name = request_data["agent_name"];
+        std::string function_name = request_data["function_name"];
+        json parameters = request_data.value("parameters", json{});
+        
+        std::string request_id;
+        if (request_data.contains("timeout_ms")) {
+            request_id = workflow_manager_->submit_request_with_timeout(
+                agent_name, function_name, parameters, request_data["timeout_ms"]
+            );
+        } else {
+            request_id = workflow_manager_->submit_request(agent_name, function_name, parameters);
+        }
+        
+        json response;
+        response["request_id"] = request_id;
+        response["status"] = "submitted";
+        response["agent_name"] = agent_name;
+        response["function_name"] = function_name;
+        
+        send_response(client_socket, 200, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_get_request_status(socket_t client_socket, const std::string& request_id) {
+    try {
+        auto request_status = workflow_manager_->get_request_status(request_id);
+        if (!request_status) {
+            send_error(client_socket, 404, "Request not found");
+            return;
+        }
+        
+        json response = WorkflowUtils::request_to_json(*request_status);
+        send_response(client_socket, 200, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_cancel_request(socket_t client_socket, const std::string& request_id) {
+    try {
+        bool cancelled = workflow_manager_->cancel_request(request_id);
+        
+        json response;
+        response["request_id"] = request_id;
+        response["cancelled"] = cancelled;
+        response["message"] = cancelled ? "Request cancelled successfully" : "Request not found or cannot be cancelled";
+        
+        send_response(client_socket, 200, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_list_workflow_requests(socket_t client_socket) {
+    try {
+        json active_requests = workflow_manager_->list_active_requests();
+        json recent_requests = workflow_manager_->list_recent_requests(50);
+        
+        json response;
+        response["active_requests"] = active_requests;
+        response["recent_requests"] = recent_requests;
+        response["total_active"] = active_requests.size();
+        
+        send_response(client_socket, 200, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_workflow_system_status(socket_t client_socket) {
+    try {
+        json system_status = workflow_manager_->get_system_status();
+        send_response(client_socket, 200, system_status.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+// Workflow Orchestration Handlers
+void HTTPServer::handle_list_workflows(socket_t client_socket) {
+    try {
+        auto workflows = workflow_orchestrator_->list_workflows();
+        
+        json response = json::array();
+        for (const auto& workflow : workflows) {
+            json workflow_info;
+            workflow_info["id"] = workflow.id;
+            workflow_info["name"] = workflow.name;
+            workflow_info["description"] = workflow.description;
+            workflow_info["type"] = static_cast<int>(workflow.type);
+            workflow_info["step_count"] = workflow.steps.size();
+            workflow_info["max_execution_time_ms"] = workflow.max_execution_time_ms;
+            workflow_info["allow_partial_failure"] = workflow.allow_partial_failure;
+            response.push_back(workflow_info);
+        }
+        
+        send_response(client_socket, 200, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_register_workflow(socket_t client_socket, const std::string& body) {
+    try {
+        json workflow_data = json::parse(body);
+        
+        if (!workflow_data.contains("id") || !workflow_data.contains("name") || !workflow_data.contains("steps")) {
+            send_error(client_socket, 400, "Missing required fields: id, name, steps");
+            return;
+        }
+        
+        // Create workflow definition from JSON
+        WorkflowDefinition workflow(
+            workflow_data["id"], 
+            workflow_data["name"],
+            static_cast<WorkflowType>(workflow_data.value("type", 0))
+        );
+        
+        workflow.description = workflow_data.value("description", "");
+        workflow.max_execution_time_ms = workflow_data.value("max_execution_time_ms", 300000);
+        workflow.allow_partial_failure = workflow_data.value("allow_partial_failure", false);
+        workflow.global_context = workflow_data.value("global_context", json{});
+        
+        // Parse steps
+        for (const auto& step_data : workflow_data["steps"]) {
+            WorkflowStep step(
+                step_data["id"],
+                step_data["agent_name"],
+                step_data["function_name"],
+                step_data.value("parameters", json{})
+            );
+            
+            step.timeout_ms = step_data.value("timeout_ms", 30000);
+            step.optional = step_data.value("optional", false);
+            step.conditions = step_data.value("conditions", json{});
+            step.dependencies = step_data.value("dependencies", std::vector<std::string>{});
+            
+            workflow.steps.push_back(step);
+        }
+        
+        workflow_orchestrator_->register_workflow(workflow);
+        
+        json response;
+        response["message"] = "Workflow registered successfully";
+        response["workflow_id"] = workflow.id;
+        
+        send_response(client_socket, 201, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_execute_workflow(socket_t client_socket, const std::string& body) {
+    try {
+        json request_data = json::parse(body);
+        
+        if (!request_data.contains("workflow_id")) {
+            send_error(client_socket, 400, "Missing required field: workflow_id");
+            return;
+        }
+        
+        std::string workflow_id = request_data["workflow_id"];
+        json input_data = request_data.value("input_data", json{});
+        bool async_execution = request_data.value("async", true);
+        
+        std::string execution_id;
+        if (async_execution) {
+            execution_id = workflow_orchestrator_->execute_workflow_async(workflow_id, input_data);
+        } else {
+            execution_id = workflow_orchestrator_->execute_workflow(workflow_id, input_data);
+        }
+        
+        json response;
+        response["execution_id"] = execution_id;
+        response["workflow_id"] = workflow_id;
+        response["async"] = async_execution;
+        response["status"] = "submitted";
+        
+        send_response(client_socket, 200, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_get_workflow_execution(socket_t client_socket, const std::string& execution_id) {
+    try {
+        auto execution = workflow_orchestrator_->get_execution_status(execution_id);
+        if (!execution) {
+            send_error(client_socket, 404, "Execution not found");
+            return;
+        }
+        
+        json response;
+        response["execution_id"] = execution->execution_id;
+        response["workflow_id"] = execution->workflow_id;
+        response["state"] = static_cast<int>(execution->state);
+        response["progress_percentage"] = execution->progress_percentage;
+        response["start_time"] = std::chrono::duration_cast<std::chrono::seconds>(
+            execution->start_time.time_since_epoch()).count();
+        
+        if (execution->end_time != std::chrono::system_clock::time_point{}) {
+            response["end_time"] = std::chrono::duration_cast<std::chrono::seconds>(
+                execution->end_time.time_since_epoch()).count();
+        }
+        
+        response["input_data"] = execution->input_data;
+        response["output_data"] = execution->output_data;
+        response["context"] = execution->context;
+        response["error_message"] = execution->error_message;
+        response["step_results"] = execution->step_results;
+        response["step_outputs"] = execution->step_outputs;
+        
+        send_response(client_socket, 200, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_control_workflow_execution(socket_t client_socket, const std::string& execution_id, const std::string& action) {
+    try {
+        bool success = false;
+        std::string message;
+        
+        if (action == "pause") {
+            success = workflow_orchestrator_->pause_execution(execution_id);
+            message = success ? "Execution paused" : "Failed to pause execution";
+        } else if (action == "resume") {
+            success = workflow_orchestrator_->resume_execution(execution_id);
+            message = success ? "Execution resumed" : "Failed to resume execution";
+        } else if (action == "cancel") {
+            success = workflow_orchestrator_->cancel_execution(execution_id);
+            message = success ? "Execution cancelled" : "Failed to cancel execution";
+        } else {
+            send_error(client_socket, 400, "Invalid action. Use: pause, resume, or cancel");
+            return;
+        }
+        
+        json response;
+        response["execution_id"] = execution_id;
+        response["action"] = action;
+        response["success"] = success;
+        response["message"] = message;
+        
+        send_response(client_socket, 200, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_list_workflow_executions(socket_t client_socket) {
+    try {
+        auto executions = workflow_orchestrator_->list_active_executions();
+        
+        json response = json::array();
+        for (const auto& execution : executions) {
+            json execution_info;
+            execution_info["execution_id"] = execution->execution_id;
+            execution_info["workflow_id"] = execution->workflow_id;
+            execution_info["state"] = static_cast<int>(execution->state);
+            execution_info["progress_percentage"] = execution->progress_percentage;
+            execution_info["start_time"] = std::chrono::duration_cast<std::chrono::seconds>(
+                execution->start_time.time_since_epoch()).count();
+            execution_info["error_message"] = execution->error_message;
+            response.push_back(execution_info);
+        }
+        
+        json result;
+        result["active_executions"] = response;
+        result["total_active"] = response.size();
+        
+        send_response(client_socket, 200, result.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
 }

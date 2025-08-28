@@ -315,5 +315,26 @@ json AgentConfigManager::to_json() const {
         config_json["functions"][name] = func_json;
     }
     
+    // Performance
+    config_json["performance"]["max_memory_usage"] = config_.performance.max_memory_usage;
+    config_json["performance"]["cache_size"] = config_.performance.cache_size;
+    config_json["performance"]["worker_threads"] = config_.performance.worker_threads;
+    config_json["performance"]["request_timeout"] = config_.performance.request_timeout;
+    config_json["performance"]["max_request_size"] = config_.performance.max_request_size;
+    
+    // Logging
+    config_json["logging"]["level"] = config_.logging.level;
+    config_json["logging"]["file"] = config_.logging.file;
+    config_json["logging"]["max_file_size"] = config_.logging.max_file_size;
+    config_json["logging"]["max_files"] = config_.logging.max_files;
+    config_json["logging"]["console_output"] = config_.logging.console_output;
+    
+    // Security
+    config_json["security"]["enable_cors"] = config_.security.enable_cors;
+    config_json["security"]["allowed_origins"] = config_.security.allowed_origins;
+    config_json["security"]["max_request_rate"] = config_.security.max_request_rate;
+    config_json["security"]["enable_auth"] = config_.security.enable_auth;
+    config_json["security"]["api_key"] = config_.security.api_key;
+    
     return config_json;
 }

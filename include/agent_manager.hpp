@@ -41,6 +41,8 @@ public:
     // Agent access
     Agent* get_agent(const std::string& agent_id);
     bool agent_exists(const std::string& agent_id) const;
+    std::string get_agent_id_by_name(const std::string& agent_name) const;
+    std::string get_agent_name_by_id(const std::string& agent_id) const;
     
     // Bulk operations
     json list_agents() const;

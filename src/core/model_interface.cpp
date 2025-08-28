@@ -154,8 +154,8 @@ bool ModelInterface::is_model_available(const std::string& model_name) {
     try {
         json models = get_available_models();
         
-        if (models.contains("models") && models["models"].is_array()) {
-            for (const auto& model : models["models"]) {
+        if (models.is_array()) {
+            for (const auto& model : models) {
                 if (model.contains("model_id") && model["model_id"] == model_name) {
                     return model.value("available", false) && model.value("inference_ready", false);
                 }
@@ -172,7 +172,15 @@ bool ModelInterface::is_model_available(const std::string& model_name) {
 json ModelInterface::get_available_models() {
     try {
         std::string response_str = make_http_request(server_url_ + "/models", "GET", "");
-        return json::parse(response_str);
+        json response = json::parse(response_str);
+        
+        // Extract the models array from the response
+        if (response.contains("models") && response["models"].is_array()) {
+            return response["models"];
+        } else {
+            // Return empty array if models key is not found
+            return json::array();
+        }
     } catch (const std::exception& e) {
         std::cerr << "Error getting available models: " << e.what() << std::endl;
         throw std::runtime_error("Failed to get available models: " + std::string(e.what()));

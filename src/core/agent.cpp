@@ -45,7 +45,13 @@ namespace {
 }
 
 Agent::Agent(const std::string& name) 
-    : id_(generate_uuid()), name_(name.empty() ? "Agent-" + id_.substr(0, 8) : name) {
+    : id_(generate_uuid()), name_(name) {
+    
+    // Validate agent name
+    if (name.empty()) {
+        throw std::invalid_argument("Agent name cannot be empty");
+    }
+    
     // Set default system instruction
     system_instruction_ = "You are a helpful AI assistant. Be accurate, helpful, and professional in your responses.";
     

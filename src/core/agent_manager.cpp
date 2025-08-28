@@ -59,10 +59,10 @@ std::string AgentManager::create_agent_with_config(const std::string& name, cons
 #endif
     
     // Add capabilities from config
-    if (config.contains("capabilities")) {
+    if (config.contains("capabilities") && config["capabilities"].is_array()) {
         for (const auto& capability : config["capabilities"]) {
-            if (capability.is_string()) {
-                agent->add_capability(capability);
+            if (capability.is_string() && !capability.is_null()) {
+                agent->add_capability(capability.get<std::string>());
             }
         }
     }
@@ -76,9 +76,11 @@ std::string AgentManager::create_agent_with_config(const std::string& name, cons
     }
     
     // Apply agent-specific system prompt if provided
-    if (config.contains("system_prompt") && !config["system_prompt"].empty()) {
-        std::string system_prompt = config["system_prompt"];
-        agent->set_agent_specific_prompt(system_prompt);
+    if (config.contains("system_prompt") && !config["system_prompt"].is_null() && !config["system_prompt"].empty()) {
+        std::string system_prompt = config.value("system_prompt", "");
+        if (!system_prompt.empty()) {
+            agent->set_agent_specific_prompt(system_prompt);
+        }
     }
     
     agents_[agent_id] = std::move(agent);
@@ -158,6 +160,23 @@ Agent* AgentManager::get_agent(const std::string& agent_id) {
 
 bool AgentManager::agent_exists(const std::string& agent_id) const {
     return agents_.find(agent_id) != agents_.end();
+}
+
+std::string AgentManager::get_agent_id_by_name(const std::string& agent_name) const {
+    for (const auto& [agent_id, agent] : agents_) {
+        if (agent->get_name() == agent_name) {
+            return agent_id;
+        }
+    }
+    return ""; // Empty string if not found
+}
+
+std::string AgentManager::get_agent_name_by_id(const std::string& agent_id) const {
+    auto it = agents_.find(agent_id);
+    if (it != agents_.end()) {
+        return it->second->get_name();
+    }
+    return ""; // Empty string if not found
 }
 
 json AgentManager::list_agents() const {
