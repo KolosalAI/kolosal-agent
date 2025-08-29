@@ -1,0 +1,41 @@
+
+agent_llm_mappings:
+  Assistant:
+    default_model: "test-model"
+    supported_models: ["test-model"]
+  Analyzer:
+    default_model: "test-model"
+    supported_models: ["test-model"]
+  Researcher:
+    default_model: "test-model"
+    supported_models: ["test-model"]
+
+workflows:
+  - id: "test_sequential_workflow"
+    name: "Test Sequential Workflow"
+    type: "sequential"
+    steps:
+      - id: "step1"
+        agent_name: "Assistant"
+        llm_model: "test-model"
+        function_name: "chat"
+        parameters:
+          - "message"
+          - "model"
+      - id: "step2"
+        agent_name: "Analyzer"
+        llm_model: "test-model"
+        function_name: "analyze"
+        parameters:
+          - "text"
+          - "analysis_type"
+        dependencies: ["step1"]
+
+  - id: "test_reloaded_workflow"
+    name: "Test Reloaded Workflow"
+    type: "sequential"
+    steps:
+      - id: "reload_step"
+        agent_name: "Assistant"
+        function_name: "status"
+        parameters: []

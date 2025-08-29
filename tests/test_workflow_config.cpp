@@ -1,5 +1,7 @@
 #include <iostream>
 #include <memory>
+#include <thread>
+#include <chrono>
 #include <gtest/gtest.h>
 #include "../include/workflow_types.hpp"
 #include "../include/workflow_manager.hpp"
@@ -10,45 +12,155 @@
 class WorkflowConfigTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // Create mock agent manager with test configuration
-        config_manager_ = std::make_shared<AgentConfigManager>();
-        agent_manager_ = std::make_shared<AgentManager>(config_manager_);
+        std::cout << "[SetUp] Starting workflow config test setup..." << std::endl;
         
-        // Create test agents that match the workflow configuration
-        assistant_id_ = agent_manager_->create_agent("Assistant", {"chat"});
-        analyzer_id_ = agent_manager_->create_agent("Analyzer", {"analysis"});
-        researcher_id_ = agent_manager_->create_agent("Researcher", {"research"});
+        // Set timeout for entire setup to prevent hanging
+        auto start_time = std::chrono::steady_clock::now();
+        auto timeout_duration = std::chrono::seconds(15); // Reduced from 30 to 15 seconds
         
-        // Start agents
-        agent_manager_->start_agent(assistant_id_);
-        agent_manager_->start_agent(analyzer_id_);
-        agent_manager_->start_agent(researcher_id_);
-        
-        // Create workflow manager
-        workflow_manager_ = std::make_shared<WorkflowManager>(agent_manager_);
-        workflow_manager_->start();
-        
-        // Create workflow orchestrator
-        workflow_orchestrator_ = std::make_shared<WorkflowOrchestrator>(workflow_manager_);
-        workflow_orchestrator_->start();
-        
-        // Create test workflow configuration file
-        createTestWorkflowConfig();
+        try {
+            // Create mock agent manager with test configuration
+            config_manager_ = std::make_shared<AgentConfigManager>();
+            agent_manager_ = std::make_shared<AgentManager>(config_manager_);
+            std::cout << "[SetUp] Created agent manager" << std::endl;
+            
+            // Check timeout
+            if (std::chrono::steady_clock::now() - start_time > timeout_duration) {
+                throw std::runtime_error("Setup timeout during agent manager creation");
+            }
+            
+            // Create test agents that match the workflow configuration
+            assistant_id_ = agent_manager_->create_agent("Assistant", {"chat"});
+            analyzer_id_ = agent_manager_->create_agent("Analyzer", {"analysis"});
+            researcher_id_ = agent_manager_->create_agent("Researcher", {"research"});
+            std::cout << "[SetUp] Created test agents" << std::endl;
+            
+            // Check timeout
+            if (std::chrono::steady_clock::now() - start_time > timeout_duration) {
+                throw std::runtime_error("Setup timeout during agent creation");
+            }
+            
+            // Start agents with timeout protection
+            std::cout << "[SetUp] Starting agents..." << std::endl;
+            agent_manager_->start_agent(assistant_id_);
+            std::cout << "[SetUp] Started Assistant agent" << std::endl;
+            
+            agent_manager_->start_agent(analyzer_id_);
+            std::cout << "[SetUp] Started Analyzer agent" << std::endl;
+            
+            agent_manager_->start_agent(researcher_id_);
+            std::cout << "[SetUp] Started Researcher agent" << std::endl;
+            
+            // Add small delay to ensure agents are properly started
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::cout << "[SetUp] Agents startup delay completed" << std::endl;
+            
+            // Check timeout
+            if (std::chrono::steady_clock::now() - start_time > timeout_duration) {
+                throw std::runtime_error("Setup timeout during agent startup");
+            }
+            
+            // Create workflow manager with shorter queue size
+            std::cout << "[SetUp] Creating workflow manager..." << std::endl;
+            workflow_manager_ = std::make_shared<WorkflowManager>(agent_manager_, 2, 50, 100); // Reduced from 4, 100, 1000
+            workflow_manager_->start();
+            std::cout << "[SetUp] Started workflow manager" << std::endl;
+            
+            // Check timeout
+            if (std::chrono::steady_clock::now() - start_time > timeout_duration) {
+                throw std::runtime_error("Setup timeout during workflow manager startup");
+            }
+            
+            // Create workflow orchestrator
+            std::cout << "[SetUp] Creating workflow orchestrator..." << std::endl;
+            workflow_orchestrator_ = std::make_shared<WorkflowOrchestrator>(workflow_manager_);
+            workflow_orchestrator_->start();
+            std::cout << "[SetUp] Started workflow orchestrator" << std::endl;
+            
+            // Check timeout
+            if (std::chrono::steady_clock::now() - start_time > timeout_duration) {
+                throw std::runtime_error("Setup timeout during workflow orchestrator startup");
+            }
+            
+            // Create test workflow configuration file
+            std::cout << "[SetUp] Creating test configuration file..." << std::endl;
+            createTestWorkflowConfig();
+            std::cout << "[SetUp] Setup completed successfully" << std::endl;
+            
+        } catch (const std::exception& e) {
+            std::cerr << "[SetUp] Error during setup: " << e.what() << std::endl;
+            // Clean up any partially created objects
+            if (workflow_orchestrator_) {
+                workflow_orchestrator_->stop();
+                workflow_orchestrator_.reset();
+            }
+            if (workflow_manager_) {
+                workflow_manager_->stop();
+                workflow_manager_.reset();
+            }
+            if (agent_manager_) {
+                agent_manager_->stop_all_agents();
+                agent_manager_.reset();
+            }
+            throw;
+        }
     }
 
     void TearDown() override {
-        if (workflow_orchestrator_) {
-            workflow_orchestrator_->stop();
+        std::cout << "[TearDown] Starting cleanup..." << std::endl;
+        
+        try {
+            if (workflow_orchestrator_) {
+                std::cout << "[TearDown] Stopping workflow orchestrator..." << std::endl;
+                workflow_orchestrator_->stop();
+                workflow_orchestrator_.reset();
+                std::cout << "[TearDown] Workflow orchestrator stopped" << std::endl;
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[TearDown] Error stopping workflow orchestrator: " << e.what() << std::endl;
         }
-        if (workflow_manager_) {
-            workflow_manager_->stop();
+        
+        try {
+            if (workflow_manager_) {
+                std::cout << "[TearDown] Stopping workflow manager..." << std::endl;
+                workflow_manager_->stop();
+                workflow_manager_.reset();
+                std::cout << "[TearDown] Workflow manager stopped" << std::endl;
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[TearDown] Error stopping workflow manager: " << e.what() << std::endl;
         }
-        if (agent_manager_) {
-            agent_manager_->stop_all_agents();
+        
+        try {
+            if (agent_manager_) {
+                std::cout << "[TearDown] Stopping all agents..." << std::endl;
+                agent_manager_->stop_all_agents();
+                agent_manager_.reset();
+                std::cout << "[TearDown] All agents stopped" << std::endl;
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[TearDown] Error stopping agents: " << e.what() << std::endl;
+        }
+        
+        try {
+            if (config_manager_) {
+                config_manager_.reset();
+                std::cout << "[TearDown] Config manager reset" << std::endl;
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[TearDown] Error resetting config manager: " << e.what() << std::endl;
         }
         
         // Clean up test files
-        std::remove("test_workflow.yaml");
+        std::cout << "[TearDown] Cleaning up test files..." << std::endl;
+        try {
+            std::remove("test_workflow.yaml");
+            std::cout << "[TearDown] Test files cleaned up" << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "[TearDown] Error cleaning up test files: " << e.what() << std::endl;
+        }
+        
+        std::cout << "[TearDown] Cleanup completed" << std::endl;
     }
     
     void createTestWorkflowConfig() {
@@ -153,24 +265,34 @@ workflows:
 };
 
 TEST_F(WorkflowConfigTest, LoadWorkflowConfig) {
+    std::cout << "[TEST] Starting LoadWorkflowConfig test..." << std::endl;
+    
     // Test loading workflow configuration
+    std::cout << "[TEST] Loading workflow config..." << std::endl;
     bool result = workflow_orchestrator_->load_workflow_config("test_workflow.yaml");
+    std::cout << "[TEST] Load result: " << (result ? "true" : "false") << std::endl;
     EXPECT_TRUE(result);
     
     // Test getting config
+    std::cout << "[TEST] Getting workflow config..." << std::endl;
     auto config = workflow_orchestrator_->get_workflow_config();
+    std::cout << "[TEST] Got workflow config" << std::endl;
     // Config might be empty if YAML conversion is limited, but loading should succeed
     
     // Check that workflows were loaded
+    std::cout << "[TEST] Listing workflows..." << std::endl;
     auto workflows = workflow_orchestrator_->list_workflows();
+    std::cout << "[TEST] Found " << workflows.size() << " workflows" << std::endl;
     EXPECT_GT(workflows.size(), 0);
     
     // Check specific workflow exists
+    std::cout << "[TEST] Checking specific workflows..." << std::endl;
     bool found_simple_research = false;
     bool found_analysis_workflow = false;
     bool found_parallel_workflow = false;
     
     for (const auto& workflow : workflows) {
+        std::cout << "[TEST] Processing workflow: " << workflow.id << std::endl;
         if (workflow.id == "test_simple_research") {
             found_simple_research = true;
             EXPECT_EQ(workflow.name, "Test Simple Research Workflow");

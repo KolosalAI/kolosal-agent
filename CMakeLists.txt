@@ -158,7 +158,7 @@ set(WORKFLOW_SOURCES
 )
 
 set(TOOL_SOURCES
-    # Add tool sources here when available
+    src/functions/retrieval_functions.cpp
 )
 
 # Add retrieval manager if kolosal-server is built

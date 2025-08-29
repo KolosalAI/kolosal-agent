@@ -430,34 +430,84 @@ private:
 class WorkflowOrchestratorTest {
 public:
     void SetUp() {
-        // Create agent manager with test agents
-        config_manager_ = std::make_shared<AgentConfigManager>();
-        agent_manager_ = std::make_shared<AgentManager>(config_manager_);
+        // Set timeout for entire setup to prevent hanging
+        auto start_time = std::chrono::steady_clock::now();
+        auto timeout_duration = std::chrono::seconds(30);
         
-        // Create test agents that match common workflow patterns
-        assistant_id_ = agent_manager_->create_agent("Assistant", {"chat", "status"});
-        analyzer_id_ = agent_manager_->create_agent("Analyzer", {"analysis", "analyze"});
-        researcher_id_ = agent_manager_->create_agent("Researcher", {"research"});
-        
-        // Start agents
-        agent_manager_->start_agent(assistant_id_);
-        agent_manager_->start_agent(analyzer_id_);
-        agent_manager_->start_agent(researcher_id_);
-        
-        // Wait for agents to start
-        waitForAgentsStartup();
-        
-        // Create workflow manager
-        workflow_manager_ = std::make_shared<WorkflowManager>(agent_manager_, 4, 100, 1000);
-        loadTestFunctionConfigs();
-        workflow_manager_->start();
-        
-        // Create workflow orchestrator
-        workflow_orchestrator_ = std::make_shared<MockWorkflowOrchestrator>(workflow_manager_);
-        workflow_orchestrator_->start();
-        
-        // Ensure built-in workflows are registered after start
-        workflow_orchestrator_->register_builtin_workflows();
+        try {
+            // Create agent manager with test agents
+            config_manager_ = std::make_shared<AgentConfigManager>();
+            agent_manager_ = std::make_shared<AgentManager>(config_manager_);
+            
+            // Check timeout
+            if (std::chrono::steady_clock::now() - start_time > timeout_duration) {
+                throw std::runtime_error("Setup timeout during agent manager creation");
+            }
+            
+            // Create test agents that match common workflow patterns
+            assistant_id_ = agent_manager_->create_agent("Assistant", {"chat", "status"});
+            analyzer_id_ = agent_manager_->create_agent("Analyzer", {"analysis", "analyze"});
+            researcher_id_ = agent_manager_->create_agent("Researcher", {"research"});
+            
+            // Check timeout
+            if (std::chrono::steady_clock::now() - start_time > timeout_duration) {
+                throw std::runtime_error("Setup timeout during agent creation");
+            }
+            
+            // Start agents
+            agent_manager_->start_agent(assistant_id_);
+            agent_manager_->start_agent(analyzer_id_);
+            agent_manager_->start_agent(researcher_id_);
+            
+            // Wait for agents to start with timeout
+            waitForAgentsStartup();
+            
+            // Check timeout
+            if (std::chrono::steady_clock::now() - start_time > timeout_duration) {
+                throw std::runtime_error("Setup timeout during agent startup");
+            }
+            
+            // Create workflow manager
+            workflow_manager_ = std::make_shared<WorkflowManager>(agent_manager_, 4, 100, 1000);
+            loadTestFunctionConfigs();
+            workflow_manager_->start();
+            
+            // Check timeout
+            if (std::chrono::steady_clock::now() - start_time > timeout_duration) {
+                throw std::runtime_error("Setup timeout during workflow manager startup");
+            }
+            
+            // Create workflow orchestrator
+            workflow_orchestrator_ = std::make_shared<MockWorkflowOrchestrator>(workflow_manager_);
+            workflow_orchestrator_->start();
+            
+            // Check timeout
+            if (std::chrono::steady_clock::now() - start_time > timeout_duration) {
+                throw std::runtime_error("Setup timeout during workflow orchestrator startup");
+            }
+            
+            // Ensure built-in workflows are registered after start
+            workflow_orchestrator_->register_builtin_workflows();
+            
+            std::cout << "[SetUp] WorkflowOrchestrator setup completed successfully" << std::endl;
+            
+        } catch (const std::exception& e) {
+            std::cerr << "[SetUp] Error during WorkflowOrchestrator setup: " << e.what() << std::endl;
+            // Clean up any partially created objects
+            if (workflow_orchestrator_) {
+                workflow_orchestrator_->stop();
+                workflow_orchestrator_.reset();
+            }
+            if (workflow_manager_) {
+                workflow_manager_->stop();
+                workflow_manager_.reset();
+            }
+            if (agent_manager_) {
+                agent_manager_->stop_all_agents();
+                agent_manager_.reset();
+            }
+            throw;
+        }
     }
     
     void TearDown() {

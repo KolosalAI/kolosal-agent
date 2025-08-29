@@ -59,6 +59,7 @@ set(KOLOSAL_AGENT_SOURCES
     ../src/core/agent_manager.cpp
     ../src/core/agent_config.cpp
     ../src/core/model_interface.cpp
+    ../src/core/retrieval_manager.cpp
     ../src/api/http_server.cpp
     ../src/workflows/workflow_manager.cpp
     ../src/workflows/workflow_types.cpp
@@ -114,6 +115,7 @@ create_test_executable(test_config_manager test_config_manager.cpp)
 create_test_executable(test_workflow_config test_workflow_config.cpp)
 create_test_executable(test_workflow_manager test_workflow_manager.cpp)
 create_test_executable(test_workflow_orchestrator test_workflow_orchestrator.cpp)
+create_test_executable(test_retrieval_agent test_retrieval_agent.cpp)
 create_test_executable(simple_test_demo simple_test_demo.cpp)
 
 # Add minimal test demo (standalone, no external dependencies)
@@ -156,6 +158,11 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.20")
     if(TARGET test_config_manager)
         add_test(NAME ConfigManagerTests COMMAND test_config_manager)
         set_tests_properties(ConfigManagerTests PROPERTIES TIMEOUT 60)
+    endif()
+    
+    if(TARGET test_retrieval_agent)
+        add_test(NAME RetrievalAgentTests COMMAND test_retrieval_agent)
+        set_tests_properties(RetrievalAgentTests PROPERTIES TIMEOUT 120)
     endif()
     
     if(TARGET test_workflow_config)
@@ -207,7 +214,8 @@ if(TARGET test_model_interface AND TARGET test_config_manager)
         COMMAND test_model_interface
         COMMAND test_config_manager
         COMMAND test_workflow_config
-        DEPENDS test_model_interface test_config_manager test_workflow_config
+        COMMAND test_retrieval_agent
+        DEPENDS test_model_interface test_config_manager test_workflow_config test_retrieval_agent
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 endif()

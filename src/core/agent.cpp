@@ -379,6 +379,157 @@ void Agent::setup_retrieval_functions() {
         }
         return retrieval_manager_->combined_search(params);
     });
+    
+    // Enhanced retrieval function that combines document search with AI-generated answers
+    register_function("retrieve_and_answer", [this](const json& params) -> json {
+        if (!retrieval_manager_ || !retrieval_manager_->is_available()) {
+            throw std::runtime_error("Retrieval system not available");
+        }
+        
+        std::string question = params.value("question", "");
+        if (question.empty()) {
+            throw std::runtime_error("Missing 'question' parameter");
+        }
+        
+        std::string model_name = params.value("model", "");
+        if (model_name.empty()) {
+            throw std::runtime_error("Missing 'model' parameter");
+        }
+        
+        int max_docs = params.value("max_docs", 5);
+        bool include_sources = params.value("include_sources", true);
+        
+        json result;
+        result["question"] = question;
+        result["model_used"] = model_name;
+        result["timestamp"] = get_timestamp();
+        
+        try {
+            // Search for relevant documents
+            json search_params;
+            search_params["query"] = question;
+            search_params["limit"] = max_docs;
+            
+            json search_results = retrieval_manager_->search_documents(search_params);
+            result["retrieved_documents"] = search_results;
+            
+            // Build context from retrieved documents
+            std::string context = "Based on the following retrieved documents, please answer the user's question:\n\n";
+            
+            if (search_results.contains("results") && search_results["results"].is_array()) {
+                int doc_count = 0;
+                for (const auto& doc : search_results["results"]) {
+                    if (doc.contains("content")) {
+                        context += "Document " + std::to_string(++doc_count) + ":\n";
+                        context += doc["content"].get<std::string>() + "\n\n";
+                        
+                        if (include_sources && doc.contains("metadata")) {
+                            auto metadata = doc["metadata"];
+                            if (metadata.contains("title")) {
+                                context += "Source: " + metadata["title"].get<std::string>() + "\n";
+                            }
+                            if (metadata.contains("author")) {
+                                context += "Author: " + metadata["author"].get<std::string>() + "\n";
+                            }
+                        }
+                        context += "---\n\n";
+                    }
+                }
+            }
+            
+            context += "Question: " + question + "\n\n";
+            context += "Please provide a comprehensive answer based on the retrieved documents above. ";
+            if (include_sources) {
+                context += "Include references to the sources where applicable.";
+            }
+            
+            // Generate AI response using the model
+            if (!model_interface_->is_model_available(model_name)) {
+                throw std::runtime_error("Model '" + model_name + "' is not available");
+            }
+            
+            std::string ai_response = model_interface_->chat_with_model(
+                model_name,
+                context,
+                "You are an expert information analyst. Provide accurate, well-structured answers based on the provided documents."
+            );
+            
+            result["answer"] = ai_response;
+            result["context_length"] = context.length();
+            result["documents_used"] = max_docs;
+            result["sources_included"] = include_sources;
+            result["status"] = "success";
+            
+        } catch (const std::exception& e) {
+            result["error"] = e.what();
+            result["status"] = "error";
+            result["answer"] = "I apologize, but I encountered an error while retrieving and processing the information: " + std::string(e.what());
+        }
+        
+        return result;
+    });
+    
+    // Enhanced document analysis function
+    register_function("analyze_document", [this](const json& params) -> json {
+        std::string content = params.value("content", "");
+        if (content.empty()) {
+            throw std::runtime_error("Missing 'content' parameter");
+        }
+        
+        return RetrievalFunctions::analyze_document_structure(content);
+    });
+    
+    // Batch document processing
+    register_function("batch_add_documents", [this](const json& params) -> json {
+        if (!retrieval_manager_ || !retrieval_manager_->is_available()) {
+            throw std::runtime_error("Retrieval system not available");
+        }
+        
+        if (!params.contains("documents")) {
+            throw std::runtime_error("Missing 'documents' parameter");
+        }
+        
+        return RetrievalFunctions::batch_add_documents(params["documents"]);
+    });
+    
+    // Document clustering and organization
+    register_function("organize_documents", [this](const json& params) -> json {
+        if (!retrieval_manager_ || !retrieval_manager_->is_available()) {
+            throw std::runtime_error("Retrieval system not available");
+        }
+        
+        return RetrievalFunctions::organize_documents_by_similarity(params);
+    });
+    
+    // Knowledge graph extraction
+    register_function("extract_knowledge_graph", [this](const json& params) -> json {
+        if (!retrieval_manager_ || !retrieval_manager_->is_available()) {
+            throw std::runtime_error("Retrieval system not available");
+        }
+        
+        if (!params.contains("documents")) {
+            throw std::runtime_error("Missing 'documents' parameter");
+        }
+        
+        return RetrievalFunctions::extract_knowledge_graph(params["documents"]);
+    });
+    
+    // Search suggestions
+    register_function("get_search_suggestions", [this](const json& params) -> json {
+        std::string query = params.value("query", "");
+        if (query.empty()) {
+            throw std::runtime_error("Missing 'query' parameter");
+        }
+        
+        auto suggestions = RetrievalFunctions::generate_search_suggestions(query);
+        
+        json result;
+        result["query"] = query;
+        result["suggestions"] = suggestions;
+        result["count"] = suggestions.size();
+        
+        return result;
+    });
 }
 
 void Agent::configure_retrieval(const json& config) {

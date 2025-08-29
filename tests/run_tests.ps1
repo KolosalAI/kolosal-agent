@@ -12,19 +12,21 @@
     Whether to build tests before running (default: true)
 .PARAMETER Verbose
     Enable verbose output
-.PARAMETER OutputFile
-    File to save test results
+.PARAMETER TimeoutMinutes
+    Timeout in minutes for individual test execution (default: 10)
 .EXAMPLE
     .\run_tests.ps1 -TestType all
 .EXAMPLE
     .\run_tests.ps1 -TestType quick -Verbose
 .EXAMPLE
     .\run_tests.ps1 -TestType integration -OutputFile test_results.txt
+.EXAMPLE
+    .\run_tests.ps1 -TestType retrieval -TimeoutMinutes 5
 #>
 
 param(
     [Parameter()]
-    [ValidateSet("all", "demo", "quick", "workflow", "integration", "stress", "simple_demo", "minimal_demo", "agent_execution", "model_interface", "config_manager", "workflow_config", "workflow_manager", "workflow_orchestrator", "http_server", "error_scenarios")]
+    [ValidateSet("all", "demo", "quick", "workflow", "integration", "stress", "retrieval", "simple_demo", "minimal_demo", "agent_execution", "model_interface", "config_manager", "workflow_config", "workflow_manager", "workflow_orchestrator", "http_server", "error_scenarios", "retrieval_agent")]
     [string]$TestType = "all",
     
     [Parameter()]
@@ -34,7 +36,10 @@ param(
     [switch]$VerboseOutput,
     
     [Parameter()]
-    [string]$OutputFile = ""
+    [string]$OutputFile = "",
+    
+    [Parameter()]
+    [int]$TimeoutMinutes = 1
 )
 
 # Set error handling
@@ -185,7 +190,8 @@ function Build-Tests {
 function Run-TestExecutable {
     param(
         [string]$TestName,
-        [string]$ExecutablePath
+        [string]$ExecutablePath,
+        [int]$TimeoutMinutes = 1
     )
     
     Write-ColorOutput "`nRunning $TestName..." $Colors.Magenta
@@ -195,6 +201,17 @@ function Run-TestExecutable {
     try {
         $outputFile = Join-Path $TEST_RESULTS_DIR "$TestName.xml"
         $logFile = Join-Path $TEST_RESULTS_DIR "$TestName.log"
+        
+        # Ensure test results directory exists
+        if (-not (Test-Path $TEST_RESULTS_DIR)) {
+            New-Item -ItemType Directory -Path $TEST_RESULTS_DIR -Force | Out-Null
+        }
+        
+        # Verify executable exists before running
+        if (-not (Test-Path $ExecutablePath)) {
+            Write-ColorOutput "✗ $TestName FAILED - Executable not found: $ExecutablePath" $Colors.Red
+            return @{ Success = $false; Duration = 0; Error = "Executable not found" }
+        }
         
         # Run test with XML output for detailed results
         $testArgs = @(
@@ -206,25 +223,117 @@ function Run-TestExecutable {
             $testArgs += "--gtest_print_utf8=1"
         }
         
-        # Capture both stdout and stderr
-        $output = & $ExecutablePath @testArgs 2>&1 | Tee-Object -FilePath $logFile
-        $exitCode = $LASTEXITCODE
+        # Special handling for error_scenarios and http_server tests to avoid hanging
+        if ($TestName -eq "error_scenarios" -or $TestName -eq "http_server") {
+            # Run without output redirection to avoid buffering issues
+            $process = Start-Process -FilePath $ExecutablePath -ArgumentList $testArgs -Wait -PassThru -NoNewWindow
+            $exitCode = $process.ExitCode
+            
+            $endTime = Get-Date
+            $duration = ($endTime - $startTime).TotalSeconds
+            
+            if ($exitCode -eq 0) {
+                Write-ColorOutput "✓ $TestName PASSED (${duration}s)" $Colors.Green
+                return @{ Success = $true; Duration = $duration; Output = @() }
+            } else {
+                Write-ColorOutput "✗ $TestName FAILED (${duration}s)" $Colors.Red
+                return @{ Success = $false; Duration = $duration; Output = @(); ExitCode = $exitCode }
+            }
+        }
+        
+        # Adjust timeout for specific tests that need more time
+        $actualTimeoutMinutes = $TimeoutMinutes
+        if ($TestName -eq "error_scenarios" -or $TestName -eq "http_server") {
+            $actualTimeoutMinutes = 5  # Increase timeout for stress tests and http server tests
+        }
+        
+        # Run test with timeout support using Start-Process
+        # For workflow and model interface tests that may have I/O deadlock issues,
+        # use a simpler approach without output redirection
+        if ($TestName -match "workflow|model_interface") {
+            $process = Start-Process -FilePath $ExecutablePath -ArgumentList $testArgs -Wait -PassThru -NoNewWindow
+            $exitCode = $process.ExitCode
+            $output = @()  # No output captured to prevent deadlock
+            $errorOutput = ""
+        } else {
+            $processStartInfo = New-Object System.Diagnostics.ProcessStartInfo
+            $processStartInfo.FileName = $ExecutablePath
+            $processStartInfo.Arguments = $testArgs -join " "
+            $processStartInfo.RedirectStandardOutput = $true
+            $processStartInfo.RedirectStandardError = $true
+            $processStartInfo.UseShellExecute = $false
+            $processStartInfo.CreateNoWindow = $true
+            
+            $process = New-Object System.Diagnostics.Process
+            $process.StartInfo = $processStartInfo
+            
+            # Start process and wait with timeout
+            $process.Start() | Out-Null
+            $timeoutMs = $actualTimeoutMinutes * 60 * 1000
+            
+            # Monitor progress with periodic updates
+            $checkIntervalMs = 2000  # Check every 2 seconds
+            $totalWaitedMs = 0
+            
+            while ($totalWaitedMs -lt $timeoutMs) {
+                $processExited = $process.WaitForExit($checkIntervalMs)
+                if ($processExited) {
+                    break
+                }
+                
+                $totalWaitedMs += $checkIntervalMs
+                $elapsedSeconds = [math]::Round($totalWaitedMs / 1000, 1)
+                
+                # Show progress for long-running tests
+                if (($TestName -eq "error_scenarios" -or $TestName -eq "http_server") -and ($totalWaitedMs % 5000) -eq 0) {
+                    Write-ColorOutput "  Still running... (${elapsedSeconds}s elapsed)" $Colors.Yellow
+                }
+            }
+            
+            if (-not $processExited) {
+                # Kill process if it times out
+                try {
+                    $process.Kill()
+                    $process.WaitForExit(5000) # Wait up to 5 seconds for process to die
+                } catch {
+                    Write-ColorOutput "Warning: Could not kill timed-out process" $Colors.Yellow
+                }
+                
+                $endTime = Get-Date
+                $duration = ($endTime - $startTime).TotalSeconds
+                Write-ColorOutput "✗ $TestName TIMED OUT (${duration}s)" $Colors.Red
+                return @{ Success = $false; Duration = $duration; Error = "Test timed out after $actualTimeoutMinutes minutes" }
+            }
+            
+            # Get output and exit code
+            $output = $process.StandardOutput.ReadToEnd()
+            $errorOutput = $process.StandardError.ReadToEnd()
+            $exitCode = $process.ExitCode
+        }
+        
+        # Combine outputs
+        $combinedOutput = @()
+        if ($output) { $combinedOutput += $output.Split("`n") }
+        if ($errorOutput) { $combinedOutput += $errorOutput.Split("`n") }
+        
+        # Write output to log file
+        $combinedOutput | Out-File -FilePath $logFile -Encoding UTF8
         
         $endTime = Get-Date
         $duration = ($endTime - $startTime).TotalSeconds
         
         if ($exitCode -eq 0) {
             Write-ColorOutput "✓ $TestName PASSED (${duration}s)" $Colors.Green
-            return @{ Success = $true; Duration = $duration; Output = $output }
+            return @{ Success = $true; Duration = $duration; Output = $combinedOutput }
         } else {
             Write-ColorOutput "✗ $TestName FAILED (${duration}s)" $Colors.Red
             if ($VerboseOutput) {
                 Write-ColorOutput "Error output:" $Colors.Red
-                $output | Where-Object { $_ -match "FAILED|ERROR|FATAL" } | ForEach-Object {
+                $combinedOutput | Where-Object { $_ -match "FAILED|ERROR|FATAL" } | ForEach-Object {
                     Write-ColorOutput "  $_" $Colors.Red
                 }
             }
-            return @{ Success = $false; Duration = $duration; Output = $output; ExitCode = $exitCode }
+            return @{ Success = $false; Duration = $duration; Output = $combinedOutput; ExitCode = $exitCode }
         }
         
     } catch {
@@ -233,6 +342,19 @@ function Run-TestExecutable {
         Write-ColorOutput "✗ $TestName CRASHED (${duration}s)" $Colors.Red
         Write-ColorOutput "Error: $($_.Exception.Message)" $Colors.Red
         return @{ Success = $false; Duration = $duration; Error = $_.Exception.Message }
+    } finally {
+        # Clean up process if it still exists
+        if ($process -and !$process.HasExited) {
+            try {
+                $process.Kill()
+                $process.WaitForExit(1000)
+            } catch {
+                # Ignore cleanup errors
+            }
+        }
+        if ($process) {
+            $process.Dispose()
+        }
     }
 }
 
@@ -240,12 +362,39 @@ function Get-AvailableTests {
     param([string]$BuildDir)
     
     $availableTests = @{}
-    $debugDir = Join-Path $BuildDir "Debug"
     
-    # If Debug directory doesn't exist, try the build directory directly
-    if (-not (Test-Path $debugDir)) {
-        $debugDir = $BuildDir
+    # Try multiple possible locations for test executables
+    $possibleDirs = @(
+        (Join-Path $BuildDir "Debug"),
+        (Join-Path $BuildDir "Release"),
+        $BuildDir,
+        (Join-Path $BuildDir "x64\Debug"),
+        (Join-Path $BuildDir "x64\Release")
+    )
+    
+    $debugDir = $null
+    foreach ($dir in $possibleDirs) {
+        if (Test-Path $dir) {
+            $testFiles = Get-ChildItem -Path $dir -Name "*.exe" -ErrorAction SilentlyContinue
+            if ($testFiles.Count -gt 0) {
+                $debugDir = $dir
+                Write-ColorOutput "Found test executables in: $dir" $Colors.Blue
+                break
+            }
+        }
     }
+    
+    if (-not $debugDir) {
+        Write-ColorOutput "⚠ No test executables found in any expected location" $Colors.Yellow
+        Write-ColorOutput "Searched directories:" $Colors.Blue
+        foreach ($dir in $possibleDirs) {
+            $exists = Test-Path $dir
+            Write-ColorOutput "  $($exists ? '✓' : '✗') $dir" $(if ($exists) { $Colors.Green } else { $Colors.Red })
+        }
+        return $availableTests
+    }
+    
+    Write-ColorOutput "Using test directory: $debugDir" $Colors.Blue
     
     # Look for all .exe files that look like tests
     $testPatterns = @("test_*.exe", "*_test.exe", "*test_demo.exe")
@@ -255,7 +404,16 @@ function Get-AvailableTests {
         foreach ($testFile in $testFiles) {
             $testName = [System.IO.Path]::GetFileNameWithoutExtension($testFile)
             $testKey = $testName -replace "^test_", "" -replace "_test$", "" -replace "test_demo$", "demo"
-            $availableTests[$testKey] = $testFile
+            $fullPath = Join-Path $debugDir $testFile
+            
+            # Verify the executable is valid
+            if (Test-Path $fullPath) {
+                $availableTests[$testKey] = @{
+                    ExecutableName = $testFile
+                    FullPath = $fullPath
+                }
+                Write-ColorOutput "  Found test: $testKey -> $testFile" $Colors.Green
+            }
         }
     }
     
@@ -271,14 +429,30 @@ function Get-AvailableTests {
         "workflow_orchestrator" = "test_workflow_orchestrator.exe"
         "http_server" = "test_http_server.exe"
         "error_scenarios" = "test_error_scenarios.exe"
+        "retrieval_agent" = "test_retrieval_agent.exe"
     }
     
     # Merge discovered tests with predefined ones, checking if they actually exist
     foreach ($key in $predefinedTests.Keys) {
         $executablePath = Join-Path $debugDir $predefinedTests[$key]
         if (Test-Path $executablePath) {
-            $availableTests[$key] = $predefinedTests[$key]
+            # Only add if not already discovered
+            if (-not $availableTests.ContainsKey($key)) {
+                $availableTests[$key] = @{
+                    ExecutableName = $predefinedTests[$key]
+                    FullPath = $executablePath
+                }
+                Write-ColorOutput "  Added predefined test: $key -> $($predefinedTests[$key])" $Colors.Green
+            }
+        } else {
+            Write-ColorOutput "  Missing predefined test: $key -> $($predefinedTests[$key])" $Colors.Yellow
         }
+    }
+    
+    if ($availableTests.Count -eq 0) {
+        Write-ColorOutput "⚠ No valid test executables found" $Colors.Yellow
+    } else {
+        Write-ColorOutput "Total tests found: $($availableTests.Count)" $Colors.Green
     }
     
     return $availableTests
@@ -292,6 +466,11 @@ function Run-Tests {
     # Dynamically discover available tests
     $testExecutables = Get-AvailableTests -BuildDir $BUILD_DIR
     
+    if ($testExecutables.Count -eq 0) {
+        Write-ColorOutput "No test executables found. Build may have failed or tests not compiled." $Colors.Red
+        return $false
+    }
+    
     # Get all available test names for the "all" category
     $allAvailableTests = $testExecutables.Keys | Sort-Object
     
@@ -300,6 +479,7 @@ function Run-Tests {
         "quick" = @("minimal_demo", "model_interface", "config_manager", "workflow_config")
         "workflow" = @("workflow_config", "workflow_manager", "workflow_orchestrator")
         "integration" = @("agent_execution", "http_server")
+        "retrieval" = @("retrieval_agent")
         "stress" = @("error_scenarios")
         "all" = $allAvailableTests
     }
@@ -311,11 +491,21 @@ function Run-Tests {
         $requestedTests = $testCategories[$TestType]
         # Filter to only include tests that actually exist
         $testsToRun = $requestedTests | Where-Object { $testExecutables.ContainsKey($_) }
+        
+        # Report missing tests
+        $missingTests = $requestedTests | Where-Object { -not $testExecutables.ContainsKey($_) }
+        if ($missingTests.Count -gt 0) {
+            Write-ColorOutput "⚠ Some tests in category '$TestType' are not available:" $Colors.Yellow
+            foreach ($missing in $missingTests) {
+                Write-ColorOutput "  - $missing" $Colors.Yellow
+            }
+        }
     } elseif ($testExecutables.ContainsKey($TestType)) {
         $testsToRun = @($TestType)
     } else {
         Write-ColorOutput "Unknown test type: $TestType" $Colors.Red
-        Write-ColorOutput "Available tests: $($testExecutables.Keys -join ', ')" $Colors.Blue
+        Write-ColorOutput "Available test categories: $($testCategories.Keys -join ', ')" $Colors.Blue
+        Write-ColorOutput "Available individual tests: $($testExecutables.Keys -join ', ')" $Colors.Blue
         return $false
     }
     
@@ -326,14 +516,20 @@ function Run-Tests {
     }
     
     Write-ColorOutput "Tests to run: $($testsToRun -join ', ')" $Colors.Blue
+    Write-ColorOutput "Total tests to execute: $($testsToRun.Count)" $Colors.Blue
     
     if ($VerboseOutput) {
         Write-ColorOutput "Available test executables:" $Colors.Blue
         foreach ($key in $testExecutables.Keys | Sort-Object) {
-            $executablePath = Join-Path $BUILD_DIR "Debug" $testExecutables[$key]
-            $exists = Test-Path $executablePath
+            $testInfo = $testExecutables[$key]
+            $exists = Test-Path $testInfo.FullPath
             $status = if ($exists) { "✓" } else { "✗" }
-            Write-ColorOutput "  $status $key -> $($testExecutables[$key])" $(if ($exists) { $Colors.Green } else { $Colors.Red })
+            $sizeInfo = ""
+            if ($exists) {
+                $size = (Get-Item $testInfo.FullPath).Length
+                $sizeInfo = " ($('{0:N0}' -f $size) bytes)"
+            }
+            Write-ColorOutput "  $status $key -> $($testInfo.ExecutableName)$sizeInfo" $(if ($exists) { $Colors.Green } else { $Colors.Red })
         }
     }
     
@@ -342,19 +538,39 @@ function Run-Tests {
     $totalDuration = 0
     $passedTests = 0
     $failedTests = 0
+    $skippedTests = 0
     
     foreach ($testName in $testsToRun) {
-        $executableName = $testExecutables[$testName]
-        $executablePath = Join-Path $BUILD_DIR "Debug" $executableName
+        $testInfo = $testExecutables[$testName]
+        $executablePath = $testInfo.FullPath
         
-        # Check if executable exists
+        # Check if executable exists and is valid
         if (-not (Test-Path $executablePath)) {
             Write-ColorOutput "✗ Test executable not found: $executablePath" $Colors.Red
             $failedTests++
+            $results[$testName] = @{ Success = $false; Duration = 0; Error = "Executable not found" }
             continue
         }
         
-        $result = Run-TestExecutable -TestName $testName -ExecutablePath $executablePath
+        # Check if executable is accessible
+        try {
+            $fileInfo = Get-Item $executablePath -ErrorAction Stop
+            if ($fileInfo.Length -eq 0) {
+                Write-ColorOutput "✗ Test executable is empty: $executablePath" $Colors.Red
+                $failedTests++
+                $results[$testName] = @{ Success = $false; Duration = 0; Error = "Executable is empty" }
+                continue
+            }
+        } catch {
+            Write-ColorOutput "✗ Cannot access test executable: $executablePath" $Colors.Red
+            $failedTests++
+            $results[$testName] = @{ Success = $false; Duration = 0; Error = "Cannot access executable: $($_.Exception.Message)" }
+            continue
+        }
+        
+        # Run the test
+        Write-ColorOutput "Starting test: $testName" $Colors.Cyan
+        $result = Run-TestExecutable -TestName $testName -ExecutablePath $executablePath -TimeoutMinutes $TimeoutMinutes
         $results[$testName] = $result
         $totalDuration += $result.Duration
         
@@ -362,24 +578,57 @@ function Run-Tests {
             $passedTests++
         } else {
             $failedTests++
+            # Log failure details for debugging
+            if ($result.Error) {
+                Write-ColorOutput "  Error details: $($result.Error)" $Colors.Red
+            }
+            if ($result.ExitCode) {
+                Write-ColorOutput "  Exit code: $($result.ExitCode)" $Colors.Red
+            }
+        }
+        
+        # Add small delay between tests to prevent resource conflicts
+        if ($testsToRun.Count -gt 1) {
+            Start-Sleep -Milliseconds 500
         }
     }
     
     # Generate summary
     Write-Header "Test Results Summary"
     
+    Write-ColorOutput "Test Category: $TestType" $Colors.Blue
     Write-ColorOutput "Total Tests: $($testsToRun.Count)" $Colors.Blue
     Write-ColorOutput "Passed: $passedTests" $Colors.Green
     Write-ColorOutput "Failed: $failedTests" $(if ($failedTests -eq 0) { $Colors.Green } else { $Colors.Red })
+    if ($skippedTests -gt 0) {
+        Write-ColorOutput "Skipped: $skippedTests" $Colors.Yellow
+    }
     Write-ColorOutput "Total Duration: ${totalDuration}s" $Colors.Blue
     
+    if ($totalDuration -gt 0) {
+        $avgDuration = $totalDuration / $testsToRun.Count
+        Write-ColorOutput "Average Duration per Test: $($avgDuration.ToString('F2'))s" $Colors.Blue
+    }
+    
     # Detailed results
+    Write-ColorOutput "`nDetailed Results:" $Colors.Blue
     foreach ($testName in $testsToRun) {
         if ($results.ContainsKey($testName)) {
             $result = $results[$testName]
             $status = if ($result.Success) { "PASS" } else { "FAIL" }
             $color = if ($result.Success) { $Colors.Green } else { $Colors.Red }
-            Write-ColorOutput "  $testName`: $status (${result.Duration}s)" $color
+            $durationStr = "{0:F2}" -f $result.Duration
+            Write-ColorOutput "  $testName`: $status (${durationStr}s)" $color
+            
+            # Show additional error info for failed tests
+            if (-not $result.Success -and $VerboseOutput) {
+                if ($result.Error) {
+                    Write-ColorOutput "    Error: $($result.Error)" $Colors.Red
+                }
+                if ($result.ExitCode) {
+                    Write-ColorOutput "    Exit Code: $($result.ExitCode)" $Colors.Red
+                }
+            }
         }
     }
     
@@ -391,15 +640,32 @@ function Run-Tests {
             TotalTests = $testsToRun.Count
             PassedTests = $passedTests
             FailedTests = $failedTests
+            SkippedTests = $skippedTests
             TotalDuration = $totalDuration
+            AverageDuration = if ($testsToRun.Count -gt 0) { $totalDuration / $testsToRun.Count } else { 0 }
             Results = $results
+            TestsRun = $testsToRun
+            AvailableTests = $testExecutables.Keys
         }
         
-        $resultData | ConvertTo-Json -Depth 5 | Out-File -FilePath $OutputFile -Encoding UTF8
-        Write-ColorOutput "`nResults saved to: $OutputFile" $Colors.Blue
+        try {
+            $resultData | ConvertTo-Json -Depth 5 | Out-File -FilePath $OutputFile -Encoding UTF8
+            Write-ColorOutput "`nResults saved to: $OutputFile" $Colors.Blue
+        } catch {
+            Write-ColorOutput "`nFailed to save results to: $OutputFile" $Colors.Red
+            Write-ColorOutput "Error: $($_.Exception.Message)" $Colors.Red
+        }
     }
     
-    return ($failedTests -eq 0)
+    # Return success only if all tests passed
+    $success = ($failedTests -eq 0)
+    if ($success) {
+        Write-ColorOutput "`n🎉 All tests passed successfully!" $Colors.Green
+    } else {
+        Write-ColorOutput "`n❌ $failedTests test(s) failed" $Colors.Red
+    }
+    
+    return $success
 }
 
 function Show-Usage {
@@ -413,18 +679,21 @@ function Show-Usage {
     Write-ColorOutput "  quick        - Run quick unit tests (minimal_demo, model_interface, config_manager, workflow_config)" $Colors.Blue
     Write-ColorOutput "  workflow     - Run workflow tests (workflow_config, workflow_manager, workflow_orchestrator)" $Colors.Blue
     Write-ColorOutput "  integration  - Run integration tests (agent_execution, http_server)" $Colors.Blue
+    Write-ColorOutput "  retrieval    - Run retrieval agent tests (retrieval_agent)" $Colors.Blue
     Write-ColorOutput "  stress       - Run stress and error tests (error_scenarios)" $Colors.Blue
     Write-ColorOutput "  <test_name>  - Run specific test (any individual test name)" $Colors.Blue
     Write-ColorOutput ""
     Write-ColorOutput "Options:" $Colors.Yellow
-    Write-ColorOutput "  -BuildFirst <bool>   - Build tests before running (default: true)" $Colors.Blue
-    Write-ColorOutput "  -VerboseOutput           - Enable verbose output" $Colors.Blue
-    Write-ColorOutput "  -OutputFile <file>   - Save results to JSON file" $Colors.Blue
+    Write-ColorOutput "  -BuildFirst <bool>     - Build tests before running (default: true)" $Colors.Blue
+    Write-ColorOutput "  -VerboseOutput         - Enable verbose output" $Colors.Blue
+    Write-ColorOutput "  -OutputFile <file>     - Save results to JSON file" $Colors.Blue
+    Write-ColorOutput "  -TimeoutMinutes <int>  - Timeout for individual tests in minutes (default: 10)" $Colors.Blue
     Write-ColorOutput ""
     Write-ColorOutput "Examples:" $Colors.Yellow
     Write-ColorOutput "  .\run_tests.ps1 -TestType all" $Colors.Blue
     Write-ColorOutput "  .\run_tests.ps1 -TestType quick -VerboseOutput" $Colors.Blue
     Write-ColorOutput "  .\run_tests.ps1 -TestType workflow -OutputFile results.json" $Colors.Blue
+    Write-ColorOutput "  .\run_tests.ps1 -TestType retrieval -VerboseOutput" $Colors.Blue
     Write-ColorOutput "  .\run_tests.ps1 -TestType model_interface -VerboseOutput" $Colors.Blue
 }
 
@@ -435,6 +704,7 @@ try {
     Write-ColorOutput "Test Type: $TestType" $Colors.Blue
     Write-ColorOutput "Build First: $BuildFirst" $Colors.Blue
     Write-ColorOutput "Verbose: $VerboseOutput" $Colors.Blue
+    Write-ColorOutput "Timeout: $TimeoutMinutes minutes" $Colors.Blue
     if ($OutputFile) {
         Write-ColorOutput "Output File: $OutputFile" $Colors.Blue
     }

@@ -94,7 +94,7 @@ curl http://localhost:8080/status
 
 Once running, the system provides:
 - **Web API**: `http://localhost:8080` for all operations
-- **Default Agents**: Assistant, Analyzer, and Researcher agents pre-configured
+- **Default Agents**: Assistant, Analyzer, Researcher, and RetrievalAgent pre-configured
 - **Configuration**: `agent.yaml` for agent system, `config.yaml` for kolosal-server
 - **Real-time API**: Immediate agent creation and function execution
 
@@ -113,6 +113,16 @@ curl -X POST http://localhost:8080/agents/Assistant/execute \
 curl -X POST http://localhost:8080/agents/Analyzer/execute \
   -H "Content-Type: application/json" \
   -d '{"function": "analyze", "params": {"text": "Sample text for analysis"}}'
+
+# Add document to retrieval system
+curl -X POST http://localhost:8080/agents/RetrievalAgent/execute \
+  -H "Content-Type: application/json" \
+  -d '{"function": "add_document", "params": {"content": "AI is transforming industries...", "title": "AI Overview"}}'
+
+# Search documents and get AI-powered answer
+curl -X POST http://localhost:8080/agents/RetrievalAgent/execute \
+  -H "Content-Type: application/json" \
+  -d '{"function": "retrieve_and_answer", "params": {"question": "What is AI?", "model": "your_model"}}'
 
 # Execute a research workflow
 curl -X POST http://localhost:8080/workflows/execute \
@@ -334,6 +344,14 @@ agents:
     system_prompt: |
       You are an AI analyst specialized in text and data analysis.
       Provide detailed analysis with clear insights and conclusions.
+
+  - name: "RetrievalAgent"
+    capabilities: ["retrieval", "document_management", "semantic_search", "knowledge_base", "vector_search"]
+    auto_start: true
+    system_prompt: |
+      You are an AI agent specialized in information retrieval and document management.
+      You excel at managing documents, performing semantic search, and providing
+      context-aware responses using retrieved information.
 
 # Available functions
 functions:

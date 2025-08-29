@@ -163,8 +163,11 @@ WorkflowDefinition* WorkflowOrchestrator::get_workflow(const std::string& workfl
 std::string WorkflowOrchestrator::execute_workflow(const std::string& workflow_id, const json& input_data) {
     auto execution_id = execute_workflow_async(workflow_id, input_data);
     
-    // Wait for completion
-    while (true) {
+    // Wait for completion with timeout to prevent infinite loops
+    auto start_time = std::chrono::steady_clock::now();
+    auto timeout_duration = std::chrono::minutes(2); // 2 minute timeout for tests
+    
+    while (std::chrono::steady_clock::now() - start_time < timeout_duration) {
         auto execution = get_execution_status(execution_id);
         if (!execution) break;
         
@@ -176,6 +179,13 @@ std::string WorkflowOrchestrator::execute_workflow(const std::string& workflow_i
         }
         
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    
+    // Check if we timed out
+    auto execution = get_execution_status(execution_id);
+    if (execution && execution->state == WorkflowExecutionState::RUNNING) {
+        execution->state = WorkflowExecutionState::TIMEOUT;
+        execution->error_message = "Workflow execution timed out";
     }
     
     return execution_id;
@@ -297,7 +307,8 @@ void WorkflowOrchestrator::orchestrator_thread() {
         // Get next execution to process
         {
             std::unique_lock<std::mutex> lock(orchestrator_mutex_);
-            execution_condition_.wait(lock, [this] {
+            // Add timeout to wait to prevent infinite blocking
+            execution_condition_.wait_for(lock, std::chrono::seconds(5), [this] {
                 return !running_.load() || 
                        std::any_of(active_executions_.begin(), active_executions_.end(),
                                   [](const auto& pair) {
@@ -319,7 +330,15 @@ void WorkflowOrchestrator::orchestrator_thread() {
         }
         
         if (execution) {
-            process_execution(execution);
+            try {
+                process_execution(execution);
+            } catch (const std::exception& e) {
+                std::cerr << "[WorkflowOrchestrator] Error processing execution " << execution->execution_id 
+                          << ": " << e.what() << std::endl;
+                execution->state = WorkflowExecutionState::FAILED;
+                execution->error_message = e.what();
+                move_to_completed(execution);
+            }
         }
     }
 }
@@ -621,9 +640,15 @@ bool WorkflowOrchestrator::execute_step(const WorkflowStep& step, std::shared_pt
 void WorkflowOrchestrator::wait_for_step_completion(const std::string& request_id,
                                                    std::shared_ptr<WorkflowExecution> execution,
                                                    const WorkflowStep& step) {
-    while (execution->state == WorkflowExecutionState::RUNNING) {
+    auto start_time = std::chrono::steady_clock::now();
+    auto timeout_duration = std::chrono::seconds(30); // Reduced to 30 second timeout for individual steps
+    
+    while (execution->state == WorkflowExecutionState::RUNNING && 
+           std::chrono::steady_clock::now() - start_time < timeout_duration) {
         auto request_status = workflow_manager_->get_request_status(request_id);
         if (!request_status) {
+            // If request status is null, the request might not exist or be completed
+            std::cerr << "[WorkflowOrchestrator] Warning: Request status is null for request: " << request_id << std::endl;
             break;
         }
         
@@ -632,11 +657,24 @@ void WorkflowOrchestrator::wait_for_step_completion(const std::string& request_i
             execution->context[step.id + "_output"] = request_status->result;
             break;
         } else if (request_status->state == WorkflowState::FAILED ||
-                  request_status->state == WorkflowState::TIMEOUT) {
+                  request_status->state == WorkflowState::TIMEOUT ||
+                  request_status->state == WorkflowState::CANCELLED) {
             throw std::runtime_error("Step execution failed: " + request_status->error);
         }
         
+        // Add more verbose logging for debugging
+        if (std::chrono::steady_clock::now() - start_time > std::chrono::seconds(5)) {
+            std::cerr << "[WorkflowOrchestrator] Step " << step.id << " taking longer than 5 seconds, state: " 
+                      << static_cast<int>(request_status->state) << std::endl;
+        }
+        
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    
+    // Check if we timed out
+    if (std::chrono::steady_clock::now() - start_time >= timeout_duration) {
+        std::cerr << "[WorkflowOrchestrator] Step execution timed out after 30 seconds: " << step.id << std::endl;
+        throw std::runtime_error("Step execution timed out: " + step.id);
     }
 }
 

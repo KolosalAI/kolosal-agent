@@ -52,6 +52,23 @@ agents:
       Your role is to help users find accurate information and verify facts.
       Always cite sources when possible and present information objectively.
 
+  - name: "RetrievalAgent"
+    capabilities: ["retrieval", "document_management", "semantic_search", "knowledge_base", "vector_search"]
+    auto_start: true
+    system_prompt: |
+      You are an AI agent specialized in information retrieval and document management.
+      Your primary functions include:
+      - Managing and organizing documents in a vector database
+      - Performing semantic search across document collections
+      - Retrieving relevant information based on user queries
+      - Maintaining knowledge bases and document repositories
+      - Providing context-aware responses using retrieved information
+      
+      You excel at finding relevant information quickly and accurately, 
+      understanding document relationships, and presenting retrieved information 
+      in a clear and organized manner. Always provide source references 
+      when returning information from documents.
+
 # Available functions that agents can execute
 functions:
   chat:
@@ -110,6 +127,163 @@ functions:
     description: "Agent status information"
     timeout: 5000
     parameters: []
+
+  # Retrieval and document management functions
+  add_document:
+    description: "Add a document to the vector database for future retrieval"
+    timeout: 60000
+    parameters:
+      - name: "content"
+        type: "string"
+        required: true
+        description: "Document content to be indexed"
+      - name: "title"
+        type: "string"
+        required: false
+        description: "Document title or identifier"
+      - name: "metadata"
+        type: "object"
+        required: false
+        description: "Additional metadata for the document (tags, author, date, etc.)"
+      - name: "chunk_size"
+        type: "integer"
+        required: false
+        description: "Size of text chunks for vectorization (default: 512)"
+
+  search_documents:
+    description: "Search for documents using semantic similarity"
+    timeout: 30000
+    parameters:
+      - name: "query"
+        type: "string"
+        required: true
+        description: "Search query to find relevant documents"
+      - name: "limit"
+        type: "integer"
+        required: false
+        description: "Maximum number of results to return (default: 10)"
+      - name: "threshold"
+        type: "number"
+        required: false
+        description: "Minimum similarity score threshold (0.0-1.0)"
+      - name: "filter"
+        type: "object"
+        required: false
+        description: "Metadata filters to apply to the search"
+
+  list_documents:
+    description: "List all documents in the vector database"
+    timeout: 30000
+    parameters:
+      - name: "offset"
+        type: "integer"
+        required: false
+        description: "Number of documents to skip (for pagination)"
+      - name: "limit"
+        type: "integer"
+        required: false
+        description: "Maximum number of documents to return"
+      - name: "filter"
+        type: "object"
+        required: false
+        description: "Metadata filters to apply"
+
+  remove_document:
+    description: "Remove a document from the vector database"
+    timeout: 30000
+    parameters:
+      - name: "id"
+        type: "string"
+        required: true
+        description: "Document ID to remove"
+
+  internet_search:
+    description: "Search the internet for information"
+    timeout: 60000
+    parameters:
+      - name: "query"
+        type: "string"
+        required: true
+        description: "Search query for internet search"
+      - name: "results"
+        type: "integer"
+        required: false
+        description: "Number of search results to return (default: 10)"
+      - name: "language"
+        type: "string"
+        required: false
+        description: "Language for search results (default: en)"
+
+  retrieve_and_answer:
+    description: "Retrieve relevant documents and provide an AI-generated answer"
+    timeout: 90000
+    parameters:
+      - name: "question"
+        type: "string"
+        required: true
+        description: "Question to answer using retrieved documents"
+      - name: "model"
+        type: "string"
+        required: true
+        description: "AI model to use for generating the answer"
+      - name: "max_docs"
+        type: "integer"
+        required: false
+        description: "Maximum number of documents to retrieve for context"
+      - name: "include_sources"
+        type: "boolean"
+        required: false
+        description: "Whether to include source references in the answer"
+
+  # Enhanced retrieval functions
+  analyze_document:
+    description: "Analyze document structure and extract metadata"
+    timeout: 30000
+    parameters:
+      - name: "content"
+        type: "string"
+        required: true
+        description: "Document content to analyze"
+
+  batch_add_documents:
+    description: "Add multiple documents to the vector database at once"
+    timeout: 120000
+    parameters:
+      - name: "documents"
+        type: "array"
+        required: true
+        description: "Array of documents to add (each with content and optional metadata)"
+
+  organize_documents:
+    description: "Organize documents by similarity clustering"
+    timeout: 60000
+    parameters:
+      - name: "threshold"
+        type: "number"
+        required: false
+        description: "Similarity threshold for clustering (0.0-1.0, default: 0.8)"
+      - name: "max_clusters"
+        type: "integer"
+        required: false
+        description: "Maximum number of clusters to create (default: 10)"
+
+  extract_knowledge_graph:
+    description: "Extract knowledge graph from a collection of documents"
+    timeout: 90000
+    parameters:
+      - name: "documents"
+        type: "array"
+        required: true
+        description: "Array of documents to analyze for knowledge extraction"
+
+  get_search_suggestions:
+    description: "Generate search query suggestions based on input"
+    timeout: 10000
+    parameters:
+      - name: "query"
+        type: "string"
+        required: true
+        description: "Base query to generate suggestions for"
 
 # Performance and resource configuration
 performance:

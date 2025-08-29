@@ -69,7 +69,15 @@ The minimal test demo uses mock objects and doesn't require any external librari
 - **Concurrent Execution**: Multiple simultaneous function calls
 - **Timeout Handling**: Function execution time limits
 
-### 6. Error Handling Tests (`test_error_scenarios.cpp`)
+### 6. Retrieval Agent System Tests (`test_retrieval_agent.cpp`)
+- **Document Management**: Add, search, list, and remove documents in vector database
+- **Internet Search**: Mock and real web search functionality
+- **Combined Search**: Local document + internet search integration
+- **Configuration Testing**: Retrieval system configuration validation
+- **Error Scenarios**: Unavailable systems, invalid parameters, edge cases
+- **Agent Integration**: Retrieval functions within agent execution context
+
+### 7. Error Handling Tests (`test_error_scenarios.cpp`)
 - **Configuration Errors**: Malformed YAML, missing files, invalid data types
 - **Agent Creation Errors**: Invalid names, capabilities, excessive creation
 - **Function Execution Errors**: Invalid functions, parameters, timeouts
@@ -84,6 +92,7 @@ The minimal test demo uses mock objects and doesn't require any external librari
 - `test_model_interface.cpp` - Model interface specific tests
 - `test_config_manager.cpp` - Configuration management tests
 - `test_http_server.cpp` - HTTP server specific tests
+- `test_retrieval_agent.cpp` - Retrieval system and document management tests
 - `test_error_scenarios.cpp` - Error handling and edge cases
 
 ### Test Framework
@@ -149,6 +158,7 @@ cmake --build . --config Debug
 .\test_model_interface.exe
 .\test_config_manager.exe
 .\test_http_server.exe
+.\test_retrieval_agent.exe
 .\test_error_scenarios.exe
 ```
 

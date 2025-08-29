@@ -29,27 +29,64 @@ using json = nlohmann::json;
 class WorkflowManagerTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // Create agent manager with test agents
-        config_manager_ = std::make_shared<AgentConfigManager>();
-        agent_manager_ = std::make_shared<AgentManager>(config_manager_);
+        // Set timeout for entire setup to prevent hanging
+        auto start_time = std::chrono::steady_clock::now();
+        auto timeout_duration = std::chrono::seconds(15); // Reduced from 30 to 15 seconds
         
-        // Create test agents
-        test_agent_id_ = agent_manager_->create_agent("TestAgent", {"chat", "analysis", "echo"});
-        echo_agent_id_ = agent_manager_->create_agent("EchoAgent", {"echo"});
-        
-        // Start agents
-        agent_manager_->start_agent(test_agent_id_);
-        agent_manager_->start_agent(echo_agent_id_);
-        
-        // Wait for agents to start
-        waitForAgentStartup(test_agent_id_);
-        waitForAgentStartup(echo_agent_id_);
-        
-        // Create workflow manager
-        workflow_manager_ = std::make_shared<WorkflowManager>(agent_manager_, 4, 100, 1000);
-        
-        // Load test function configurations
-        loadTestFunctionConfigs();
+        try {
+            // Create agent manager with test agents
+            config_manager_ = std::make_shared<AgentConfigManager>();
+            agent_manager_ = std::make_shared<AgentManager>(config_manager_);
+            
+            // Check timeout
+            if (std::chrono::steady_clock::now() - start_time > timeout_duration) {
+                throw std::runtime_error("Setup timeout during agent manager creation");
+            }
+            
+            // Create test agents
+            test_agent_id_ = agent_manager_->create_agent("TestAgent", {"chat", "analysis", "echo"});
+            echo_agent_id_ = agent_manager_->create_agent("EchoAgent", {"echo"});
+            
+            // Check timeout
+            if (std::chrono::steady_clock::now() - start_time > timeout_duration) {
+                throw std::runtime_error("Setup timeout during agent creation");
+            }
+            
+            // Start agents
+            agent_manager_->start_agent(test_agent_id_);
+            agent_manager_->start_agent(echo_agent_id_);
+            
+            // Wait for agents to start with timeout
+            if (!waitForAgentStartup(test_agent_id_, 3000) || !waitForAgentStartup(echo_agent_id_, 3000)) { // Reduced from 5000 to 3000
+                throw std::runtime_error("Agents failed to start within timeout");
+            }
+            
+            // Check timeout
+            if (std::chrono::steady_clock::now() - start_time > timeout_duration) {
+                throw std::runtime_error("Setup timeout during agent startup");
+            }
+            
+            // Create workflow manager with smaller limits
+            workflow_manager_ = std::make_shared<WorkflowManager>(agent_manager_, 2, 50, 100); // Reduced from 4, 100, 1000
+            
+            // Load test function configurations
+            loadTestFunctionConfigs();
+            
+            std::cout << "[SetUp] WorkflowManager setup completed successfully" << std::endl;
+            
+        } catch (const std::exception& e) {
+            std::cerr << "[SetUp] Error during WorkflowManager setup: " << e.what() << std::endl;
+            // Clean up any partially created objects
+            if (workflow_manager_) {
+                workflow_manager_->stop();
+                workflow_manager_.reset();
+            }
+            if (agent_manager_) {
+                agent_manager_->stop_all_agents();
+                agent_manager_.reset();
+            }
+            throw;
+        }
     }
     
     void TearDown() override {
