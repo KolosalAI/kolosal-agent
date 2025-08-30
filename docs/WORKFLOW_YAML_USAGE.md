@@ -57,10 +57,9 @@ workflows:
 ### 1. Execute Simple Research Workflow
 
 ```bash
-curl -X POST http://localhost:8080/workflows/execute \
+curl -X POST http://localhost:8080/workflows/simple_research/execute \
   -H "Content-Type: application/json" \
   -d '{
-    "workflow_id": "simple_research",
     "input_data": {
       "question": "What are the latest developments in AI?"
     }
@@ -70,10 +69,9 @@ curl -X POST http://localhost:8080/workflows/execute \
 ### 2. Execute Analysis Workflow with Multiple Steps
 
 ```bash
-curl -X POST http://localhost:8080/workflows/execute \
+curl -X POST http://localhost:8080/workflows/analysis_workflow/execute \
   -H "Content-Type: application/json" \
   -d '{
-    "workflow_id": "analysis_workflow",
     "input_data": {
       "text": "Sample text to analyze using different analysis techniques"
     }
@@ -83,10 +81,9 @@ curl -X POST http://localhost:8080/workflows/execute \
 ### 3. Execute Parallel Analysis
 
 ```bash
-curl -X POST http://localhost:8080/workflows/execute \
+curl -X POST http://localhost:8080/workflows/parallel_analysis/execute \
   -H "Content-Type: application/json" \
   -d '{
-    "workflow_id": "parallel_analysis",
     "input_data": {
       "text": "Text to be analyzed in parallel for sentiment, keywords, and summary"
     }

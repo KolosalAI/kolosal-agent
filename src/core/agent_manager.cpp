@@ -1,15 +1,22 @@
-#include "../include/agent_manager.hpp"
+#include "agent_manager.hpp"
+#include "logger.hpp"
 #include <iostream>
 #include <algorithm>
 
 AgentManager::AgentManager() {
+    TRACE_FUNCTION();
     config_manager_ = std::make_shared<AgentConfigManager>();
+    LOG_DEBUG("AgentManager created with default configuration");
 }
 
 AgentManager::AgentManager(std::shared_ptr<AgentConfigManager> config_manager) 
     : config_manager_(config_manager) {
+    TRACE_FUNCTION();
     if (!config_manager_) {
         config_manager_ = std::make_shared<AgentConfigManager>();
+        LOG_WARN("Null config_manager provided, created default one");
+    } else {
+        LOG_DEBUG("AgentManager created with provided configuration");
     }
 }
 
@@ -21,18 +28,28 @@ bool AgentManager::load_configuration(const std::string& config_file) {
     bool loaded = config_manager_->load_config(config_file);
     if (loaded && config_manager_->validate_config()) {
         config_manager_->print_config_summary();
+        
+        // Load model configurations for all agents after config is loaded
+        load_model_configurations();
+        
         return true;
     }
     return loaded; // Still return true even if validation shows warnings
 }
 
 std::string AgentManager::create_agent(const std::string& name, const std::vector<std::string>& capabilities) {
+    TRACE_FUNCTION();
+    SCOPED_TIMER("create_agent_" + name);
+    
+    LOG_DEBUG_F("Creating agent '%s' with %zu capabilities", name.c_str(), capabilities.size());
+    
     auto agent = std::make_unique<Agent>(name);
     std::string agent_id = agent->get_id();
     
     // Add capabilities
     for (const auto& capability : capabilities) {
         agent->add_capability(capability);
+        LOG_DEBUG_F("Added capability '%s' to agent '%s'", capability.c_str(), name.c_str());
     }
     
     // Apply system instruction if available
@@ -40,12 +57,13 @@ std::string AgentManager::create_agent(const std::string& name, const std::vecto
         const std::string& system_instruction = config_manager_->get_system_instruction();
         if (!system_instruction.empty()) {
             agent->set_system_instruction(system_instruction);
+            LOG_DEBUG_F("Applied system instruction to agent '%s' (length: %zu)", name.c_str(), system_instruction.length());
         }
     }
     
     agents_[agent_id] = std::move(agent);
     
-    std::cout << "Created agent '" << name << "' with ID: " << agent_id << "\n";
+    LOG_INFO_F("Created agent '%s' with ID: %s", name.c_str(), agent_id.c_str());
     return agent_id;
 }
 
@@ -80,6 +98,42 @@ std::string AgentManager::create_agent_with_config(const std::string& name, cons
         std::string system_prompt = config.value("system_prompt", "");
         if (!system_prompt.empty()) {
             agent->set_agent_specific_prompt(system_prompt);
+        }
+    }
+    
+    // Configure models if available
+    if (config_manager_) {
+        const auto& system_config = config_manager_->get_config();
+        json model_configs = json::array();
+        
+        // Use model configurations from agent.yaml if available
+        if (!system_config.models.empty()) {
+            for (const auto& [model_id, model_config] : system_config.models) {
+                json model_json;
+                model_json["id"] = model_config.id;
+                model_json["actual_name"] = model_config.actual_name;
+                model_json["name"] = model_config.actual_name;  // For backward compatibility
+                model_json["type"] = model_config.type;
+                if (!model_config.description.empty()) {
+                    model_json["description"] = model_config.description;
+                }
+                model_configs.push_back(model_json);
+            }
+        } else {
+            // Fall back to using agent model names
+            for (const auto& agent_config : system_config.agents) {
+                if (!agent_config.model.empty()) {
+                    json model_json;
+                    model_json["id"] = agent_config.model;
+                    model_json["name"] = agent_config.model;
+                    model_json["type"] = "llm";
+                    model_configs.push_back(model_json);
+                }
+            }
+        }
+        
+        if (!model_configs.empty()) {
+            agent->configure_models(model_configs);
         }
     }
     
@@ -123,6 +177,9 @@ void AgentManager::initialize_default_agents() {
             std::cerr << "Failed to create agent '" << agent_config.name << "': " << e.what() << "\n";
         }
     }
+    
+    // Ensure all agents have model configurations loaded
+    load_model_configurations();
 }
 
 bool AgentManager::start_agent(const std::string& agent_id) {
@@ -211,4 +268,48 @@ json AgentManager::execute_agent_function(const std::string& agent_id,
     }
     
     return agent->execute_function(function_name, params);
+}
+
+void AgentManager::load_model_configurations() {
+    if (!config_manager_) {
+        LOG_WARN("No config manager available for loading model configurations");
+        return;
+    }
+    
+    // Get model configurations from config manager
+    const auto& system_config = config_manager_->get_config();
+    json model_configs = json::array();
+    
+    // Use model configurations from agent.yaml if available
+    if (!system_config.models.empty()) {
+        for (const auto& [model_id, model_config] : system_config.models) {
+            json model_json;
+            model_json["id"] = model_config.id;
+            model_json["actual_name"] = model_config.actual_name;
+            model_json["name"] = model_config.actual_name;  // For backward compatibility
+            model_json["type"] = model_config.type;
+            if (!model_config.description.empty()) {
+                model_json["description"] = model_config.description;
+            }
+            model_configs.push_back(model_json);
+        }
+    } else {
+        // Fall back to using agent model names
+        for (const auto& agent_config : system_config.agents) {
+            if (!agent_config.model.empty()) {
+                json model_json;
+                model_json["id"] = agent_config.model;
+                model_json["name"] = agent_config.model;
+                model_json["type"] = "llm";
+                model_configs.push_back(model_json);
+            }
+        }
+    }
+    
+    // Pass model configurations to all existing agents
+    for (auto& [agent_id, agent] : agents_) {
+        agent->configure_models(model_configs);
+    }
+    
+    LOG_INFO_F("Loaded model configurations for %zu agents", agents_.size());
 }

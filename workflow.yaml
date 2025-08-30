@@ -1,4 +1,19 @@
-# Workflow Configuration for Kolosal Agent System
+# Workflow Con  simple_research:
+    name: "Simple Research Workflow"
+    description: "Basic research workflow using a single agent with specific LLM"
+    type: "sequential"
+    max_execution_time_ms: 180000
+    allow_partial_failure: false
+    steps:
+      - id: "research_step"
+        agent_name: "Researcher"  # References agent from agent.yaml
+        llm_model: "gemma3-1b"    # Specific LLM model from config.yaml
+        function_name: "research"
+        parameters:
+          - "query"
+          - "depth"
+        timeout_ms: 120000
+        optional: falseolosal Agent System
 # This file defines workflows that use agents from agent.yaml with specific LLM models
 
 # Default workflow settings
@@ -166,6 +181,131 @@ workflows:
         timeout_ms: 45000
         optional: false
 
+  # Deep Research Workflow - Comprehensive multi-step research with iterative refinement
+  - id: "deep_research_workflow"
+    name: "Deep Research Workflow"
+    description: "Comprehensive multi-step research workflow with iterative depth and cross-validation"
+    type: "sequential"
+    max_execution_time_ms: 1800000  # 30 minutes
+    allow_partial_failure: false
+    steps:
+      # Phase 1: Initial Research Planning
+      - id: "research_planning"
+        agent_name: "Researcher"
+        llm_model: "gemma3-1b"
+        function_name: "plan_research"
+        parameters:
+          - "query"
+          - "research_scope"
+          - "depth_level"
+        timeout_ms: 120000
+        optional: false
+      
+      # Phase 2: Primary Internet Research
+      - id: "primary_research"
+        agent_name: "Researcher"
+        llm_model: "gemma3-1b"
+        function_name: "internet_search"
+        parameters:
+          - "query"
+          - "results"
+          - "language"
+        timeout_ms: 180000
+        optional: false
+        dependencies: ["research_planning"]
+      
+      # Phase 3: Knowledge Base Search
+      - id: "knowledge_base_search"
+        agent_name: "RetrievalAgent"
+        llm_model: "gemma3-1b"
+        function_name: "search_documents"
+        parameters:
+          - "query"
+          - "limit"
+          - "threshold"
+        timeout_ms: 60000
+        optional: true
+        dependencies: ["primary_research"]
+      
+      # Phase 4: Research Synthesis and Gap Analysis
+      - id: "research_synthesis"
+        agent_name: "Analyzer"
+        llm_model: "gemma3-1b"
+        function_name: "synthesize_research"
+        parameters:
+          - "primary_data"
+          - "knowledge_base_data"
+          - "synthesis_type"
+        timeout_ms: 180000
+        optional: false
+        dependencies: ["primary_research", "knowledge_base_search"]
+      
+      # Phase 5: Secondary Research (based on gaps identified)
+      - id: "secondary_research"
+        agent_name: "Researcher"
+        llm_model: "gemma3-1b"
+        function_name: "targeted_research"
+        parameters:
+          - "research_gaps"
+          - "search_terms"
+          - "sources"
+        timeout_ms: 240000
+        optional: false
+        dependencies: ["research_synthesis"]
+      
+      # Phase 6: Cross-validation and Fact-checking
+      - id: "fact_verification"
+        agent_name: "Researcher"
+        llm_model: "gemma3-1b"
+        function_name: "verify_facts"
+        parameters:
+          - "findings"
+          - "sources"
+          - "verification_depth"
+        timeout_ms: 180000
+        optional: false
+        dependencies: ["secondary_research"]
+      
+      # Phase 7: Final Analysis and Insights
+      - id: "deep_analysis"
+        agent_name: "Analyzer"
+        llm_model: "gemma3-1b"
+        function_name: "analyze"
+        parameters:
+          - "text"
+          - "analysis_type"
+          - "context"
+        timeout_ms: 180000
+        optional: false
+        dependencies: ["fact_verification"]
+      
+      # Phase 8: Report Generation with Citations
+      - id: "report_generation"
+        agent_name: "Assistant"
+        llm_model: "gemma3-1b"
+        function_name: "generate_research_report"
+        parameters:
+          - "research_data"
+          - "analysis_results"
+          - "report_format"
+          - "include_citations"
+        timeout_ms: 120000
+        optional: false
+        dependencies: ["deep_analysis"]
+      
+      # Phase 9: Knowledge Base Update (store findings for future use)
+      - id: "knowledge_update"
+        agent_name: "RetrievalAgent"
+        llm_model: "gemma3-1b"
+        function_name: "add_document"
+        parameters:
+          - "content"
+          - "title"
+          - "metadata"
+        timeout_ms: 60000
+        optional: true
+        dependencies: ["report_generation"]
+
   # Conditional Workflow Example
   - id: "conditional_processing"
     name: "Conditional Processing Workflow"
@@ -211,6 +351,14 @@ agent_llm_mappings:
     supported_models: ["gemma3-1b"]
     
   Researcher:
+    default_model: "gemma3-1b"
+    supported_models: ["gemma3-1b"]
+    
+  RetrievalAgent:
+    default_model: "gemma3-1b"
+    supported_models: ["gemma3-1b"]
+    
+  DeepResearcher:
     default_model: "gemma3-1b"
     supported_models: ["gemma3-1b"]
 
@@ -272,3 +420,31 @@ templates:
         required: false
         default: "summary"
         description: "Type of analysis to perform"
+  
+  deep_research:
+    description: "Comprehensive multi-phase research workflow"
+    parameters:
+      - name: "query"
+        type: "string"
+        required: true
+        description: "Primary research question or topic"
+      - name: "research_scope"
+        type: "string"
+        required: false
+        default: "comprehensive"
+        description: "Scope of research (narrow, broad, comprehensive)"
+      - name: "depth_level"
+        type: "string"
+        required: false
+        default: "advanced"
+        description: "Research depth level (basic, intermediate, advanced, expert)"
+      - name: "report_format"
+        type: "string"
+        required: false
+        default: "detailed"
+        description: "Format of the final report (academic, business, summary, detailed)"
+      - name: "include_citations"
+        type: "boolean"
+        required: false
+        default: true
+        description: "Whether to include source citations in the report"

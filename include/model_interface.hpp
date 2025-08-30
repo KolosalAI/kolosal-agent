@@ -58,7 +58,22 @@ public:
      */
     json get_available_models();
     
+    /**
+     * @brief Configure model interface with model configurations
+     * @param model_configs JSON array of model configurations
+     */
+    void configure_models(const json& model_configs);
+    
+    /**
+     * @brief Resolve model alias to actual server model name
+     * @param model_name Model alias or name to resolve
+     * @return Actual model name expected by server
+     */
+    std::string resolve_model_name(const std::string& model_name);
+    
 private:
+    json model_configurations_;
+    
     // Note: This is a placeholder implementation
     // For production use, implement actual HTTP client using curl or similar library
 };

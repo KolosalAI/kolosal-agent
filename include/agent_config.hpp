@@ -34,6 +34,15 @@ struct AgentSystemConfig {
     };
     std::vector<AgentConfig> agents;
     
+    // Model configurations
+    struct ModelConfig {
+        std::string id;
+        std::string actual_name;
+        std::string type;
+        std::string description;
+    };
+    std::map<std::string, ModelConfig> models;
+    
     // Function definitions
     struct FunctionConfig {
         std::string description;

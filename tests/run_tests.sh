@@ -37,6 +37,7 @@ show_usage() {
     echo -e "  ${BLUE}workflow${NC}     - Run workflow tests (workflow_config, workflow_manager, workflow_orchestrator)"
     echo -e "  ${BLUE}integration${NC}  - Run integration tests (agent_execution, http_server)"
     echo -e "  ${BLUE}retrieval${NC}    - Run retrieval agent tests (retrieval_agent)"
+    echo -e "  ${BLUE}deep_research${NC} - Run deep research workflow tests (deep_research)"
     echo -e "  ${BLUE}stress${NC}       - Run stress and error tests (error_scenarios)"
     echo -e "  ${BLUE}<test_name>${NC}  - Run specific test (any individual test name)"
     echo ""
@@ -53,6 +54,7 @@ show_usage() {
     echo -e "  ${BLUE}./run_tests.sh --test-type quick --verbose${NC}"
     echo -e "  ${BLUE}./run_tests.sh -t workflow -o results.json${NC}"
     echo -e "  ${BLUE}./run_tests.sh -t retrieval --verbose${NC}"
+    echo -e "  ${BLUE}./run_tests.sh -t deep_research --verbose${NC}"
     echo -e "  ${BLUE}./run_tests.sh -t model_interface --verbose${NC}"
 }
 
@@ -317,6 +319,7 @@ get_available_tests() {
         ["http_server"]="test_http_server"
         ["error_scenarios"]="test_error_scenarios"
         ["retrieval_agent"]="test_retrieval_agent"
+        ["deep_research"]="test_deep_research"
     )
     
     # Merge discovered tests with predefined ones, checking if they actually exist
@@ -417,6 +420,8 @@ run_test_executable() {
     local actual_timeout_minutes=$timeout_minutes
     if [[ "$test_name" == "error_scenarios" || "$test_name" == "http_server" ]]; then
         actual_timeout_minutes=5  # Increase timeout for stress tests and http server tests
+    elif [[ "$test_name" == "deep_research" ]]; then
+        actual_timeout_minutes=3  # Deep research tests may need more time
     fi
     
     # Run test with timeout support
@@ -478,6 +483,7 @@ run_tests() {
     test_categories["workflow"]="workflow_config workflow_manager workflow_orchestrator"
     test_categories["integration"]="agent_execution http_server"
     test_categories["retrieval"]="retrieval_agent"
+    test_categories["deep_research"]="deep_research"
     test_categories["stress"]="error_scenarios"
     test_categories["all"]="${AVAILABLE_TEST_KEYS[*]}"
     

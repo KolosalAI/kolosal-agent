@@ -63,6 +63,7 @@ set(KOLOSAL_AGENT_SOURCES
     ../src/api/http_server.cpp
     ../src/workflows/workflow_manager.cpp
     ../src/workflows/workflow_types.cpp
+    ../src/functions/deep_research_functions.cpp
 )
 
 # Check which source files exist
@@ -116,6 +117,7 @@ create_test_executable(test_workflow_config test_workflow_config.cpp)
 create_test_executable(test_workflow_manager test_workflow_manager.cpp)
 create_test_executable(test_workflow_orchestrator test_workflow_orchestrator.cpp)
 create_test_executable(test_retrieval_agent test_retrieval_agent.cpp)
+create_test_executable(test_deep_research test_deep_research.cpp)
 create_test_executable(simple_test_demo simple_test_demo.cpp)
 
 # Add minimal test demo (standalone, no external dependencies)
@@ -194,6 +196,11 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.20")
         add_test(NAME ErrorScenarioTests COMMAND test_error_scenarios)
         set_tests_properties(ErrorScenarioTests PROPERTIES TIMEOUT 300)
     endif()
+    
+    if(TARGET test_deep_research)
+        add_test(NAME DeepResearchTests COMMAND test_deep_research)
+        set_tests_properties(DeepResearchTests PROPERTIES TIMEOUT 180)
+    endif()
 endif()
 
 # Print build information
@@ -225,6 +232,14 @@ if(TARGET test_workflow_manager AND TARGET test_workflow_orchestrator)
         COMMAND test_workflow_manager
         COMMAND test_workflow_orchestrator
         DEPENDS test_workflow_manager test_workflow_orchestrator
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+endif()
+
+if(TARGET test_deep_research)
+    add_custom_target(run_deep_research_tests
+        COMMAND test_deep_research
+        DEPENDS test_deep_research
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 endif()

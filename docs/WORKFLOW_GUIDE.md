@@ -23,44 +23,6 @@ The Kolosal Agent Workflow System is a sophisticated orchestration layer that en
 
 ## API Endpoints
 
-### Workflow Management
-
-#### Submit Workflow Request
-```http
-POST /workflow/execute
-Content-Type: application/json
-
-{
-  "agent_name": "Assistant",
-  "function_name": "chat", 
-  "parameters": {
-    "message": "Hello!",
-    "model": "default"
-  },
-  "timeout_ms": 30000
-}
-```
-
-#### Get Request Status
-```http
-GET /workflow/status/{request_id}
-```
-
-#### Cancel Request
-```http
-DELETE /workflow/cancel/{request_id}
-```
-
-#### List Workflow Requests
-```http
-GET /workflow/requests
-```
-
-#### Workflow System Status
-```http
-GET /workflow/status
-```
-
 ### Workflow Orchestration
 
 #### List Workflow Definitions
@@ -94,11 +56,10 @@ Content-Type: application/json
 
 #### Execute Workflow
 ```http
-POST /workflows/execute
+POST /workflows/{id}/execute
 Content-Type: application/json
 
 {
-  "workflow_id": "research_workflow",
   "input_data": {
     "question": "What is machine learning?"
   },
@@ -222,20 +183,6 @@ Use `{{variable}}` syntax to reference context variables:
 
 ## Usage Examples
 
-### Simple Function Execution
-```bash
-curl -X POST http://localhost:8080/workflow/execute \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent_name": "Assistant",
-    "function_name": "chat",
-    "parameters": {
-      "message": "Hello!",
-      "model": "default"
-    }
-  }'
-```
-
 ### Custom Sequential Workflow
 ```bash
 curl -X POST http://localhost:8080/workflows \
@@ -270,10 +217,9 @@ curl -X POST http://localhost:8080/workflows \
 
 ### Execute Custom Workflow
 ```bash
-curl -X POST http://localhost:8080/workflows/execute \
+curl -X POST http://localhost:8080/workflows/sentiment_analysis/execute \
   -H "Content-Type: application/json" \
   -d '{
-    "workflow_id": "sentiment_analysis",
     "input_data": {
       "text": "I love this product! It works great."
     }
@@ -334,28 +280,6 @@ curl -X POST http://localhost:8080/workflows \
 - `FAILED`: Execution failed
 - `CANCELLED`: Cancelled by user
 - `TIMEOUT`: Execution timed out
-
-### System Statistics
-```bash
-curl http://localhost:8080/workflow/status
-```
-
-Returns:
-```json
-{
-  "running": true,
-  "worker_threads": 4,
-  "max_workers": 4,
-  "statistics": {
-    "total_requests": 150,
-    "completed_requests": 145,
-    "failed_requests": 3,
-    "timeout_requests": 2,
-    "active_requests": 5,
-    "queue_size": 0
-  }
-}
-```
 
 ## Configuration
 
@@ -467,23 +391,9 @@ class WorkflowClient:
     def __init__(self, base_url="http://localhost:8080"):
         self.base_url = base_url
     
-    def submit_request(self, agent_name, function_name, parameters):
-        response = requests.post(f"{self.base_url}/workflow/execute", 
-            json={
-                "agent_name": agent_name,
-                "function_name": function_name, 
-                "parameters": parameters
-            })
-        return response.json()
-    
-    def get_status(self, request_id):
-        response = requests.get(f"{self.base_url}/workflow/status/{request_id}")
-        return response.json()
-    
     def execute_workflow(self, workflow_id, input_data):
-        response = requests.post(f"{self.base_url}/workflows/execute",
+        response = requests.post(f"{self.base_url}/workflows/{workflow_id}/execute",
             json={
-                "workflow_id": workflow_id,
                 "input_data": input_data
             })
         return response.json()
@@ -502,25 +412,11 @@ class WorkflowClient {
         this.baseUrl = baseUrl;
     }
     
-    async submitRequest(agentName, functionName, parameters) {
-        const response = await fetch(`${this.baseUrl}/workflow/execute`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                agent_name: agentName,
-                function_name: functionName,
-                parameters
-            })
-        });
-        return response.json();
-    }
-    
     async executeWorkflow(workflowId, inputData) {
-        const response = await fetch(`${this.baseUrl}/workflows/execute`, {
+        const response = await fetch(`${this.baseUrl}/workflows/${workflowId}/execute`, {
             method: 'POST', 
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                workflow_id: workflowId,
                 input_data: inputData
             })
         });
@@ -546,8 +442,8 @@ console.log(`Execution ID: ${result.execution_id}`);
 5. **Parameter validation**: Ensure required parameters are provided
 
 ### Debug Steps
-1. Check system status: `GET /workflow/status`
-2. Review request details: `GET /workflow/status/{request_id}`
+1. Check system status: `GET /status`
+2. Review execution details: `GET /workflows/executions/{execution_id}`
 3. Check agent availability: `GET /agents`
 4. Verify function configuration in agent.yaml
 5. Review server logs for detailed error information

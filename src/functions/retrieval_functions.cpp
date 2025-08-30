@@ -1,4 +1,4 @@
-#include "retrieval_functions.hpp"
+#include "../include/functions/retrieval_functions.hpp"
 #include <iostream>
 #include <sstream>
 #include <algorithm>

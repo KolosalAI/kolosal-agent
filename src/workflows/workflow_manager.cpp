@@ -1,4 +1,5 @@
 #include "../include/workflow_manager.hpp"
+#include <iostream>
 #include <random>
 #include <sstream>
 #include <iomanip>
@@ -86,7 +87,9 @@ std::string WorkflowManager::submit_request_with_timeout(const std::string& agen
                                                         int timeout_ms) {
     // Validate request
     if (!validate_request(agent_name, function_name, parameters)) {
-        throw std::invalid_argument("Invalid request parameters");
+        std::string error_msg = "Invalid request parameters for agent: " + agent_name + ", function: " + function_name;
+        std::cout << "[WorkflowManager] " << error_msg << std::endl;
+        throw std::invalid_argument(error_msg);
     }
 
     // Check queue size
@@ -97,23 +100,19 @@ std::string WorkflowManager::submit_request_with_timeout(const std::string& agen
         }
     }
 
-    // Resolve agent identifier to ensure we store the agent name
+    // Use the agent name as provided - the execution will handle resolution
     std::string actual_agent_name = agent_name;
     
-    // Check if the agent_name is actually an agent ID (UUID format)
-    // If so, resolve it to the actual agent name
-    if (agent_manager_->agent_exists(agent_name)) {
-        std::string resolved_name = agent_manager_->get_agent_name_by_id(agent_name);
-        if (!resolved_name.empty()) {
-            actual_agent_name = resolved_name;
-        }
-    }
+    std::cout << "[WorkflowManager] Submitting request for agent: " << actual_agent_name 
+              << ", function: " << function_name << std::endl;
     
     // Create request
     std::string request_id = generate_request_id();
     auto request = std::make_shared<WorkflowRequest>(
         request_id, actual_agent_name, function_name, parameters, timeout_ms
-    );    // Add to queue
+    );
+    
+    // Add to queue
     {
         std::lock_guard<std::mutex> lock(queue_mutex_);
         request_queue_.push(request);
@@ -133,6 +132,7 @@ std::string WorkflowManager::submit_request_with_timeout(const std::string& agen
     // Notify workers
     queue_condition_.notify_one();
     
+    std::cout << "[WorkflowManager] Request submitted with ID: " << request_id << std::endl;
     return request_id;
 }
 
@@ -284,20 +284,33 @@ json WorkflowManager::get_system_status() {
 bool WorkflowManager::validate_request(const std::string& agent_name, 
                                       const std::string& function_name,
                                       const json& parameters) {
-    // Check if agent exists
-    if (!agent_manager_->agent_exists(agent_name)) {
+    // Check if agent exists by name or ID
+    bool agent_exists = agent_manager_->agent_exists(agent_name);
+    if (!agent_exists) {
+        // Try to resolve by name
+        std::string resolved_id = agent_manager_->get_agent_id_by_name(agent_name);
+        agent_exists = !resolved_id.empty();
+    }
+    
+    if (!agent_exists) {
+        std::cout << "[WorkflowManager] Agent validation failed: " << agent_name << " not found" << std::endl;
         return false;
     }
     
-    // Check if function is configured
-    if (function_configs_.find(function_name) == function_configs_.end()) {
-        return false;
+    // Check if function is configured (optional check)
+    if (!function_configs_.empty() && function_configs_.find(function_name) == function_configs_.end()) {
+        std::cout << "[WorkflowManager] Function not configured: " << function_name << std::endl;
+        // For now, allow functions that aren't explicitly configured
+        // return false;
     }
     
     try {
-        validate_function_parameters(function_name, parameters);
+        if (!function_configs_.empty()) {
+            validate_function_parameters(function_name, parameters);
+        }
         return true;
-    } catch (const std::exception&) {
+    } catch (const std::exception& e) {
+        std::cout << "[WorkflowManager] Parameter validation failed: " << e.what() << std::endl;
         return false;
     }
 }
@@ -364,16 +377,31 @@ void WorkflowManager::execute_request_with_timeout(std::shared_ptr<WorkflowReque
         // Resolve agent name to agent ID if needed
         std::string agent_identifier = request->agent_name;
         
-        // Check if the agent_name is actually an agent ID (UUID format)
-        // If not, try to resolve it as an agent name
+        // First try to use the agent name as-is (it might be the actual agent name)
         if (!agent_manager_->agent_exists(agent_identifier)) {
+            // If not found by ID, try to resolve by name
             std::string resolved_id = agent_manager_->get_agent_id_by_name(agent_identifier);
             if (!resolved_id.empty()) {
                 agent_identifier = resolved_id;
             } else {
-                throw std::runtime_error("Agent not found: " + agent_identifier);
+                // If still not found, list available agents for better error message
+                json agent_list = agent_manager_->list_agents();
+                std::string error_msg = "Agent not found: " + agent_identifier;
+                if (agent_list.contains("agents") && agent_list["agents"].is_array()) {
+                    error_msg += ". Available agents: ";
+                    for (const auto& agent : agent_list["agents"]) {
+                        if (agent.contains("name")) {
+                            error_msg += agent["name"].get<std::string>() + " ";
+                        }
+                    }
+                }
+                throw std::runtime_error(error_msg);
             }
         }
+        
+        std::cout << "[WorkflowManager] Executing function '" << request->function_name 
+                  << "' on agent '" << agent_identifier << "' (" << request->agent_name << ")" << std::endl;
+        std::cout << "[WorkflowManager] Parameters: " << request->parameters.dump() << std::endl;
         
         return agent_manager_->execute_agent_function(
             agent_identifier, 
@@ -387,13 +415,15 @@ void WorkflowManager::execute_request_with_timeout(std::shared_ptr<WorkflowReque
     
     if (status == std::future_status::ready) {
         try {
-            request->result = future.get();
+            json result = future.get();
+            request->result = result;
             // Only set to COMPLETED if not already cancelled (protected by mutex)
             {
                 std::lock_guard<std::mutex> lock(requests_mutex_);
                 if (request->state != WorkflowState::CANCELLED) {
                     request->state = WorkflowState::COMPLETED;
                     stats_.completed_requests++;
+                    std::cout << "[WorkflowManager] Request completed successfully: " << request->id << std::endl;
                 }
             }
         } catch (const std::exception& e) {

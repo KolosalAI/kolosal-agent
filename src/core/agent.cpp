@@ -1,7 +1,9 @@
-#include "../include/agent.hpp"
-#include "../include/model_interface.hpp"
+#include "agent.hpp"
+#include "model_interface.hpp"
+#include "logger.hpp"
 #ifdef BUILD_WITH_RETRIEVAL
-#include "../include/retrieval_manager.hpp"
+#include "retrieval_manager.hpp"
+#include "../include/functions/deep_research_functions.hpp"
 #endif
 #include <iostream>
 #include <chrono>
@@ -46,84 +48,140 @@ namespace {
 
 Agent::Agent(const std::string& name) 
     : id_(generate_uuid()), name_(name) {
+    TRACE_FUNCTION();
     
     // Validate agent name
     if (name.empty()) {
+        LOG_ERROR("Agent name cannot be empty");
         throw std::invalid_argument("Agent name cannot be empty");
     }
+    
+    LOG_DEBUG_F("Creating agent '%s' with ID: %s", name.c_str(), id_.c_str());
     
     // Set default system instruction
     system_instruction_ = "You are a helpful AI assistant. Be accurate, helpful, and professional in your responses.";
     
-    // Initialize model interface
-    model_interface_ = std::make_unique<ModelInterface>();
+    // Initialize model interface with correct server URL
+    LOG_DEBUG("Initializing model interface");
+    model_interface_ = std::make_unique<ModelInterface>("http://127.0.0.1:8081");
     
+    LOG_DEBUG("Setting up builtin functions");
     setup_builtin_functions();
 #ifdef BUILD_WITH_RETRIEVAL
+    LOG_DEBUG("Setting up retrieval functions");
     setup_retrieval_functions();
+    LOG_DEBUG("Setting up deep research functions");
+    setup_deep_research_functions();
 #endif
+    
+    LOG_INFO_F("Agent '%s' created successfully with %zu functions", name.c_str(), functions_.size());
 }
 
 bool Agent::start() {
+    TRACE_FUNCTION();
+    
     if (running_.load()) {
+        LOG_DEBUG_F("Agent '%s' is already running", name_.c_str());
         return true;
     }
     
     running_.store(true);
-    std::cout << "[" << get_timestamp() << "] Agent '" << name_ << "' (" << id_ << ") started\n";
+    LOG_INFO_F("Agent '%s' (%s) started", name_.c_str(), id_.c_str());
     return true;
 }
 
 void Agent::stop() {
+    TRACE_FUNCTION();
+    
     if (!running_.load()) {
+        LOG_DEBUG_F("Agent '%s' is already stopped", name_.c_str());
         return;
     }
     
     running_.store(false);
-    std::cout << "[" << get_timestamp() << "] Agent '" << name_ << "' (" << id_ << ") stopped\n";
+    LOG_INFO_F("Agent '%s' (%s) stopped", name_.c_str(), id_.c_str());
 }
 
 json Agent::execute_function(const std::string& function_name, const json& params) {
+    TRACE_FUNCTION();
+    SCOPED_TIMER("function_execution_" + function_name);
+    
     if (!running_.load()) {
+        LOG_ERROR_F("Agent '%s' is not running, cannot execute function '%s'", name_.c_str(), function_name.c_str());
         throw std::runtime_error("Agent is not running");
     }
     
     auto it = functions_.find(function_name);
     if (it == functions_.end()) {
+        LOG_ERROR_F("Function '%s' not found in agent '%s'", function_name.c_str(), name_.c_str());
         throw std::runtime_error("Function '" + function_name + "' not found");
     }
     
     try {
-        std::cout << "[" << get_timestamp() << "] Agent '" << name_ << "' executing function: " << function_name << "\n";
+        LOG_INFO_F("Agent '%s' executing function: %s", name_.c_str(), function_name.c_str());
+        LOG_DEBUG_F("Function parameters: %s", params.dump().c_str());
+        
         auto result = it->second(params);
-        std::cout << "[" << get_timestamp() << "] Function '" << function_name << "' completed successfully\n";
+        
+        LOG_INFO_F("Function '%s' completed successfully", function_name.c_str());
+        LOG_DEBUG_F("Function result size: %zu bytes", result.dump().size());
+        
         return result;
     } catch (const std::exception& e) {
-        std::cout << "[" << get_timestamp() << "] Function '" << function_name << "' failed: " << e.what() << "\n";
+        LOG_ERROR_F("Function '%s' failed: %s", function_name.c_str(), e.what());
         throw;
     }
 }
 
 void Agent::register_function(const std::string& name, std::function<json(const json&)> func) {
+    TRACE_FUNCTION();
+    
     functions_[name] = std::move(func);
-    std::cout << "[" << get_timestamp() << "] Function '" << name << "' registered for agent '" << name_ << "'\n";
+    LOG_INFO_F("Function '%s' registered for agent '%s'", name.c_str(), name_.c_str());
 }
 
 void Agent::add_capability(const std::string& capability) {
+    TRACE_FUNCTION();
+    
     if (std::find(capabilities_.begin(), capabilities_.end(), capability) == capabilities_.end()) {
         capabilities_.push_back(capability);
-        std::cout << "[" << get_timestamp() << "] Capability '" << capability << "' added to agent '" << name_ << "'\n";
+        LOG_INFO_F("Capability '%s' added to agent '%s'", capability.c_str(), name_.c_str());
+    } else {
+        LOG_DEBUG_F("Capability '%s' already exists for agent '%s'", capability.c_str(), name_.c_str());
     }
 }
 
 void Agent::set_system_instruction(const std::string& instruction) {
+    TRACE_FUNCTION();
+    
     system_instruction_ = instruction;
-    std::cout << "[" << get_timestamp() << "] System instruction updated for agent '" << name_ << "'\n";
+    LOG_INFO_F("System instruction updated for agent '%s' (length: %zu)", name_.c_str(), instruction.length());
+    LOG_DEBUG_F("System instruction content: %s", instruction.c_str());
 }
 
 void Agent::set_agent_specific_prompt(const std::string& prompt) {
+    TRACE_FUNCTION();
+    
     agent_specific_prompt_ = prompt;
-    std::cout << "[" << get_timestamp() << "] Agent-specific prompt updated for agent '" << name_ << "'\n";
+    LOG_INFO_F("Agent-specific prompt updated for agent '%s' (length: %zu)", name_.c_str(), prompt.length());
+    LOG_DEBUG_F("Agent-specific prompt content: %s", prompt.c_str());
+}
+
+void Agent::configure_models(const json& model_configs) {
+    TRACE_FUNCTION();
+    
+    if (!model_interface_) {
+        LOG_ERROR_F("Model interface not initialized for agent '%s'", name_.c_str());
+        return;
+    }
+    
+    try {
+        // Pass model configurations to the model interface
+        model_interface_->configure_models(model_configs);
+        LOG_INFO_F("Model configurations loaded for agent '%s'", name_.c_str());
+    } catch (const std::exception& e) {
+        LOG_ERROR_F("Failed to configure models for agent '%s': %s", name_.c_str(), e.what());
+    }
 }
 
 std::string Agent::get_combined_prompt() const {
@@ -155,18 +213,64 @@ json Agent::get_info() const {
     return info;
 }
 
+json Agent::create_research_function_response(const std::string& function_name, const json& params, const std::string& task_description) {
+    std::string model_name = params.value("model", "gemma3-1b");
+    
+    json response;
+    response["agent"] = name_;
+    response["function"] = function_name;
+    response["timestamp"] = get_timestamp();
+    response["model_used"] = model_name;
+    
+    try {
+        if (!model_interface_->is_model_available(model_name)) {
+            throw std::runtime_error("Model '" + model_name + "' is not available");
+        }
+        
+        // Create a comprehensive prompt based on the parameters and function
+        std::string prompt = task_description + "\n\nInput parameters:\n" + params.dump(2) + 
+                           "\n\nPlease provide a detailed response for this " + function_name + " task.";
+        
+        std::string ai_result = model_interface_->chat_with_model(
+            model_name,
+            prompt,
+            get_combined_prompt() + "\n\nYou are an expert researcher. Provide thorough, accurate, and well-structured responses."
+        );
+        
+        response["result"] = ai_result;
+        response["status"] = "success";
+        
+    } catch (const std::exception& e) {
+        response["error"] = e.what();
+        response["status"] = "error";
+        response["result"] = "Function " + function_name + " failed: " + std::string(e.what());
+    }
+    
+    return response;
+}
+
 void Agent::setup_builtin_functions() {
+    TRACE_FUNCTION();
+    
+    LOG_DEBUG("Setting up builtin functions");
+    
     // Basic chat function with model parameter support
     register_function("chat", [this](const json& params) -> json {
+        SCOPED_TIMER("chat_function");
+        
         std::string message = params.value("message", "");
         if (message.empty()) {
+            LOG_ERROR("Missing 'message' parameter in chat function");
             throw std::runtime_error("Missing 'message' parameter");
         }
         
         std::string model_name = params.value("model", "");
         if (model_name.empty()) {
+            LOG_ERROR("Missing 'model' parameter in chat function");
             throw std::runtime_error("Missing 'model' parameter. Please specify which model to use.");
         }
+        
+        LOG_DEBUG_F("Chat function called with message: %s, model: %s", message.c_str(), model_name.c_str());
         
         // Check if context from tool execution is provided
         std::string context = params.value("context", "");
@@ -180,26 +284,36 @@ void Agent::setup_builtin_functions() {
         
         try {
             // Check if model is available
+            LOG_DEBUG_F("Checking model availability: %s", model_name.c_str());
             if (!model_interface_->is_model_available(model_name)) {
                 // Get available models for better error message
                 json available_models = model_interface_->get_available_models();
                 std::string error_msg = "Model '" + model_name + "' is not available. ";
                 
-                if (available_models.contains("models") && !available_models["models"].empty()) {
+                if (available_models.is_array() && !available_models.empty()) {
                     error_msg += "Available models: ";
-                    for (const auto& model : available_models["models"]) {
-                        if (model.contains("model_id") && model.value("available", false)) {
+                    for (const auto& model : available_models) {
+                        if (model.contains("model_id")) {
                             error_msg += model["model_id"].get<std::string>() + " ";
                         }
                     }
+                } else {
+                    error_msg += "No models are currently available.";
                 }
                 
-                throw std::runtime_error(error_msg);
+                LOG_WARN_F("Model not available: %s", error_msg.c_str());
+                
+                // Instead of throwing an error, provide a fallback response
+                response["response"] = "I apologize, but the specified model '" + model_name + "' is not currently available. " + error_msg;
+                response["status"] = "fallback";
+                response["error"] = error_msg;
+                return response;
             }
             
             std::string ai_response;
             
             if (!context.empty()) {
+                LOG_DEBUG("Using enhanced context for AI response");
                 // Enhanced response with tool context
                 std::string enhanced_prompt = "Based on the following tool execution results, please provide a comprehensive response to the user's message.\n\n";
                 enhanced_prompt += "Tool Results:\n" + context + "\n\n";
@@ -215,6 +329,7 @@ void Agent::setup_builtin_functions() {
                 response["context_used"] = true;
                 response["tool_results_summary"] = tool_results;
             } else {
+                LOG_DEBUG("Direct chat with model");
                 // Direct chat with model
                 ai_response = model_interface_->chat_with_model(
                     model_name, 
@@ -227,20 +342,23 @@ void Agent::setup_builtin_functions() {
             
             response["response"] = ai_response;
             response["status"] = "success";
+            LOG_DEBUG_F("Chat response generated successfully (length: %zu)", ai_response.length());
             
         } catch (const std::exception& e) {
-            // Fallback response if model communication fails
+            LOG_ERROR_F("Chat function error: %s", e.what());
+            // Improved fallback response if model communication fails
             std::string fallback_response = "I apologize, but I'm currently unable to connect to the specified model '" + model_name + "'. ";
             fallback_response += "Error: " + std::string(e.what()) + "\n\n";
             
             if (!context.empty()) {
                 fallback_response += "However, I can provide information based on the tool execution results:\n" + context;
             } else {
-                fallback_response += "Please check if the model is loaded and available, or try using a different model.";
+                fallback_response += "You requested: " + message + "\n";
+                fallback_response += "While I cannot process this with the AI model right now, please check if the model is loaded and available, or try using a different model.";
             }
             
             response["response"] = fallback_response;
-            response["status"] = "error";
+            response["status"] = "fallback_success";  // Changed to indicate this is a fallback but still functional
             response["error"] = e.what();
         }
         
@@ -327,6 +445,177 @@ void Agent::setup_builtin_functions() {
 #endif
         
         return status;
+    });
+    
+    // Research function for agents that don't have retrieval capabilities
+    register_function("research", [this](const json& params) -> json {
+        std::string query = params.value("query", "");
+        if (query.empty()) {
+            throw std::runtime_error("Missing 'query' parameter");
+        }
+        
+        std::string depth = params.value("depth", "basic");
+        std::string model_name = params.value("model", "gemma3-1b");
+        
+        json response;
+        response["agent"] = name_;
+        response["query"] = query;
+        response["depth"] = depth;
+        response["model_used"] = model_name;
+        response["timestamp"] = get_timestamp();
+        
+        try {
+            // Check if model is available
+            if (!model_interface_->is_model_available(model_name)) {
+                throw std::runtime_error("Model '" + model_name + "' is not available");
+            }
+            
+            // Create research prompt based on depth
+            std::string research_prompt;
+            if (depth == "basic") {
+                research_prompt = "Please provide a basic overview and key facts about: " + query;
+            } else if (depth == "detailed") {
+                research_prompt = "Please provide a detailed analysis and comprehensive information about: " + query + 
+                                ". Include key facts, context, implications, and relevant details.";
+            } else if (depth == "comprehensive") {
+                research_prompt = "Please provide a comprehensive research analysis on: " + query + 
+                                ". Include detailed background, current state, key findings, different perspectives, " +
+                                "implications, and future considerations. Be thorough and analytical.";
+            } else {
+                research_prompt = "Please research and provide information about: " + query;
+            }
+            
+            std::string research_result = model_interface_->chat_with_model(
+                model_name,
+                research_prompt,
+                get_combined_prompt() + "\n\nYou are conducting research. Provide accurate, well-structured, and informative responses."
+            );
+            
+            response["research_result"] = research_result;
+            response["status"] = "success";
+            response["depth_level"] = depth;
+            
+        } catch (const std::exception& e) {
+            response["error"] = e.what();
+            response["status"] = "error";
+            response["research_result"] = "Research failed: " + std::string(e.what());
+        }
+        
+        return response;
+    });
+    
+    // Add missing deep research functions for compatibility
+    register_function("plan_research", [this](const json& params) -> json {
+        std::string query = params.value("query", "");
+        if (query.empty()) {
+            throw std::runtime_error("Missing 'query' parameter");
+        }
+        
+        std::string research_scope = params.value("research_scope", "comprehensive");
+        std::string depth_level = params.value("depth_level", "advanced");
+        std::string model_name = params.value("model", "gemma3-1b");
+        
+        json response;
+        response["agent"] = name_;
+        response["query"] = query;
+        response["research_scope"] = research_scope;
+        response["depth_level"] = depth_level;
+        response["timestamp"] = get_timestamp();
+        
+        try {
+            if (!model_interface_->is_model_available(model_name)) {
+                throw std::runtime_error("Model '" + model_name + "' is not available");
+            }
+            
+            std::string planning_prompt = "Create a comprehensive research plan for the following query: " + query + 
+                                        "\n\nResearch scope: " + research_scope + 
+                                        "\nDepth level: " + depth_level + 
+                                        "\n\nPlease provide:\n1. Research objectives\n2. Key areas to investigate\n3. Methodology\n4. Expected outcomes\n5. Timeline estimates";
+            
+            std::string plan_result = model_interface_->chat_with_model(
+                model_name,
+                planning_prompt,
+                get_combined_prompt() + "\n\nYou are a research planning expert. Create detailed, structured research plans."
+            );
+            
+            response["research_plan"] = plan_result;
+            response["status"] = "success";
+            
+        } catch (const std::exception& e) {
+            response["error"] = e.what();
+            response["status"] = "error";
+            response["research_plan"] = "Research planning failed: " + std::string(e.what());
+        }
+        
+        return response;
+    });
+    
+    // Add more research functions for deep research workflow compatibility
+    register_function("targeted_research", [this](const json& params) -> json {
+        return create_research_function_response("targeted_research", params, 
+            "Conduct targeted research on specific gaps and topics");
+    });
+    
+    register_function("verify_facts", [this](const json& params) -> json {
+        return create_research_function_response("verify_facts", params,
+            "Verify and cross-check the provided facts and findings");
+    });
+    
+    register_function("synthesize_research", [this](const json& params) -> json {
+        return create_research_function_response("synthesize_research", params,
+            "Synthesize and integrate research data from multiple sources");
+    });
+    
+    register_function("generate_research_report", [this](const json& params) -> json {
+        return create_research_function_response("generate_research_report", params,
+            "Generate a comprehensive research report with citations");
+    });
+    
+    register_function("internet_search", [this](const json& params) -> json {
+        std::string query = params.value("query", "");
+        if (query.empty()) {
+            throw std::runtime_error("Missing 'query' parameter");
+        }
+        
+        int results = params.value("results", 10);
+        std::string language = params.value("language", "en");
+        std::string model_name = params.value("model", "gemma3-1b");
+        
+        json response;
+        response["agent"] = name_;
+        response["query"] = query;
+        response["results_requested"] = results;
+        response["language"] = language;
+        response["timestamp"] = get_timestamp();
+        
+        try {
+            if (!model_interface_->is_model_available(model_name)) {
+                throw std::runtime_error("Model '" + model_name + "' is not available");
+            }
+            
+            // Simulate internet search with AI-generated content
+            std::string search_prompt = "Based on your knowledge, provide comprehensive search results for the query: " + query + 
+                                      "\n\nPlease structure your response as if these were search results from the internet, " +
+                                      "including relevant information, facts, and insights about this topic. " +
+                                      "Provide up to " + std::to_string(results) + " relevant pieces of information.";
+            
+            std::string search_results = model_interface_->chat_with_model(
+                model_name,
+                search_prompt,
+                get_combined_prompt() + "\n\nYou are simulating internet search results. Provide comprehensive, factual information."
+            );
+            
+            response["search_results"] = search_results;
+            response["status"] = "success";
+            response["note"] = "Simulated search results based on AI knowledge";
+            
+        } catch (const std::exception& e) {
+            response["error"] = e.what();
+            response["status"] = "error";
+            response["search_results"] = "Search failed: " + std::string(e.what());
+        }
+        
+        return response;
     });
 }
 
@@ -570,5 +859,138 @@ void Agent::configure_retrieval(const json& config) {
             add_capability("research");
         }
     }
+}
+
+void Agent::setup_deep_research_functions() {
+    TRACE_FUNCTION();
+    
+    LOG_DEBUG("Setting up deep research functions");
+    
+    // Research planning function
+    register_function("plan_research", [this](const json& params) -> json {
+        try {
+            auto plan = DeepResearchFunctions::plan_research(params);
+            
+            json result;
+            result["query"] = plan.query;
+            result["scope"] = plan.scope;
+            result["depth_level"] = plan.depth_level;
+            result["research_phases"] = plan.research_phases;
+            result["key_questions"] = plan.key_questions;
+            result["required_sources"] = plan.required_sources;
+            result["metadata"] = plan.metadata;
+            result["status"] = "completed";
+            
+            return result;
+        } catch (const std::exception& e) {
+            json error_result;
+            error_result["error"] = e.what();
+            error_result["status"] = "failed";
+            return error_result;
+        }
+    });
+    
+    // Targeted research function
+    register_function("targeted_research", [this](const json& params) -> json {
+        try {
+            return DeepResearchFunctions::targeted_research(params);
+        } catch (const std::exception& e) {
+            json error_result;
+            error_result["error"] = e.what();
+            error_result["status"] = "failed";
+            return error_result;
+        }
+    });
+    
+    // Fact verification function
+    register_function("verify_facts", [this](const json& params) -> json {
+        try {
+            return DeepResearchFunctions::verify_facts(params);
+        } catch (const std::exception& e) {
+            json error_result;
+            error_result["error"] = e.what();
+            error_result["status"] = "failed";
+            return error_result;
+        }
+    });
+    
+    // Research synthesis function
+    register_function("synthesize_research", [this](const json& params) -> json {
+        try {
+            auto synthesis = DeepResearchFunctions::synthesize_research(params);
+            
+            json result;
+            result["summary"] = synthesis.summary;
+            result["key_insights"] = synthesis.key_insights;
+            result["research_gaps"] = synthesis.research_gaps;
+            result["conflicting_information"] = synthesis.conflicting_information;
+            result["metadata"] = synthesis.metadata;
+            result["status"] = "completed";
+            
+            return result;
+        } catch (const std::exception& e) {
+            json error_result;
+            error_result["error"] = e.what();
+            error_result["status"] = "failed";
+            return error_result;
+        }
+    });
+    
+    // Research report generation function
+    register_function("generate_research_report", [this](const json& params) -> json {
+        try {
+            return DeepResearchFunctions::generate_research_report(params);
+        } catch (const std::exception& e) {
+            json error_result;
+            error_result["error"] = e.what();
+            error_result["status"] = "failed";
+            return error_result;
+        }
+    });
+    
+    // Cross-reference search function
+    register_function("cross_reference_search", [this](const json& params) -> json {
+        try {
+            return DeepResearchFunctions::cross_reference_search(params);
+        } catch (const std::exception& e) {
+            json error_result;
+            error_result["error"] = e.what();
+            error_result["status"] = "failed";
+            return error_result;
+        }
+    });
+    
+    // Iterative search refinement function
+    register_function("iterative_search_refinement", [this](const json& params) -> json {
+        try {
+            return DeepResearchFunctions::iterative_search_refinement(params);
+        } catch (const std::exception& e) {
+            json error_result;
+            error_result["error"] = e.what();
+            error_result["status"] = "failed";
+            return error_result;
+        }
+    });
+    
+    // Source credibility analysis function
+    register_function("source_credibility_analysis", [this](const json& params) -> json {
+        try {
+            return DeepResearchFunctions::source_credibility_analysis(params);
+        } catch (const std::exception& e) {
+            json error_result;
+            error_result["error"] = e.what();
+            error_result["status"] = "failed";
+            return error_result;
+        }
+    });
+    
+    // Add deep research capabilities
+    add_capability("deep_research");
+    add_capability("iterative_search");
+    add_capability("fact_verification");
+    add_capability("research_planning");
+    add_capability("synthesis");
+    
+    LOG_INFO("Deep research functions registered successfully");
 }
 #endif

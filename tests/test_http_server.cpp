@@ -367,7 +367,7 @@ protected:
 TEST_F(HTTPWorkflowTest, WorkflowRequestSubmission) {
     startTestServer(8200);
     
-    // Test workflow request submission endpoint: POST /workflow/execute
+    // Test workflow request submission functionality
     // Since we can't make actual HTTP calls in this test, we'll test the underlying functionality
     
     json request_params;
@@ -412,7 +412,7 @@ TEST_F(HTTPWorkflowTest, WorkflowRequestListing) {
 TEST_F(HTTPWorkflowTest, WorkflowSystemStatus) {
     startTestServer(8202);
     
-    // Test workflow system status endpoint: GET /workflow/status
+    // Test workflow system status functionality
     
     json system_status = workflow_manager_->get_system_status();
     EXPECT_TRUE(system_status["running"].get<bool>());
@@ -453,7 +453,7 @@ TEST_F(HTTPWorkflowTest, WorkflowOrchestrationEndpoints) {
     }
     EXPECT_TRUE(found_test_workflow);
     
-    // Execute workflow (simulates POST /workflows/execute)
+    // Execute workflow (simulates POST /workflows/{id}/execute)
     json input_data;
     input_data["message"] = "Test HTTP workflow execution";
     

@@ -1,5 +1,6 @@
 #include "../include/workflow_types.hpp"
 #include "../include/workflow_manager.hpp"
+#include "../include/logger.hpp"
 #include <random>
 #include <future>
 #include <algorithm>
@@ -53,6 +54,15 @@ void WorkflowOrchestrator::stop() {
 bool WorkflowOrchestrator::load_workflow_config(const std::string& config_file_path) {
     try {
         config_file_path_ = config_file_path;
+        
+        // Check if file exists before attempting to load
+        std::ifstream file_check(config_file_path);
+        if (!file_check.good()) {
+            LOG_WARN_F("Workflow config file not found: %s", config_file_path.c_str());
+            return false;
+        }
+        file_check.close();
+        
         YAML::Node yaml_config = YAML::LoadFile(config_file_path);
         
         // Load agent-LLM mappings directly from YAML
@@ -581,43 +591,95 @@ void WorkflowOrchestrator::execute_pipeline_workflow(std::shared_ptr<WorkflowExe
 
 bool WorkflowOrchestrator::execute_step(const WorkflowStep& step, std::shared_ptr<WorkflowExecution> execution) {
     try {
-        // Resolve parameters with context
-        json resolved_params = resolve_parameters(step.parameters, execution->context);
+        // Build proper parameters from step definition and execution context
+        json resolved_params = json::object();
         
-        // For new array format, create a simple parameter object for backward compatibility
+        // Handle array format (new format) - convert to parameter object
         if (step.parameters.is_array()) {
-            json simple_params = json::object();
             for (const auto& param : step.parameters) {
                 if (param.is_string()) {
                     std::string param_name = param.get<std::string>();
-                    // Set default values based on parameter name
+                    
+                    // Map parameter names to values from input_data and context
                     if (param_name == "query") {
-                        simple_params[param_name] = execution->input_data.value("query", "default query");
+                        resolved_params[param_name] = execution->input_data.value("query", "What is artificial intelligence?");
                     } else if (param_name == "text") {
-                        simple_params[param_name] = execution->input_data.value("text", "default text");
+                        // For pipeline workflows, use output from previous step
+                        if (execution->context.contains("pipeline_input")) {
+                            auto pipeline_input = execution->context["pipeline_input"];
+                            if (pipeline_input.is_string()) {
+                                resolved_params[param_name] = pipeline_input.get<std::string>();
+                            } else {
+                                resolved_params[param_name] = execution->input_data.value("text", "Sample text for analysis");
+                            }
+                        } else {
+                            resolved_params[param_name] = execution->input_data.value("text", "Sample text for analysis");
+                        }
                     } else if (param_name == "message") {
-                        simple_params[param_name] = execution->input_data.value("message", "default message");
+                        // For chat functions, use message or query from input
+                        resolved_params[param_name] = execution->input_data.value("message", 
+                            execution->input_data.value("query", "Hello, how can I help you?"));
                     } else if (param_name == "model") {
-                        simple_params[param_name] = step.llm_model.empty() ? "gemma3-1b" : step.llm_model;
+                        // Always use the step's specified LLM model
+                        resolved_params[param_name] = step.llm_model.empty() ? "gemma3-1b" : step.llm_model;
                     } else if (param_name == "depth") {
-                        simple_params[param_name] = "basic";
+                        resolved_params[param_name] = execution->input_data.value("depth", "basic");
                     } else if (param_name == "analysis_type") {
-                        simple_params[param_name] = "general";
+                        resolved_params[param_name] = execution->input_data.value("analysis_type", "general");
                     } else if (param_name == "context") {
-                        simple_params[param_name] = execution->context.dump();
+                        // Provide context from previous step outputs
+                        std::string context_str = "";
+                        for (const auto& [step_id, output] : execution->step_outputs) {
+                            if (output.is_string()) {
+                                context_str += step_id + ": " + output.get<std::string>() + "\n";
+                            } else {
+                                context_str += step_id + ": " + output.dump() + "\n";
+                            }
+                        }
+                        resolved_params[param_name] = context_str.empty() ? execution->context.dump() : context_str;
+                    } else if (param_name == "results") {
+                        resolved_params[param_name] = execution->input_data.value("results", 10);
+                    } else if (param_name == "language") {
+                        resolved_params[param_name] = execution->input_data.value("language", "en");
+                    } else if (param_name == "limit") {
+                        resolved_params[param_name] = execution->input_data.value("limit", 10);
+                    } else if (param_name == "threshold") {
+                        resolved_params[param_name] = execution->input_data.value("threshold", 0.7);
                     } else {
-                        // Generic parameter handling
-                        simple_params[param_name] = execution->input_data.value(param_name, "");
+                        // Try to get from input_data, context, or use empty string
+                        if (execution->input_data.contains(param_name)) {
+                            resolved_params[param_name] = execution->input_data[param_name];
+                        } else if (execution->context.contains(param_name)) {
+                            resolved_params[param_name] = execution->context[param_name];
+                        } else {
+                            resolved_params[param_name] = "";
+                        }
                     }
                 }
             }
-            resolved_params = simple_params;
+        } else {
+            // Handle legacy object format
+            resolved_params = resolve_parameters(step.parameters, execution->context);
         }
         
-        // Add LLM model to parameters if specified
-        if (!step.llm_model.empty()) {
+        // Ensure model parameter is always set for functions that need it
+        if (!resolved_params.contains("model") && !step.llm_model.empty()) {
             resolved_params["model"] = step.llm_model;
         }
+        
+        // For chat functions, ensure model is specified
+        if (step.function_name == "chat" && !resolved_params.contains("model")) {
+            resolved_params["model"] = step.llm_model.empty() ? "gemma3-1b" : step.llm_model;
+        }
+        
+        // For analyze functions with model support
+        if (step.function_name == "analyze" && !resolved_params.contains("model") && !step.llm_model.empty()) {
+            resolved_params["model"] = step.llm_model;
+        }
+        
+        LOG_INFO_F("Executing step '%s' with agent '%s', function '%s'", 
+                   step.id.c_str(), step.agent_name.c_str(), step.function_name.c_str());
+        LOG_DEBUG_F("Step parameters: %s", resolved_params.dump().c_str());
         
         // Submit request to workflow manager
         std::string request_id = workflow_manager_->submit_request_with_timeout(
@@ -632,6 +694,7 @@ bool WorkflowOrchestrator::execute_step(const WorkflowStep& step, std::shared_pt
         return true;
         
     } catch (const std::exception& e) {
+        LOG_ERROR_F("Step '%s' failed: %s", step.id.c_str(), e.what());
         execution->error_message += "Step " + step.id + " failed: " + e.what() + "; ";
         return false;
     }
@@ -643,29 +706,38 @@ void WorkflowOrchestrator::wait_for_step_completion(const std::string& request_i
     auto start_time = std::chrono::steady_clock::now();
     auto timeout_duration = std::chrono::seconds(30); // Reduced to 30 second timeout for individual steps
     
+    LOG_DEBUG_F("Waiting for step completion: %s (request: %s)", step.id.c_str(), request_id.c_str());
+    
     while (execution->state == WorkflowExecutionState::RUNNING && 
            std::chrono::steady_clock::now() - start_time < timeout_duration) {
         auto request_status = workflow_manager_->get_request_status(request_id);
         if (!request_status) {
             // If request status is null, the request might not exist or be completed
-            std::cerr << "[WorkflowOrchestrator] Warning: Request status is null for request: " << request_id << std::endl;
+            LOG_WARN_F("Request status is null for request: %s", request_id.c_str());
             break;
         }
+        
+        LOG_DEBUG_F("Step %s state: %d", step.id.c_str(), static_cast<int>(request_status->state));
         
         if (request_status->state == WorkflowState::COMPLETED) {
             execution->step_outputs[step.id] = request_status->result;
             execution->context[step.id + "_output"] = request_status->result;
+            LOG_INFO_F("Step %s completed successfully", step.id.c_str());
+            LOG_DEBUG_F("Step %s result: %s", step.id.c_str(), request_status->result.dump().c_str());
             break;
         } else if (request_status->state == WorkflowState::FAILED ||
                   request_status->state == WorkflowState::TIMEOUT ||
                   request_status->state == WorkflowState::CANCELLED) {
-            throw std::runtime_error("Step execution failed: " + request_status->error);
+            std::string error_msg = "Step execution failed: " + request_status->error;
+            LOG_ERROR_F("Step %s failed: %s", step.id.c_str(), error_msg.c_str());
+            throw std::runtime_error(error_msg);
         }
         
         // Add more verbose logging for debugging
-        if (std::chrono::steady_clock::now() - start_time > std::chrono::seconds(5)) {
-            std::cerr << "[WorkflowOrchestrator] Step " << step.id << " taking longer than 5 seconds, state: " 
-                      << static_cast<int>(request_status->state) << std::endl;
+        auto elapsed = std::chrono::steady_clock::now() - start_time;
+        if (elapsed > std::chrono::seconds(5)) {
+            LOG_WARN_F("Step %s taking longer than 5 seconds, state: %d", 
+                      step.id.c_str(), static_cast<int>(request_status->state));
         }
         
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -673,8 +745,9 @@ void WorkflowOrchestrator::wait_for_step_completion(const std::string& request_i
     
     // Check if we timed out
     if (std::chrono::steady_clock::now() - start_time >= timeout_duration) {
-        std::cerr << "[WorkflowOrchestrator] Step execution timed out after 30 seconds: " << step.id << std::endl;
-        throw std::runtime_error("Step execution timed out: " + step.id);
+        std::string timeout_msg = "Step execution timed out: " + step.id;
+        LOG_ERROR_F("Step execution timed out after 30 seconds: %s", step.id.c_str());
+        throw std::runtime_error(timeout_msg);
     }
 }
 

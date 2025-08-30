@@ -117,20 +117,11 @@ bool HTTPServer::start() {
     std::cout << "  POST   /agents/{id}/execute - Execute function (with model parameter)\n";
     std::cout << "  GET    /status              - System status\n";
     
-    if (workflow_manager_) {
-        std::cout << "\nWorkflow Management endpoints:\n";
-        std::cout << "  POST   /workflow/execute      - Submit workflow request\n";
-        std::cout << "  GET    /workflow/status/{id}  - Get request status\n";
-        std::cout << "  DELETE /workflow/cancel/{id}  - Cancel request\n";
-        std::cout << "  GET    /workflow/requests     - List workflow requests\n";
-        std::cout << "  GET    /workflow/status       - Workflow system status\n";
-    }
-    
     if (workflow_orchestrator_) {
         std::cout << "\nWorkflow Orchestration endpoints:\n";
         std::cout << "  GET    /workflows             - List workflow definitions\n";
         std::cout << "  POST   /workflows             - Register workflow definition\n";
-        std::cout << "  POST   /workflows/execute     - Execute workflow\n";
+        std::cout << "  POST   /workflows/{id}/execute     - Execute workflow\n";
         std::cout << "  GET    /workflows/executions/{id} - Get execution status\n";
         std::cout << "  PUT    /workflows/executions/{id}/{action} - Control execution (pause/resume/cancel)\n";
         std::cout << "  GET    /workflows/executions  - List workflow executions\n";
@@ -204,57 +195,71 @@ void HTTPServer::handle_client(socket_t client_socket) {
     try {
         parse_http_request(request, method, path, body);
         
+        // Log the incoming request
         std::cout << "[HTTP] " << method << " " << path << "\n";
+        std::cout << "[HTTP-DEBUG] Processing request from client, body size: " << body.size() << " bytes\n";
         
-        // Route handling
+        // Route handling with detailed logging
+        bool route_matched = false;
+        
         if (path == "/agents" && method == "GET") {
+            std::cout << "[HTTP-ROUTE] Matched route: List agents\n";
+            route_matched = true;
             handle_list_agents(client_socket);
         } else if (path == "/agents" && method == "POST") {
+            std::cout << "[HTTP-ROUTE] Matched route: Create agent\n";
+            route_matched = true;
             handle_create_agent(client_socket, body);
         } else if (path.find("/agents/") == 0 && method == "GET") {
             std::string agent_id = extract_path_parameter(path, "/agents/");
             if (!agent_id.empty() && path == "/agents/" + agent_id) {
+                std::cout << "[HTTP-ROUTE] Matched route: Get agent details for ID: " << agent_id << "\n";
+                route_matched = true;
                 handle_get_agent(client_socket, agent_id);
             }
         } else if (path.find("/agents/") == 0 && path.find("/start") != std::string::npos && method == "PUT") {
             std::string agent_id = extract_path_parameter(path, "/agents/");
             agent_id = agent_id.substr(0, agent_id.length() - 6); // Remove "/start"
+            std::cout << "[HTTP-ROUTE] Matched route: Start agent ID: " << agent_id << "\n";
+            route_matched = true;
             handle_start_agent(client_socket, agent_id);
         } else if (path.find("/agents/") == 0 && path.find("/stop") != std::string::npos && method == "PUT") {
             std::string agent_id = extract_path_parameter(path, "/agents/");
             agent_id = agent_id.substr(0, agent_id.length() - 5); // Remove "/stop"
+            std::cout << "[HTTP-ROUTE] Matched route: Stop agent ID: " << agent_id << "\n";
+            route_matched = true;
             handle_stop_agent(client_socket, agent_id);
         } else if (path.find("/agents/") == 0 && path.find("/execute") != std::string::npos && method == "POST") {
             std::string agent_id = extract_path_parameter(path, "/agents/");
             agent_id = agent_id.substr(0, agent_id.length() - 8); // Remove "/execute"
+            std::cout << "[HTTP-ROUTE] Matched route: Execute function for agent ID: " << agent_id << "\n";
+            route_matched = true;
             handle_execute_function(client_socket, agent_id, body);
         } else if (path.find("/agents/") == 0 && method == "DELETE") {
             std::string agent_id = extract_path_parameter(path, "/agents/");
+            std::cout << "[HTTP-ROUTE] Matched route: Delete agent ID: " << agent_id << "\n";
+            route_matched = true;
             handle_delete_agent(client_socket, agent_id);
         } else if (path == "/status" && method == "GET") {
+            std::cout << "[HTTP-ROUTE] Matched route: System status\n";
+            route_matched = true;
             handle_system_status(client_socket);
-        }
-        // Workflow Management routes
-        else if (workflow_manager_ && path == "/workflow/execute" && method == "POST") {
-            handle_submit_workflow_request(client_socket, body);
-        } else if (workflow_manager_ && path.find("/workflow/status/") == 0 && method == "GET") {
-            std::string request_id = extract_path_parameter(path, "/workflow/status/");
-            handle_get_request_status(client_socket, request_id);
-        } else if (workflow_manager_ && path.find("/workflow/cancel/") == 0 && method == "DELETE") {
-            std::string request_id = extract_path_parameter(path, "/workflow/cancel/");
-            handle_cancel_request(client_socket, request_id);
-        } else if (workflow_manager_ && path == "/workflow/requests" && method == "GET") {
-            handle_list_workflow_requests(client_socket);
-        } else if (workflow_manager_ && path == "/workflow/status" && method == "GET") {
-            handle_workflow_system_status(client_socket);
         }
         // Workflow Orchestration routes
         else if (workflow_orchestrator_ && path == "/workflows" && method == "GET") {
+            std::cout << "[HTTP-ROUTE] Matched route: List workflows\n";
+            route_matched = true;
             handle_list_workflows(client_socket);
         } else if (workflow_orchestrator_ && path == "/workflows" && method == "POST") {
+            std::cout << "[HTTP-ROUTE] Matched route: Register new workflow\n";
+            route_matched = true;
             handle_register_workflow(client_socket, body);
-        } else if (workflow_orchestrator_ && path == "/workflows/execute" && method == "POST") {
-            handle_execute_workflow(client_socket, body);
+        } else if (workflow_orchestrator_ && path.find("/workflows/") == 0 && path.find("/execute") != std::string::npos && method == "POST") {
+            std::string workflow_id = extract_path_parameter(path, "/workflows/");
+            workflow_id = workflow_id.substr(0, workflow_id.length() - 8); // Remove "/execute"
+            std::cout << "[HTTP-ROUTE] Matched route: Execute workflow ID: " << workflow_id << "\n";
+            route_matched = true;
+            handle_execute_workflow(client_socket, body, workflow_id);
         } else if (workflow_orchestrator_ && path.find("/workflows/executions/") == 0 && method == "GET") {
             std::string execution_id = extract_path_parameter(path, "/workflows/executions/");
             if (execution_id.find("/") != std::string::npos) {
@@ -262,8 +267,12 @@ void HTTPServer::handle_client(socket_t client_socket) {
                 size_t slash_pos = execution_id.find("/");
                 std::string action = execution_id.substr(slash_pos + 1);
                 execution_id = execution_id.substr(0, slash_pos);
+                std::cout << "[HTTP-ROUTE] Matched route: Control workflow execution ID: " << execution_id << ", action: " << action << "\n";
+                route_matched = true;
                 handle_control_workflow_execution(client_socket, execution_id, action);
             } else {
+                std::cout << "[HTTP-ROUTE] Matched route: Get workflow execution status for ID: " << execution_id << "\n";
+                route_matched = true;
                 handle_get_workflow_execution(client_socket, execution_id);
             }
         } else if (workflow_orchestrator_ && path.find("/workflows/executions/") == 0 && method == "PUT") {
@@ -272,12 +281,21 @@ void HTTPServer::handle_client(socket_t client_socket) {
             if (slash_pos != std::string::npos) {
                 std::string execution_id = path_part.substr(0, slash_pos);
                 std::string action = path_part.substr(slash_pos + 1);
+                std::cout << "[HTTP-ROUTE] Matched route: Control workflow execution ID: " << execution_id << ", action: " << action << "\n";
+                route_matched = true;
                 handle_control_workflow_execution(client_socket, execution_id, action);
             }
         } else if (workflow_orchestrator_ && path == "/workflows/executions" && method == "GET") {
+            std::cout << "[HTTP-ROUTE] Matched route: List workflow executions\n";
+            route_matched = true;
             handle_list_workflow_executions(client_socket);
-        } else {
+        }
+        
+        if (!route_matched) {
+            std::cout << "[HTTP-ERROR] No route found for " << method << " " << path << " - responding with 404\n";
             send_error(client_socket, 404, "Not Found");
+        } else {
+            std::cout << "[HTTP-COMPLETE] Request processing completed for " << method << " " << path << "\n";
         }
     } catch (const std::exception& e) {
         send_error(client_socket, 500, e.what());
@@ -799,16 +817,10 @@ void HTTPServer::handle_register_workflow(socket_t client_socket, const std::str
     }
 }
 
-void HTTPServer::handle_execute_workflow(socket_t client_socket, const std::string& body) {
+void HTTPServer::handle_execute_workflow(socket_t client_socket, const std::string& body, const std::string& workflow_id) {
     try {
         json request_data = json::parse(body);
         
-        if (!request_data.contains("workflow_id")) {
-            send_error(client_socket, 400, "Missing required field: workflow_id");
-            return;
-        }
-        
-        std::string workflow_id = request_data["workflow_id"];
         json input_data = request_data.value("input_data", json{});
         bool async_execution = request_data.value("async", true);
         

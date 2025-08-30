@@ -26,6 +26,20 @@ system_instruction: |
   
   Your responses should be informative and helpful while being concise when appropriate.
 
+# Model configuration for agents - maps to Kolosal Server models
+models:
+  - name: "default"
+    actual_name: "gemma3-1b"
+    type: "llm"
+    server_url: "http://127.0.0.1:8081"
+    description: "Default LLM model (Gemma3-1B)"
+  
+  - name: "gemma3-1b"
+    actual_name: "gemma3-1b"
+    type: "llm"
+    server_url: "http://127.0.0.1:8081"
+    description: "Gemma3-1B language model"
+
 # Default agents to create on startup
 agents:
   - name: "Assistant"
@@ -68,6 +82,24 @@ agents:
       understanding document relationships, and presenting retrieved information 
       in a clear and organized manner. Always provide source references 
       when returning information from documents.
+
+  - name: "DeepResearcher"
+    capabilities: ["deep_research", "iterative_search", "fact_verification", "research_planning", "synthesis"]
+    auto_start: false
+    system_prompt: |
+      You are an AI agent specialized in comprehensive deep research and analysis.
+      Your primary functions include:
+      - Planning multi-phase research strategies based on query complexity
+      - Conducting iterative research with progressive refinement
+      - Cross-validating information from multiple sources
+      - Identifying research gaps and conducting targeted follow-up research
+      - Synthesizing complex information from diverse sources
+      - Fact-checking and source verification
+      - Generating comprehensive research reports with proper citations
+      
+      You approach research systematically, ensuring thoroughness, accuracy, and 
+      objectivity. You excel at breaking down complex topics into researchable 
+      components and building comprehensive understanding through iterative investigation.
 
 # Available functions that agents can execute
 functions:
@@ -284,6 +316,143 @@ functions:
         type: "string"
         required: true
         description: "Base query to generate suggestions for"
+
+  # Deep Research Functions
+  plan_research:
+    description: "Plan a comprehensive research strategy based on query complexity"
+    timeout: 120000
+    parameters:
+      - name: "query"
+        type: "string"
+        required: true
+        description: "Primary research question or topic"
+      - name: "research_scope"
+        type: "string"
+        required: false
+        description: "Scope of research (narrow, broad, comprehensive)"
+      - name: "depth_level"
+        type: "string"
+        required: false
+        description: "Research depth level (basic, intermediate, advanced, expert)"
+
+  targeted_research:
+    description: "Conduct focused research on specific aspects or gaps"
+    timeout: 240000
+    parameters:
+      - name: "research_gaps"
+        type: "array"
+        required: true
+        description: "List of specific topics or questions that need research"
+      - name: "search_terms"
+        type: "array"
+        required: true
+        description: "Specific search terms to use for targeted research"
+      - name: "sources"
+        type: "array"
+        required: false
+        description: "Preferred sources or domains to search"
+
+  verify_facts:
+    description: "Cross-validate and verify facts from multiple sources"
+    timeout: 180000
+    parameters:
+      - name: "findings"
+        type: "array"
+        required: true
+        description: "List of findings or claims to verify"
+      - name: "sources"
+        type: "array"
+        required: true
+        description: "Sources to use for verification"
+      - name: "verification_depth"
+        type: "string"
+        required: false
+        description: "Depth of verification (basic, thorough, comprehensive)"
+
+  synthesize_research:
+    description: "Synthesize information from multiple research sources and identify gaps"
+    timeout: 180000
+    parameters:
+      - name: "primary_data"
+        type: "object"
+        required: true
+        description: "Primary research data to synthesize"
+      - name: "knowledge_base_data"
+        type: "object"
+        required: false
+        description: "Additional data from knowledge base"
+      - name: "synthesis_type"
+        type: "string"
+        required: false
+        description: "Type of synthesis (comparative, thematic, chronological)"
+
+  generate_research_report:
+    description: "Generate comprehensive research report with citations"
+    timeout: 120000
+    parameters:
+      - name: "research_data"
+        type: "object"
+        required: true
+        description: "Compiled research data and findings"
+      - name: "analysis_results"
+        type: "object"
+        required: true
+        description: "Analysis results from deep analysis phase"
+      - name: "report_format"
+        type: "string"
+        required: false
+        description: "Format of the report (academic, business, summary, detailed)"
+      - name: "include_citations"
+        type: "boolean"
+        required: false
+        description: "Whether to include source citations"
+
+  cross_reference_search:
+    description: "Search across multiple databases and cross-reference results"
+    timeout: 180000
+    parameters:
+      - name: "query"
+        type: "string"
+        required: true
+        description: "Search query to cross-reference"
+      - name: "databases"
+        type: "array"
+        required: false
+        description: "List of databases to search (internet, knowledge_base, documents)"
+      - name: "correlation_threshold"
+        type: "number"
+        required: false
+        description: "Minimum correlation score for cross-referencing (0.0-1.0)"
+
+  iterative_search_refinement:
+    description: "Iteratively refine search based on previous results"
+    timeout: 240000
+    parameters:
+      - name: "initial_query"
+        type: "string"
+        required: true
+        description: "Initial search query"
+      - name: "previous_results"
+        type: "object"
+        required: true
+        description: "Results from previous search iterations"
+      - name: "refinement_strategy"
+        type: "string"
+        required: false
+        description: "Strategy for refinement (narrow, broaden, pivot, clarify)"
+
+  source_credibility_analysis:
+    description: "Analyze and score the credibility of information sources"
+    timeout: 60000
+    parameters:
+      - name: "sources"
+        type: "array"
+        required: true
+        description: "List of sources to analyze for credibility"
+      - name: "criteria"
+        type: "array"
+        required: false
+        description: "Criteria for credibility assessment"
 
 # Performance and resource configuration
 performance:

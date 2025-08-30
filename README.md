@@ -45,8 +45,12 @@ cmake .. -DCMAKE_BUILD_TYPE=Debug
 cmake --build . --config Debug
 
 # Run the system
-./kolosal-agent                    # Linux/macOS
-.\Debug\kolosal-agent.exe          # Windows
+./kolosal-agent                    # Linux/macOS (uses workflow.yaml by default)
+.\Debug\kolosal-agent.exe          # Windows (uses workflow.yaml by default)
+
+# Run with custom configuration files
+./kolosal-agent --workflow my-workflows.yaml    # Custom workflow config
+./kolosal-agent --config my-agents.yaml --workflow my-workflows.yaml  # Custom configs
 ```
 
 ### Verification
@@ -66,9 +70,9 @@ curl -X POST http://localhost:8080/agents/Assistant/execute \
   -d '{"function": "chat", "params": {"message": "Hello!", "model": "gemma3-1b"}}'
 
 # Execute a workflow
-curl -X POST http://localhost:8080/workflows/execute \
+curl -X POST http://localhost:8080/workflows/simple_research/execute \
   -H "Content-Type: application/json" \
-  -d '{"workflow_id": "simple_research", "input_data": {"query": "AI trends"}}'
+  -d '{"input_data": {"query": "AI trends"}}'
 
 # List available workflows
 curl http://localhost:8080/workflows
@@ -451,35 +455,12 @@ Content-Type: application/json
 
 #### Execute Workflow
 ```http
-POST /workflows/execute
+POST /workflows/{id}/execute
 Content-Type: application/json
 
 {
-  "workflow_id": "research_workflow",
   "input_data": {"query": "AI research trends"}
 }
-```
-
-#### Submit Workflow Request
-```http
-POST /workflow/submit
-Content-Type: application/json
-
-{
-  "agent_name": "Assistant",
-  "function_name": "chat",
-  "parameters": {"message": "Hello", "model": "gemma3-1b"}
-}
-```
-
-#### Get Workflow Request Status
-```http
-GET /workflow/status/{request_id}
-```
-
-#### Cancel Workflow Request
-```http
-DELETE /workflow/cancel/{request_id}
 ```
 
 ### Example API Calls
@@ -510,20 +491,9 @@ curl -X POST http://localhost:8080/agents/RetrievalAgent/execute \
 curl http://localhost:8080/workflows
 
 # Execute a workflow
-curl -X POST http://localhost:8080/workflows/execute \
+curl -X POST http://localhost:8080/workflows/simple_research/execute \
   -H "Content-Type: application/json" \
-  -d '{"workflow_id": "simple_research", "input_data": {"query": "machine learning trends"}}'
-
-# Submit a workflow request
-curl -X POST http://localhost:8080/workflow/submit \
-  -H "Content-Type: application/json" \
-  -d '{"agent_name": "Assistant", "function_name": "chat", "parameters": {"message": "Hello!", "model": "gemma3-1b"}}'
-
-# Check workflow request status
-curl http://localhost:8080/workflow/status/req_12345678
-
-# Cancel a workflow request  
-curl -X DELETE http://localhost:8080/workflow/cancel/req_12345678
+  -d '{"input_data": {"query": "machine learning trends"}}'
 ```
 
 ## 🧪 Testing
@@ -777,33 +747,11 @@ class KolosalAgentClient:
         return response.json()
     
     def execute_workflow(self, workflow_id, input_data=None):
-        payload = {"workflow_id": workflow_id}
+        payload = {}
         if input_data:
             payload["input_data"] = input_data
-        response = requests.post(f"{self.base_url}/workflows/execute", json=payload)
+        response = requests.post(f"{self.base_url}/workflows/{workflow_id}/execute", json=payload)
         return response.json()
-    
-    def submit_workflow_request(self, agent_name, function_name, parameters):
-        payload = {
-            "agent_name": agent_name,
-            "function_name": function_name,
-            "parameters": parameters
-        }
-        response = requests.post(f"{self.base_url}/workflow/submit", json=payload)
-        return response.json()
-    
-    def get_request_status(self, request_id):
-        response = requests.get(f"{self.base_url}/workflow/status/{request_id}")
-        return response.json()
-    
-    def wait_for_request(self, request_id, timeout=300):
-        start_time = time.time()
-        while time.time() - start_time < timeout:
-            status = self.get_request_status(request_id)
-            if status.get("state") in ["COMPLETED", "FAILED", "TIMEOUT", "CANCELLED"]:
-                return status
-            time.sleep(1)
-        return None
 
 # Usage Examples
 client = KolosalAgentClient()
@@ -824,16 +772,6 @@ workflow_result = client.execute_workflow("simple_research", {
     "query": "machine learning trends 2025"
 })
 print("Workflow Execution ID:", workflow_result.get("execution_id"))
-
-# Submit and monitor workflow request
-request = client.submit_workflow_request("Assistant", "chat", {
-    "message": "Analyze AI trends",
-    "model": "gemma3-1b"
-})
-
-if "request_id" in request:
-    final_status = client.wait_for_request(request["request_id"])
-    print("Final Result:", final_status)
 ```
 
 ### Docker Deployment

@@ -52,4 +52,8 @@ public:
     json execute_agent_function(const std::string& agent_id, 
                                 const std::string& function_name, 
                                 const json& params);
+                                
+private:
+    // Internal methods
+    void load_model_configurations();
 };

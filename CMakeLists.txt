@@ -145,6 +145,7 @@ set(CORE_SOURCES
     src/core/agent_manager.cpp
     src/core/agent_config.cpp
     src/core/model_interface.cpp
+    src/core/logger.cpp
     src/core/main.cpp
 )
 
@@ -159,6 +160,7 @@ set(WORKFLOW_SOURCES
 
 set(TOOL_SOURCES
     src/functions/retrieval_functions.cpp
+    src/functions/deep_research_functions.cpp
 )
 
 # Add retrieval manager if kolosal-server is built

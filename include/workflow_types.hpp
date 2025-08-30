@@ -144,7 +144,7 @@ public:
     bool is_running() const { return running_.load(); }
     
     // Configuration management
-    bool load_workflow_config(const std::string& config_file_path);
+    bool load_workflow_config(const std::string& config_file_path = "workflow.yaml");
     void reload_workflow_config();
     json get_workflow_config() const;
     

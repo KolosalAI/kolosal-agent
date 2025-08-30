@@ -26,7 +26,7 @@
 
 param(
     [Parameter()]
-    [ValidateSet("all", "demo", "quick", "workflow", "integration", "stress", "retrieval", "simple_demo", "minimal_demo", "agent_execution", "model_interface", "config_manager", "workflow_config", "workflow_manager", "workflow_orchestrator", "http_server", "error_scenarios", "retrieval_agent")]
+    [ValidateSet("all", "demo", "quick", "workflow", "integration", "stress", "retrieval", "deep_research", "simple_demo", "minimal_demo", "agent_execution", "model_interface", "config_manager", "workflow_config", "workflow_manager", "workflow_orchestrator", "http_server", "error_scenarios", "retrieval_agent", "deep_research")]
     [string]$TestType = "all",
     
     [Parameter()]
@@ -245,6 +245,8 @@ function Run-TestExecutable {
         $actualTimeoutMinutes = $TimeoutMinutes
         if ($TestName -eq "error_scenarios" -or $TestName -eq "http_server") {
             $actualTimeoutMinutes = 5  # Increase timeout for stress tests and http server tests
+        } elseif ($TestName -eq "deep_research") {
+            $actualTimeoutMinutes = 3  # Deep research tests may need more time
         }
         
         # Run test with timeout support using Start-Process
@@ -430,6 +432,7 @@ function Get-AvailableTests {
         "http_server" = "test_http_server.exe"
         "error_scenarios" = "test_error_scenarios.exe"
         "retrieval_agent" = "test_retrieval_agent.exe"
+        "deep_research" = "test_deep_research.exe"
     }
     
     # Merge discovered tests with predefined ones, checking if they actually exist
@@ -480,6 +483,7 @@ function Run-Tests {
         "workflow" = @("workflow_config", "workflow_manager", "workflow_orchestrator")
         "integration" = @("agent_execution", "http_server")
         "retrieval" = @("retrieval_agent")
+        "deep_research" = @("deep_research")
         "stress" = @("error_scenarios")
         "all" = $allAvailableTests
     }
@@ -680,6 +684,7 @@ function Show-Usage {
     Write-ColorOutput "  workflow     - Run workflow tests (workflow_config, workflow_manager, workflow_orchestrator)" $Colors.Blue
     Write-ColorOutput "  integration  - Run integration tests (agent_execution, http_server)" $Colors.Blue
     Write-ColorOutput "  retrieval    - Run retrieval agent tests (retrieval_agent)" $Colors.Blue
+    Write-ColorOutput "  deep_research- Run deep research workflow tests (deep_research)" $Colors.Blue
     Write-ColorOutput "  stress       - Run stress and error tests (error_scenarios)" $Colors.Blue
     Write-ColorOutput "  <test_name>  - Run specific test (any individual test name)" $Colors.Blue
     Write-ColorOutput ""
@@ -694,6 +699,7 @@ function Show-Usage {
     Write-ColorOutput "  .\run_tests.ps1 -TestType quick -VerboseOutput" $Colors.Blue
     Write-ColorOutput "  .\run_tests.ps1 -TestType workflow -OutputFile results.json" $Colors.Blue
     Write-ColorOutput "  .\run_tests.ps1 -TestType retrieval -VerboseOutput" $Colors.Blue
+    Write-ColorOutput "  .\run_tests.ps1 -TestType deep_research -VerboseOutput" $Colors.Blue
     Write-ColorOutput "  .\run_tests.ps1 -TestType model_interface -VerboseOutput" $Colors.Blue
 }
 

@@ -16,7 +16,7 @@ using json = nlohmann::json;
 #endif
 
 // Include enhanced retrieval functions
-#include "../src/functions/retrieval_functions.hpp"
+#include "functions/retrieval_functions.hpp"
 
 /**
  * @brief Agent Class - Core functionality with system prompt support
@@ -72,9 +72,18 @@ public:
     // Built-in functions
     void setup_builtin_functions();
     
+    // Model configuration
+    void configure_models(const json& model_configs);
+    
+    // Helper functions
+    json create_research_function_response(const std::string& function_name, const json& params, const std::string& task_description);
+    
 #ifdef BUILD_WITH_RETRIEVAL
     // Retrieval functions
     void setup_retrieval_functions();
     void configure_retrieval(const json& config);
+    
+    // Deep research functions
+    void setup_deep_research_functions();
 #endif
 };
