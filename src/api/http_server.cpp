@@ -108,14 +108,16 @@ bool HTTPServer::start() {
     
     std::cout << "HTTP Server started on " << host_ << ":" << port_ << "\n";
     std::cout << "Available endpoints:\n";
-    std::cout << "  GET    /agents              - List all agents\n";
-    std::cout << "  POST   /agents              - Create new agent\n";
-    std::cout << "  GET    /agents/{id}         - Get agent info\n";
-    std::cout << "  PUT    /agents/{id}/start   - Start agent\n";
-    std::cout << "  PUT    /agents/{id}/stop    - Stop agent\n";
-    std::cout << "  DELETE /agents/{id}         - Delete agent\n";
-    std::cout << "  POST   /agents/{id}/execute - Execute function (with model parameter)\n";
-    std::cout << "  GET    /status              - System status\n";
+    std::cout << "  GET    /agents                    - List all agents\n";
+    std::cout << "  POST   /agents                    - Create new agent\n";
+    std::cout << "  GET    /agents/{id_or_name}       - Get agent info\n";
+    std::cout << "  PUT    /agents/{id_or_name}/start - Start agent\n";
+    std::cout << "  PUT    /agents/{id_or_name}/stop  - Stop agent\n";
+    std::cout << "  DELETE /agents/{id_or_name}       - Delete agent\n";
+    std::cout << "  POST   /agents/{id_or_name}/execute - Execute function (with model parameter)\n";
+    std::cout << "  GET    /status                    - System status\n";
+    std::cout << "\n";
+    std::cout << "Note: {id_or_name} can be either the agent's UUID or its human-readable name\n";
     
     if (workflow_orchestrator_) {
         std::cout << "\nWorkflow Orchestration endpoints:\n";
@@ -211,35 +213,70 @@ void HTTPServer::handle_client(socket_t client_socket) {
             route_matched = true;
             handle_create_agent(client_socket, body);
         } else if (path.find("/agents/") == 0 && method == "GET") {
-            std::string agent_id = extract_path_parameter(path, "/agents/");
-            if (!agent_id.empty() && path == "/agents/" + agent_id) {
-                std::cout << "[HTTP-ROUTE] Matched route: Get agent details for ID: " << agent_id << "\n";
-                route_matched = true;
-                handle_get_agent(client_socket, agent_id);
+            std::string agent_identifier = extract_path_parameter(path, "/agents/");
+            if (!agent_identifier.empty() && path == "/agents/" + agent_identifier) {
+                std::string agent_id = resolve_agent_identifier(agent_identifier);
+                if (!agent_id.empty()) {
+                    std::cout << "[HTTP-ROUTE] Matched route: Get agent details for identifier: " << agent_identifier << " (resolved to ID: " << agent_id << ")\n";
+                    route_matched = true;
+                    handle_get_agent(client_socket, agent_id);
+                } else {
+                    std::cout << "[HTTP-ERROR] Agent not found: " << agent_identifier << "\n";
+                    send_error(client_socket, 404, "Agent not found: " + agent_identifier);
+                    route_matched = true;
+                }
             }
         } else if (path.find("/agents/") == 0 && path.find("/start") != std::string::npos && method == "PUT") {
-            std::string agent_id = extract_path_parameter(path, "/agents/");
-            agent_id = agent_id.substr(0, agent_id.length() - 6); // Remove "/start"
-            std::cout << "[HTTP-ROUTE] Matched route: Start agent ID: " << agent_id << "\n";
-            route_matched = true;
-            handle_start_agent(client_socket, agent_id);
+            std::string agent_identifier = extract_path_parameter(path, "/agents/");
+            agent_identifier = agent_identifier.substr(0, agent_identifier.length() - 6); // Remove "/start"
+            std::string agent_id = resolve_agent_identifier(agent_identifier);
+            if (!agent_id.empty()) {
+                std::cout << "[HTTP-ROUTE] Matched route: Start agent identifier: " << agent_identifier << " (resolved to ID: " << agent_id << ")\n";
+                route_matched = true;
+                handle_start_agent(client_socket, agent_id);
+            } else {
+                std::cout << "[HTTP-ERROR] Agent not found: " << agent_identifier << "\n";
+                send_error(client_socket, 404, "Agent not found: " + agent_identifier);
+                route_matched = true;
+            }
         } else if (path.find("/agents/") == 0 && path.find("/stop") != std::string::npos && method == "PUT") {
-            std::string agent_id = extract_path_parameter(path, "/agents/");
-            agent_id = agent_id.substr(0, agent_id.length() - 5); // Remove "/stop"
-            std::cout << "[HTTP-ROUTE] Matched route: Stop agent ID: " << agent_id << "\n";
-            route_matched = true;
-            handle_stop_agent(client_socket, agent_id);
+            std::string agent_identifier = extract_path_parameter(path, "/agents/");
+            agent_identifier = agent_identifier.substr(0, agent_identifier.length() - 5); // Remove "/stop"
+            std::string agent_id = resolve_agent_identifier(agent_identifier);
+            if (!agent_id.empty()) {
+                std::cout << "[HTTP-ROUTE] Matched route: Stop agent identifier: " << agent_identifier << " (resolved to ID: " << agent_id << ")\n";
+                route_matched = true;
+                handle_stop_agent(client_socket, agent_id);
+            } else {
+                std::cout << "[HTTP-ERROR] Agent not found: " << agent_identifier << "\n";
+                send_error(client_socket, 404, "Agent not found: " + agent_identifier);
+                route_matched = true;
+            }
         } else if (path.find("/agents/") == 0 && path.find("/execute") != std::string::npos && method == "POST") {
-            std::string agent_id = extract_path_parameter(path, "/agents/");
-            agent_id = agent_id.substr(0, agent_id.length() - 8); // Remove "/execute"
-            std::cout << "[HTTP-ROUTE] Matched route: Execute function for agent ID: " << agent_id << "\n";
-            route_matched = true;
-            handle_execute_function(client_socket, agent_id, body);
+            std::string agent_identifier = extract_path_parameter(path, "/agents/");
+            agent_identifier = agent_identifier.substr(0, agent_identifier.length() - 8); // Remove "/execute"
+            std::string agent_id = resolve_agent_identifier(agent_identifier);
+            if (!agent_id.empty()) {
+                std::cout << "[HTTP-ROUTE] Matched route: Execute function for agent identifier: " << agent_identifier << " (resolved to ID: " << agent_id << ")\n";
+                route_matched = true;
+                handle_execute_function(client_socket, agent_id, body);
+            } else {
+                std::cout << "[HTTP-ERROR] Agent not found: " << agent_identifier << "\n";
+                send_error(client_socket, 404, "Agent not found: " + agent_identifier);
+                route_matched = true;
+            }
         } else if (path.find("/agents/") == 0 && method == "DELETE") {
-            std::string agent_id = extract_path_parameter(path, "/agents/");
-            std::cout << "[HTTP-ROUTE] Matched route: Delete agent ID: " << agent_id << "\n";
-            route_matched = true;
-            handle_delete_agent(client_socket, agent_id);
+            std::string agent_identifier = extract_path_parameter(path, "/agents/");
+            std::string agent_id = resolve_agent_identifier(agent_identifier);
+            if (!agent_id.empty()) {
+                std::cout << "[HTTP-ROUTE] Matched route: Delete agent identifier: " << agent_identifier << " (resolved to ID: " << agent_id << ")\n";
+                route_matched = true;
+                handle_delete_agent(client_socket, agent_id);
+            } else {
+                std::cout << "[HTTP-ERROR] Agent not found: " << agent_identifier << "\n";
+                send_error(client_socket, 404, "Agent not found: " + agent_identifier);
+                route_matched = true;
+            }
         } else if (path == "/status" && method == "GET") {
             std::cout << "[HTTP-ROUTE] Matched route: System status\n";
             route_matched = true;
@@ -646,6 +683,22 @@ std::string HTTPServer::extract_path_parameter(const std::string& path, const st
     if (path.find(prefix) == 0) {
         return path.substr(prefix.length());
     }
+    return "";
+}
+
+std::string HTTPServer::resolve_agent_identifier(const std::string& agent_identifier) {
+    // First, try to get agent directly by ID
+    if (agent_manager_->agent_exists(agent_identifier)) {
+        return agent_identifier; // It's already a valid agent ID
+    }
+    
+    // If not found by ID, try to get agent ID by name
+    std::string agent_id = agent_manager_->get_agent_id_by_name(agent_identifier);
+    if (!agent_id.empty()) {
+        return agent_id; // Found agent by name, return its ID
+    }
+    
+    // Neither ID nor name found
     return "";
 }
 
