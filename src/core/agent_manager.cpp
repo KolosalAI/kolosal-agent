@@ -1,11 +1,15 @@
 #include "agent_manager.hpp"
 #include "logger.hpp"
+#include <filesystem>
+
+namespace fs = std::filesystem;
 #include <iostream>
 #include <algorithm>
 
 AgentManager::AgentManager() {
     TRACE_FUNCTION();
     config_manager_ = std::make_shared<AgentConfigManager>();
+    initialize_server_launcher();
     LOG_DEBUG("AgentManager created with default configuration");
 }
 
@@ -18,6 +22,7 @@ AgentManager::AgentManager(std::shared_ptr<AgentConfigManager> config_manager)
     } else {
         LOG_DEBUG("AgentManager created with provided configuration");
     }
+    initialize_server_launcher();
 }
 
 bool AgentManager::load_configuration(const std::string& config_file) {
@@ -312,4 +317,171 @@ void AgentManager::load_model_configurations() {
     }
     
     LOG_INFO_F("Loaded model configurations for %zu agents", agents_.size());
+}
+
+bool AgentManager::start_kolosal_server() {
+    TRACE_FUNCTION();
+    
+    if (!server_launcher_) {
+        LOG_ERROR("Server launcher not initialized");
+        return false;
+    }
+    
+    if (server_launcher_->is_running()) {
+        LOG_INFO("Kolosal server is already running");
+        return true;
+    }
+    
+    LOG_INFO("Starting Kolosal server");
+    bool success = server_launcher_->start();
+    
+    if (success) {
+        LOG_INFO_F("Kolosal server started successfully at %s", server_launcher_->get_server_url().c_str());
+        
+        // Update all agents with the correct server URL
+        for (auto& [agent_id, agent] : agents_) {
+            if (agent) {
+                // Re-configure model interface with correct server URL
+                const auto& system_config = config_manager_->get_config();
+                json model_configs = json::array();
+                
+                for (const auto& [model_id, model_config] : system_config.models) {
+                    json model_json;
+                    model_json["id"] = model_config.id;
+                    model_json["actual_name"] = model_config.actual_name;
+                    model_json["name"] = model_config.actual_name;
+                    model_json["type"] = model_config.type;
+                    model_json["server_url"] = server_launcher_->get_server_url();
+                    if (!model_config.description.empty()) {
+                        model_json["description"] = model_config.description;
+                    }
+                    model_configs.push_back(model_json);
+                }
+                
+                if (!model_configs.empty()) {
+                    agent->configure_models(model_configs);
+                }
+            }
+        }
+    } else {
+        LOG_ERROR("Failed to start Kolosal server");
+    }
+    
+    return success;
+}
+
+bool AgentManager::stop_kolosal_server() {
+    TRACE_FUNCTION();
+    
+    if (!server_launcher_) {
+        LOG_DEBUG("Server launcher not initialized");
+        return true;
+    }
+    
+    if (!server_launcher_->is_running()) {
+        LOG_DEBUG("Kolosal server is already stopped");
+        return true;
+    }
+    
+    LOG_INFO("Stopping Kolosal server");
+    bool success = server_launcher_->stop();
+    
+    if (success) {
+        LOG_INFO("Kolosal server stopped successfully");
+    } else {
+        LOG_ERROR("Failed to stop Kolosal server");
+    }
+    
+    return success;
+}
+
+bool AgentManager::is_kolosal_server_running() const {
+    return server_launcher_ && server_launcher_->is_running();
+}
+
+std::string AgentManager::get_kolosal_server_url() const {
+    if (server_launcher_) {
+        return server_launcher_->get_server_url();
+    }
+    return "";
+}
+
+KolosalServerLauncher::Status AgentManager::get_kolosal_server_status() const {
+    if (server_launcher_) {
+        return server_launcher_->get_status();
+    }
+    return KolosalServerLauncher::Status::STOPPED;
+}
+
+void AgentManager::initialize_server_launcher() {
+    TRACE_FUNCTION();
+    
+    // Get current working directory
+    std::string workspace_path = fs::current_path().string();
+    
+    // Create default server configuration
+    auto server_config = create_default_server_config(workspace_path);
+    
+    // Override with configuration from config manager if available
+    if (config_manager_) {
+        const auto& system_config = config_manager_->get_config();
+        
+        // Check if there's server configuration in the system config
+        // For now, we use hardcoded defaults but this could be extended
+        // to read from the config.yaml file
+        server_config.port = 8081;  // Use different port from main agent system
+        server_config.host = "127.0.0.1";
+        server_config.log_level = "INFO";
+        server_config.quiet_mode = false;
+        
+        // Look for kolosal-server executable in the build directory
+        std::vector<std::string> search_paths = {
+            workspace_path + "/build/Debug/kolosal-server.exe",
+            workspace_path + "/build/Release/kolosal-server.exe", 
+            workspace_path + "/build/kolosal-server/Debug/kolosal-server.exe",
+            workspace_path + "/build/kolosal-server/Release/kolosal-server.exe",
+            workspace_path + "/kolosal-server/build/Debug/kolosal-server.exe",
+            workspace_path + "/kolosal-server/build/Release/kolosal-server.exe"
+        };
+        
+        for (const auto& path : search_paths) {
+            if (fs::exists(path)) {
+                server_config.executable_path = path;
+                LOG_DEBUG_F("Found kolosal-server executable: %s", path.c_str());
+                break;
+            }
+        }
+        
+        // Set config file path if it exists
+        std::string config_file_path = workspace_path + "/config.yaml";
+        if (fs::exists(config_file_path)) {
+            server_config.config_file = config_file_path;
+            LOG_DEBUG_F("Using config file: %s", config_file_path.c_str());
+        }
+    }
+    
+    // Create the server launcher
+    server_launcher_ = std::make_unique<KolosalServerLauncher>(server_config);
+    
+    // Set up status callback
+    setup_server_status_callback();
+    
+    LOG_INFO("Kolosal server launcher initialized");
+}
+
+void AgentManager::setup_server_status_callback() {
+    if (!server_launcher_) {
+        return;
+    }
+    
+    server_launcher_->set_status_callback([this](KolosalServerLauncher::Status status, const std::string& message) {
+        LOG_INFO_F("Kolosal server status changed: %s (%s)", 
+                   server_launcher_->get_status_string().c_str(), 
+                   message.c_str());
+        
+        // If server becomes ready, update all agents
+        if (status == KolosalServerLauncher::Status::RUNNING) {
+            load_model_configurations();
+        }
+    });
 }

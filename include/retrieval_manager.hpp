@@ -5,30 +5,25 @@
 #include <memory>
 #include <future>
 #include <json.hpp>
+#include "kolosal_client.hpp"
 
 using json = nlohmann::json;
 
-#ifdef BUILD_WITH_RETRIEVAL
-#include <kolosal/retrieval/document_service.hpp>
-#endif
-
 /**
- * @brief Simple manager for retrieval and search operations
+ * @brief Client-based manager for retrieval and search operations
+ * Uses KolosalClient to communicate with the Kolosal Server for retrieval tasks
  */
 class RetrievalManager {
 public:
     struct Config {
-        // Vector database config
-        std::string vector_db_type = "faiss";  // "faiss" or "qdrant"
-        std::string db_host = "localhost";
-        int db_port = 6333;
-        std::string collection_name = "documents";
+        // Server connection config
+        std::string server_url = "http://127.0.0.1:8081";
+        int timeout_seconds = 30;
+        int max_retries = 3;
         
-        // Search config
+        // Search config  
         bool search_enabled = false;
-        std::string searxng_url = "http://localhost:8888";
         int max_results = 10;
-        int timeout = 30;
     };
     
     explicit RetrievalManager(const Config& config);
@@ -50,11 +45,8 @@ public:
 
 private:
     Config config_;
+    std::unique_ptr<KolosalClient> kolosal_client_;
     bool available_ = false;
-    
-#ifdef BUILD_WITH_RETRIEVAL
-    std::unique_ptr<kolosal::retrieval::DocumentService> doc_service_;
-#endif
     
     void initialize();
 };

@@ -1,4 +1,4 @@
-#include "../include/retrieval_manager.hpp"
+#include "../../include/retrieval_manager.hpp"
 #include <iostream>
 
 RetrievalManager::RetrievalManager(const Config& config) : config_(config) {
@@ -8,28 +8,27 @@ RetrievalManager::RetrievalManager(const Config& config) : config_(config) {
 RetrievalManager::~RetrievalManager() = default;
 
 void RetrievalManager::initialize() {
-#ifdef BUILD_WITH_RETRIEVAL
     try {
-        // Create a basic database config
-        kolosal::DatabaseConfig db_config;
-        db_config.vectorDatabase = kolosal::DatabaseConfig::VectorDatabase::FAISS;
+        // Create KolosalClient with server configuration
+        KolosalClient::Config client_config;
+        client_config.server_url = config_.server_url;
+        client_config.timeout_seconds = config_.timeout_seconds;
+        client_config.max_retries = config_.max_retries;
         
-        // Initialize document service with config
-        doc_service_ = std::make_unique<kolosal::retrieval::DocumentService>(db_config);
+        kolosal_client_ = std::make_unique<KolosalClient>(client_config);
         
-        // Note: Search functionality would be initialized here if available
-        // For now, just mark as available since we have the document service
-        
-        available_ = true;
-        std::cout << "RetrievalManager initialized successfully\n";
+        // Test connection to server
+        if (kolosal_client_->is_server_healthy()) {
+            available_ = true;
+            std::cout << "RetrievalManager initialized successfully with Kolosal Server at " << config_.server_url << std::endl;
+        } else {
+            std::cout << "RetrievalManager: Kolosal Server not available at " << config_.server_url << std::endl;
+            available_ = false;
+        }
     } catch (const std::exception& e) {
-        std::cout << "RetrievalManager initialization failed: " << e.what() << "\n";
+        std::cout << "RetrievalManager initialization failed: " << e.what() << std::endl;
         available_ = false;
     }
-#else
-    std::cout << "RetrievalManager not available (kolosal-server not built)\n";
-    available_ = false;
-#endif
 }
 
 bool RetrievalManager::is_available() const {
@@ -39,108 +38,100 @@ bool RetrievalManager::is_available() const {
 json RetrievalManager::get_status() const {
     json status;
     status["available"] = available_;
-    status["vector_db_type"] = config_.vector_db_type;
+    status["server_url"] = config_.server_url;
     status["search_enabled"] = config_.search_enabled;
+    
+    if (available_ && kolosal_client_) {
+        try {
+            status["server_healthy"] = kolosal_client_->is_server_healthy();
+        } catch (...) {
+            status["server_healthy"] = false;
+        }
+    }
+    
     return status;
 }
 
 json RetrievalManager::add_document(const json& params) {
-    if (!available_) {
+    if (!available_ || !kolosal_client_) {
         throw std::runtime_error("Retrieval system not available");
     }
     
-#ifdef BUILD_WITH_RETRIEVAL
-    // Implementation for adding documents
-    // This would use doc_service_->addDocuments()
-    json result;
-    result["status"] = "success";
-    result["message"] = "Document added (placeholder implementation)";
-    return result;
-#else
-    throw std::runtime_error("Retrieval system not built");
-#endif
+    try {
+        return kolosal_client_->add_document(params);
+    } catch (const std::exception& e) {
+        throw std::runtime_error("Failed to add document: " + std::string(e.what()));
+    }
 }
 
 json RetrievalManager::search_documents(const json& params) {
-    if (!available_) {
+    if (!available_ || !kolosal_client_) {
         throw std::runtime_error("Retrieval system not available");
     }
     
-#ifdef BUILD_WITH_RETRIEVAL
-    std::string query = params.value("query", "");
-    int limit = params.value("limit", 10);
-    
-    // Implementation for document search
-    // This would use doc_service_->retrieveDocuments()
-    json result;
-    result["query"] = query;
-    result["results"] = json::array();
-    result["message"] = "Document search completed (placeholder implementation)";
-    return result;
-#else
-    throw std::runtime_error("Retrieval system not built");
-#endif
+    try {
+        std::string query = params.value("query", "");
+        int limit = params.value("limit", 10);
+        
+        return kolosal_client_->search_documents(query, limit);
+    } catch (const std::exception& e) {
+        throw std::runtime_error("Failed to search documents: " + std::string(e.what()));
+    }
 }
 
 json RetrievalManager::list_documents(const json& params) {
-    if (!available_) {
+    if (!available_ || !kolosal_client_) {
         throw std::runtime_error("Retrieval system not available");
     }
     
-#ifdef BUILD_WITH_RETRIEVAL
-    // Implementation for listing documents
-    json result;
-    result["documents"] = json::array();
-    result["count"] = 0;
-    result["message"] = "Document list retrieved (placeholder implementation)";
-    return result;
-#else
-    throw std::runtime_error("Retrieval system not built");
-#endif
+    try {
+        int offset = params.value("offset", 0);
+        int limit = params.value("limit", 50);
+        
+        return kolosal_client_->list_documents(offset, limit);
+    } catch (const std::exception& e) {
+        throw std::runtime_error("Failed to list documents: " + std::string(e.what()));
+    }
 }
 
 json RetrievalManager::remove_document(const json& params) {
-    if (!available_) {
+    if (!available_ || !kolosal_client_) {
         throw std::runtime_error("Retrieval system not available");
     }
     
-#ifdef BUILD_WITH_RETRIEVAL
-    std::string doc_id = params.value("id", "");
-    
-    // Implementation for removing documents
-    json result;
-    result["id"] = doc_id;
-    result["status"] = "success";
-    result["message"] = "Document removed (placeholder implementation)";
-    return result;
-#else
-    throw std::runtime_error("Retrieval system not built");
-#endif
+    try {
+        std::string doc_id = params.value("id", "");
+        if (doc_id.empty()) {
+            throw std::runtime_error("Document ID is required");
+        }
+        
+        return kolosal_client_->remove_document(doc_id);
+    } catch (const std::exception& e) {
+        throw std::runtime_error("Failed to remove document: " + std::string(e.what()));
+    }
 }
 
 json RetrievalManager::internet_search(const json& params) {
-    if (!available_ || !config_.search_enabled) {
-        throw std::runtime_error("Internet search not available");
+    if (!available_ || !kolosal_client_) {
+        throw std::runtime_error("Search system not available");
     }
     
-#ifdef BUILD_WITH_RETRIEVAL
-    std::string query = params.value("query", "");
-    int results = params.value("results", config_.max_results);
+    if (!config_.search_enabled) {
+        throw std::runtime_error("Internet search not enabled");
+    }
     
-    // Implementation for internet search
-    // This would use search_route_->handle()
-    json result;
-    result["query"] = query;
-    result["results"] = json::array();
-    result["message"] = "Internet search completed (placeholder implementation)";
-    return result;
-#else
-    throw std::runtime_error("Search system not built");
-#endif
+    try {
+        std::string query = params.value("query", "");
+        int results = params.value("results", config_.max_results);
+        
+        return kolosal_client_->internet_search(query, results);
+    } catch (const std::exception& e) {
+        throw std::runtime_error("Failed to perform internet search: " + std::string(e.what()));
+    }
 }
 
 json RetrievalManager::combined_search(const json& params) {
-    if (!available_) {
+    if (!available_ || !kolosal_client_) {
         throw std::runtime_error("Retrieval system not available");
     }
     

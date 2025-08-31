@@ -829,21 +829,21 @@ void Agent::configure_retrieval(const json& config) {
     auto retrieval_config = config["retrieval"];
     RetrievalManager::Config new_config;
     
-    // Parse configuration
-    if (retrieval_config.contains("vector_db_type")) {
-        new_config.vector_db_type = retrieval_config["vector_db_type"];
+    // Parse configuration - only use fields that exist in new Config
+    if (retrieval_config.contains("server_url")) {
+        new_config.server_url = retrieval_config["server_url"];
     }
-    if (retrieval_config.contains("db_host")) {
-        new_config.db_host = retrieval_config["db_host"];
+    if (retrieval_config.contains("timeout_seconds")) {
+        new_config.timeout_seconds = retrieval_config["timeout_seconds"];
     }
-    if (retrieval_config.contains("db_port")) {
-        new_config.db_port = retrieval_config["db_port"];
+    if (retrieval_config.contains("max_retries")) {
+        new_config.max_retries = retrieval_config["max_retries"];
     }
     if (retrieval_config.contains("search_enabled")) {
         new_config.search_enabled = retrieval_config["search_enabled"];
     }
-    if (retrieval_config.contains("searxng_url")) {
-        new_config.searxng_url = retrieval_config["searxng_url"];
+    if (retrieval_config.contains("max_results")) {
+        new_config.max_results = retrieval_config["max_results"];
     }
     
     // Recreate retrieval manager with new config

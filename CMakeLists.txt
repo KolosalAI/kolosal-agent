@@ -122,6 +122,8 @@ endif()
 include_directories(include)
 
 # External libraries setup
+add_subdirectory(external)
+
 set(NLOHMANN_JSON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann")
 if(EXISTS "${NLOHMANN_JSON_DIR}/json.hpp")
     include_directories(${NLOHMANN_JSON_DIR})
@@ -145,7 +147,9 @@ set(CORE_SOURCES
     src/core/agent_manager.cpp
     src/core/agent_config.cpp
     src/core/model_interface.cpp
+    src/core/kolosal_client.cpp
     src/core/logger.cpp
+    src/core/kolosal_server_launcher.cpp
     src/core/main.cpp
 )
 

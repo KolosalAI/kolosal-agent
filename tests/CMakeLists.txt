@@ -1,245 +1,146 @@
-# CMakeLists.txt for Kolosal Agent System Tests
-cmake_minimum_required(VERSION 3.16)
+# Tests CMakeLists.txt for Kolosal Agent
 
-# Test project
-project(KolosalAgentTests)
+# Override runtime library for tests to use dynamic runtime to avoid conflicts
+if(MSVC)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>")
+    else()
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+    endif()
+endif()
 
-# Set C++ standard
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# GoogleTest is included via external/CMakeLists.txt
 
 # Include directories
-include_directories(../include)
-include_directories(../external/nlohmann)
-include_directories(../external/yaml-cpp/include)
+include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/external/nlohmann)
+include_directories(${CMAKE_SOURCE_DIR}/external/yaml-cpp/include)
+include_directories(${CMAKE_SOURCE_DIR}/external/googletest/googletest/include)
+include_directories(${CMAKE_SOURCE_DIR}/external/googletest/googlemock/include)
 
-# For Windows-specific socket functions
-if(WIN32)
-    add_definitions(-D_WIN32_WINNT=0x0601)
-    add_definitions(-DWIN32_LEAN_AND_MEAN)
-endif()
+# Find required packages
+find_package(Threads REQUIRED)
 
-# Try to find Google Test
-find_path(GTEST_INCLUDE_DIR gtest/gtest.h 
-    PATHS ../kolosal-server/external/yaml-cpp/test/gtest-1.11.0/googletest/include
-    NO_DEFAULT_PATH
+# Create a static library for core components to avoid linking issues
+set(CORE_TEST_SOURCES
+    ${CMAKE_SOURCE_DIR}/src/core/agent.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/agent_config.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/agent_manager.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/logger.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/model_interface.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/kolosal_client.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/kolosal_server_launcher.cpp
+    ${CMAKE_SOURCE_DIR}/src/workflows/workflow_manager.cpp
+    ${CMAKE_SOURCE_DIR}/src/workflows/workflow_types.cpp
+    ${CMAKE_SOURCE_DIR}/src/api/http_server.cpp
 )
 
-if(GTEST_INCLUDE_DIR)
-    message(STATUS "Found Google Test at: ${GTEST_INCLUDE_DIR}")
-    include_directories(${GTEST_INCLUDE_DIR})
-    
-    # Try to build gtest from source
-    set(GTEST_SOURCE_DIR "${GTEST_INCLUDE_DIR}/../")
-    if(EXISTS "${GTEST_SOURCE_DIR}/src/gtest-all.cc")
-        add_library(gtest STATIC
-            ${GTEST_SOURCE_DIR}/src/gtest-all.cc
-            ${GTEST_SOURCE_DIR}/src/gtest_main.cc
-        )
-        target_include_directories(gtest PRIVATE ${GTEST_SOURCE_DIR})
-        target_include_directories(gtest PUBLIC ${GTEST_INCLUDE_DIR})
-    endif()
-else()
-    message(WARNING "Google Test not found - creating minimal test framework")
-    # Create a minimal test framework if gtest is not available
+# Add retrieval sources if enabled
+if(BUILD_WITH_RETRIEVAL)
+    list(APPEND CORE_TEST_SOURCES
+        ${CMAKE_SOURCE_DIR}/src/core/retrieval_manager.cpp
+        ${CMAKE_SOURCE_DIR}/src/functions/retrieval_functions.cpp
+        ${CMAKE_SOURCE_DIR}/src/functions/deep_research_functions.cpp
+    )
 endif()
 
-# YAML-CPP setup
-set(YAML_CPP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../external/yaml-cpp")
-if(EXISTS "${YAML_CPP_DIR}/CMakeLists.txt")
-    add_subdirectory(${YAML_CPP_DIR} "${CMAKE_CURRENT_BINARY_DIR}/yaml-cpp" EXCLUDE_FROM_ALL)
-    message(STATUS "Using yaml-cpp from: ${YAML_CPP_DIR}")
-else()
-    message(FATAL_ERROR "yaml-cpp not found at ${YAML_CPP_DIR}")
+# Create static library for core components
+add_library(kolosal_core_test STATIC ${CORE_TEST_SOURCES})
+target_include_directories(kolosal_core_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(kolosal_core_test PRIVATE yaml-cpp)
+
+# Set dynamic runtime library for the core test library
+if(MSVC)
+    set_target_properties(kolosal_core_test PROPERTIES
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+    )
 endif()
 
-# Source files for the main project (needed for testing)
-set(KOLOSAL_AGENT_SOURCES
-    ../src/core/agent.cpp
-    ../src/core/agent_manager.cpp
-    ../src/core/agent_config.cpp
-    ../src/core/model_interface.cpp
-    ../src/core/retrieval_manager.cpp
-    ../src/api/http_server.cpp
-    ../src/workflows/workflow_manager.cpp
-    ../src/workflows/workflow_types.cpp
-    ../src/functions/deep_research_functions.cpp
+# Enable BUILD_WITH_RETRIEVAL for test builds
+if(BUILD_WITH_RETRIEVAL)
+    target_compile_definitions(kolosal_core_test PRIVATE BUILD_WITH_RETRIEVAL)
+endif()
+
+# Define test sources
+set(TEST_SOURCES
+    test_main.cpp
+    test_agent.cpp
+    test_agent_config.cpp
+    test_agent_manager.cpp
+    test_logger.cpp
+    test_model_interface.cpp
+    test_workflow_manager.cpp
+    test_workflow_types.cpp
+    test_http_server.cpp
+    test_kolosal_client.cpp
+    test_kolosal_server_launcher.cpp
 )
 
-# Check which source files exist
-set(AVAILABLE_SOURCES "")
-foreach(source ${KOLOSAL_AGENT_SOURCES})
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${source}")
-        list(APPEND AVAILABLE_SOURCES ${source})
-        message(STATUS "Found source: ${source}")
-    else()
-        message(WARNING "Source file not found: ${source}")
-    endif()
-endforeach()
+# Add retrieval tests if enabled
+if(BUILD_WITH_RETRIEVAL)
+    list(APPEND TEST_SOURCES
+        test_retrieval_manager.cpp
+        test_retrieval_functions.cpp
+        test_deep_research_functions.cpp
+    )
+endif()
 
-# Windows-specific libraries
+# Create test executable
+add_executable(kolosal_agent_tests ${TEST_SOURCES})
+
+# Set dynamic runtime library for the test executable
+if(MSVC)
+    set_target_properties(kolosal_agent_tests PROPERTIES
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+    )
+endif()
+
+# Link libraries
+target_link_libraries(kolosal_agent_tests
+    kolosal_core_test
+    gtest
+    gtest_main
+    gmock
+    gmock_main
+    Threads::Threads
+    yaml-cpp
+)
+
+# Set compile definitions
+if(BUILD_WITH_RETRIEVAL)
+    target_compile_definitions(kolosal_agent_tests PRIVATE BUILD_WITH_RETRIEVAL)
+endif()
+
+# Platform-specific libraries
 if(WIN32)
-    set(PLATFORM_LIBS ws2_32 wsock32)
+    target_link_libraries(kolosal_agent_tests ws2_32 winhttp rpcrt4)
 else()
-    set(PLATFORM_LIBS pthread)
+    target_link_libraries(kolosal_agent_tests curl uuid)
 endif()
 
-# Helper function to create test executables
-function(create_test_executable target_name source_file)
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${source_file}")
-        add_executable(${target_name} ${source_file} ${AVAILABLE_SOURCES})
-        
-        # Link libraries
-        if(TARGET gtest)
-            target_link_libraries(${target_name} gtest)
-        endif()
-        
-        # Link yaml-cpp library
-        target_link_libraries(${target_name} yaml-cpp)
-        
-        target_link_libraries(${target_name} ${PLATFORM_LIBS})
-        
-        # Set properties
-        set_target_properties(${target_name} PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
-        )
-        
-        message(STATUS "Created test executable: ${target_name}")
-    else()
-        message(WARNING "Test source not found: ${source_file}")
-    endif()
-endfunction()
+# Add tests to CTest
+add_test(NAME KolosalAgentTests COMMAND kolosal_agent_tests)
 
-# Create test executables
-create_test_executable(test_model_interface test_model_interface.cpp)
-create_test_executable(test_config_manager test_config_manager.cpp)
-create_test_executable(test_workflow_config test_workflow_config.cpp)
-create_test_executable(test_workflow_manager test_workflow_manager.cpp)
-create_test_executable(test_workflow_orchestrator test_workflow_orchestrator.cpp)
-create_test_executable(test_retrieval_agent test_retrieval_agent.cpp)
-create_test_executable(test_deep_research test_deep_research.cpp)
-create_test_executable(simple_test_demo simple_test_demo.cpp)
+# Set test properties
+set_tests_properties(KolosalAgentTests PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    TIMEOUT 300
+)
 
-# Add minimal test demo (standalone, no external dependencies)
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/minimal_test_demo.cpp")
-    add_executable(minimal_test_demo minimal_test_demo.cpp)
-    set_target_properties(minimal_test_demo PROPERTIES
-        CXX_STANDARD 17
-        CXX_STANDARD_REQUIRED ON
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
-    )
-    message(STATUS "Created standalone test executable: minimal_test_demo")
-endif()
+# Create individual test targets for specific test suites
+add_test(NAME AgentTests COMMAND kolosal_agent_tests --gtest_filter="AgentTest.*")
+add_test(NAME AgentConfigTests COMMAND kolosal_agent_tests --gtest_filter="AgentConfigTest.*")
+add_test(NAME AgentManagerTests COMMAND kolosal_agent_tests --gtest_filter="AgentManagerTest.*")
+add_test(NAME LoggerTests COMMAND kolosal_agent_tests --gtest_filter="LoggerTest.*")
+add_test(NAME ModelInterfaceTests COMMAND kolosal_agent_tests --gtest_filter="ModelInterfaceTest.*")
+add_test(NAME WorkflowManagerTests COMMAND kolosal_agent_tests --gtest_filter="WorkflowManagerTest.*")
+add_test(NAME WorkflowTypesTests COMMAND kolosal_agent_tests --gtest_filter="WorkflowTypesTest.*")
+add_test(NAME HttpServerTests COMMAND kolosal_agent_tests --gtest_filter="HttpServerTest.*")
+add_test(NAME KolosalClientTests COMMAND kolosal_agent_tests --gtest_filter="KolosalClientTest.*")
+add_test(NAME KolosalServerLauncherTests COMMAND kolosal_agent_tests --gtest_filter="KolosalServerLauncherTest.*")
 
-# Only create complex tests if we have all dependencies
-if(TARGET gtest AND AVAILABLE_SOURCES)
-    create_test_executable(test_agent_execution test_agent_execution.cpp)
-    create_test_executable(test_http_server test_http_server.cpp)
-    create_test_executable(test_error_scenarios test_error_scenarios.cpp)
-endif()
-
-# Test discovery (if CTest is available)
-if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.20")
-    enable_testing()
-    
-    if(TARGET simple_test_demo)
-        add_test(NAME SimpleTestDemo COMMAND simple_test_demo)
-        set_tests_properties(SimpleTestDemo PROPERTIES TIMEOUT 60)
-    endif()
-    
-    if(TARGET minimal_test_demo)
-        add_test(NAME MinimalTestDemo COMMAND minimal_test_demo)
-        set_tests_properties(MinimalTestDemo PROPERTIES TIMEOUT 60)
-    endif()
-    
-    if(TARGET test_model_interface)
-        add_test(NAME ModelInterfaceTests COMMAND test_model_interface)
-        set_tests_properties(ModelInterfaceTests PROPERTIES TIMEOUT 60)
-    endif()
-    
-    if(TARGET test_config_manager)
-        add_test(NAME ConfigManagerTests COMMAND test_config_manager)
-        set_tests_properties(ConfigManagerTests PROPERTIES TIMEOUT 60)
-    endif()
-    
-    if(TARGET test_retrieval_agent)
-        add_test(NAME RetrievalAgentTests COMMAND test_retrieval_agent)
-        set_tests_properties(RetrievalAgentTests PROPERTIES TIMEOUT 120)
-    endif()
-    
-    if(TARGET test_workflow_config)
-        add_test(NAME WorkflowConfigTests COMMAND test_workflow_config)
-        set_tests_properties(WorkflowConfigTests PROPERTIES TIMEOUT 120)
-    endif()
-    
-    if(TARGET test_workflow_manager)
-        add_test(NAME WorkflowManagerTests COMMAND test_workflow_manager)
-        set_tests_properties(WorkflowManagerTests PROPERTIES TIMEOUT 180)
-    endif()
-    
-    if(TARGET test_workflow_orchestrator)
-        add_test(NAME WorkflowOrchestratorTests COMMAND test_workflow_orchestrator)
-        set_tests_properties(WorkflowOrchestratorTests PROPERTIES TIMEOUT 300)
-    endif()
-    
-    if(TARGET test_agent_execution)
-        add_test(NAME AgentExecutionTests COMMAND test_agent_execution)
-        set_tests_properties(AgentExecutionTests PROPERTIES TIMEOUT 300)
-    endif()
-    
-    if(TARGET test_http_server)
-        add_test(NAME HTTPServerTests COMMAND test_http_server)
-        set_tests_properties(HTTPServerTests PROPERTIES TIMEOUT 120)
-    endif()
-    
-    if(TARGET test_error_scenarios)
-        add_test(NAME ErrorScenarioTests COMMAND test_error_scenarios)
-        set_tests_properties(ErrorScenarioTests PROPERTIES TIMEOUT 300)
-    endif()
-    
-    if(TARGET test_deep_research)
-        add_test(NAME DeepResearchTests COMMAND test_deep_research)
-        set_tests_properties(DeepResearchTests PROPERTIES TIMEOUT 180)
-    endif()
-endif()
-
-# Print build information
-message(STATUS "Kolosal Agent Tests Configuration:")
-message(STATUS "  Build type: ${CMAKE_BUILD_TYPE}")
-message(STATUS "  Platform: ${CMAKE_SYSTEM_NAME}")
-message(STATUS "  Compiler: ${CMAKE_CXX_COMPILER_ID}")
-if(TARGET gtest)
-    message(STATUS "  Google Test: Available")
-else()
-    message(STATUS "  Google Test: Not available")
-endif()
-message(STATUS "  Available sources: ${AVAILABLE_SOURCES}")
-
-# Custom targets for running tests
-if(TARGET test_model_interface AND TARGET test_config_manager)
-    add_custom_target(run_quick_tests
-        COMMAND test_model_interface
-        COMMAND test_config_manager
-        COMMAND test_workflow_config
-        COMMAND test_retrieval_agent
-        DEPENDS test_model_interface test_config_manager test_workflow_config test_retrieval_agent
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    )
-endif()
-
-if(TARGET test_workflow_manager AND TARGET test_workflow_orchestrator)
-    add_custom_target(run_workflow_tests
-        COMMAND test_workflow_manager
-        COMMAND test_workflow_orchestrator
-        DEPENDS test_workflow_manager test_workflow_orchestrator
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    )
-endif()
-
-if(TARGET test_deep_research)
-    add_custom_target(run_deep_research_tests
-        COMMAND test_deep_research
-        DEPENDS test_deep_research
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    )
+if(BUILD_WITH_RETRIEVAL)
+    add_test(NAME RetrievalManagerTests COMMAND kolosal_agent_tests --gtest_filter="RetrievalManagerTest.*")
+    add_test(NAME RetrievalFunctionsTests COMMAND kolosal_agent_tests --gtest_filter="RetrievalFunctionsTest.*")
+    add_test(NAME DeepResearchFunctionsTests COMMAND kolosal_agent_tests --gtest_filter="DeepResearchFunctionsTest.*")
 endif()

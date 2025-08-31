@@ -187,8 +187,8 @@ private:
 #endif
 
 // Simplified macros for basic logging without debug info
-#define SIMPLE_LOG_DEBUG(message) if (KolosalAgent::Logger::instance().should_log(KolosalAgent::LogLevel::DEBUG)) { KolosalAgent::Logger::instance().debug(message); }
-#define SIMPLE_LOG_INFO(message) if (KolosalAgent::Logger::instance().should_log(KolosalAgent::LogLevel::INFO)) { KolosalAgent::Logger::instance().info(message); }
-#define SIMPLE_LOG_WARN(message) if (KolosalAgent::Logger::instance().should_log(KolosalAgent::LogLevel::WARN)) { KolosalAgent::Logger::instance().warn(message); }
-#define SIMPLE_LOG_ERROR(message) if (KolosalAgent::Logger::instance().should_log(KolosalAgent::LogLevel::ERROR)) { KolosalAgent::Logger::instance().error(message); }
-#define SIMPLE_LOG_FATAL(message) if (KolosalAgent::Logger::instance().should_log(KolosalAgent::LogLevel::FATAL)) { KolosalAgent::Logger::instance().fatal(message); }
+#define SIMPLE_LOG_DEBUG(message) if (KolosalAgent::Logger::instance().should_log(KolosalAgent::LogLevel::DEBUG_LVL)) { KolosalAgent::Logger::instance().debug(message); }
+#define SIMPLE_LOG_INFO(message) if (KolosalAgent::Logger::instance().should_log(KolosalAgent::LogLevel::INFO_LVL)) { KolosalAgent::Logger::instance().info(message); }
+#define SIMPLE_LOG_WARN(message) if (KolosalAgent::Logger::instance().should_log(KolosalAgent::LogLevel::WARN_LVL)) { KolosalAgent::Logger::instance().warn(message); }
+#define SIMPLE_LOG_ERROR(message) if (KolosalAgent::Logger::instance().should_log(KolosalAgent::LogLevel::ERROR_LVL)) { KolosalAgent::Logger::instance().error(message); }
+#define SIMPLE_LOG_FATAL(message) if (KolosalAgent::Logger::instance().should_log(KolosalAgent::LogLevel::FATAL_LVL)) { KolosalAgent::Logger::instance().fatal(message); }

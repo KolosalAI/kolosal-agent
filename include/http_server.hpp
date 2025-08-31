@@ -59,6 +59,11 @@ private:
     void handle_execute_all_tools(socket_t client_socket, const std::string& agent_id, const json& params);
     void handle_system_status(socket_t client_socket);
     
+    // Kolosal server management handlers
+    void handle_start_kolosal_server(socket_t client_socket);
+    void handle_stop_kolosal_server(socket_t client_socket);
+    void handle_kolosal_server_status(socket_t client_socket);
+    
     // Workflow route handlers
     void handle_submit_workflow_request(socket_t client_socket, const std::string& body);
     void handle_get_request_status(socket_t client_socket, const std::string& request_id);

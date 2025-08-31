@@ -2,6 +2,7 @@
 
 #include "agent.hpp"
 #include "agent_config.hpp"
+#include "kolosal_server_launcher.hpp"
 #include <map>
 #include <memory>
 #include <string>
@@ -17,6 +18,7 @@ class AgentManager {
 private:
     std::map<std::string, std::unique_ptr<Agent>> agents_;
     std::shared_ptr<AgentConfigManager> config_manager_;
+    std::unique_ptr<KolosalServerLauncher> server_launcher_;
     
 public:
     AgentManager();
@@ -26,6 +28,13 @@ public:
     // Configuration
     bool load_configuration(const std::string& config_file = "agent.yaml");
     std::shared_ptr<AgentConfigManager> get_config_manager() const { return config_manager_; }
+    
+    // Server management
+    bool start_kolosal_server();
+    bool stop_kolosal_server();
+    bool is_kolosal_server_running() const;
+    std::string get_kolosal_server_url() const;
+    KolosalServerLauncher::Status get_kolosal_server_status() const;
     
     // Agent lifecycle
     std::string create_agent(const std::string& name, const std::vector<std::string>& capabilities = {});
@@ -56,4 +65,6 @@ public:
 private:
     // Internal methods
     void load_model_configurations();
+    void initialize_server_launcher();
+    void setup_server_status_callback();
 };

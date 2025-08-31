@@ -245,6 +245,9 @@ void HTTPServer::handle_client(socket_t client_socket) {
             route_matched = true;
             handle_system_status(client_socket);
         }
+        // Kolosal Server Management routes
+        else if (path == "/kolosal-server/start" && method == "POST") {
+        }
         // Workflow Orchestration routes
         else if (workflow_orchestrator_ && path == "/workflows" && method == "GET") {
             std::cout << "[HTTP-ROUTE] Matched route: List workflows\n";
@@ -933,6 +936,52 @@ void HTTPServer::handle_list_workflow_executions(socket_t client_socket) {
         result["total_active"] = response.size();
         
         send_response(client_socket, 200, result.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_start_kolosal_server(socket_t client_socket) {
+    try {
+        if (!agent_manager_) {
+            send_error(client_socket, 500, "Agent manager not available");
+            return;
+        }
+        
+        bool success = agent_manager_->start_kolosal_server();
+        
+        json response;
+        response["success"] = success;
+        response["message"] = success ? "Kolosal server started successfully" : "Failed to start Kolosal server";
+        
+        if (success) {
+            response["server_url"] = agent_manager_->get_kolosal_server_url();
+            response["status"] = agent_manager_->get_kolosal_server_status();
+        }
+        
+        send_response(client_socket, success ? 200 : 500, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_stop_kolosal_server(socket_t client_socket) {
+    try {
+        if (!agent_manager_) {
+            send_error(client_socket, 500, "Agent manager not available");
+            return;
+        }
+        
+        bool success = agent_manager_->stop_kolosal_server();
+        
+        json response;
+        response["success"] = success;
+        response["message"] = success ? "Kolosal server stopped successfully" : "Failed to stop Kolosal server";
+        response["status"] = agent_manager_->get_kolosal_server_status();
+        
+        send_response(client_socket, success ? 200 : 500, response.dump(2));
         
     } catch (const std::exception& e) {
         send_error(client_socket, 500, e.what());

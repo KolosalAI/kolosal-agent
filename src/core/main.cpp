@@ -4,6 +4,7 @@
 #include "http_server.hpp"
 #include "workflow_manager.hpp"
 #include "workflow_types.hpp"
+#include "kolosal_server_launcher.hpp"
 #include "logger.hpp"
 #include <iostream>
 #include <memory>
@@ -16,10 +17,13 @@ std::atomic<bool> system_running{true};
 std::unique_ptr<HTTPServer> http_server;
 std::shared_ptr<WorkflowManager> workflow_manager;
 std::shared_ptr<WorkflowOrchestrator> workflow_orchestrator;
+std::unique_ptr<KolosalServerLauncher> kolosal_server_launcher;
 
 void signal_handler(int signal) {
     LOG_INFO_F("Received signal %d, shutting down gracefully...", signal);
     system_running.store(false);
+    
+    // Stop in proper order: HTTP server -> workflow system -> agents -> kolosal server
     if (http_server) {
         LOG_DEBUG("Stopping HTTP server...");
         http_server->stop();
@@ -31,6 +35,10 @@ void signal_handler(int signal) {
     if (workflow_manager) {
         LOG_DEBUG("Stopping workflow manager...");
         workflow_manager->stop();
+    }
+    if (kolosal_server_launcher) {
+        LOG_DEBUG("Stopping Kolosal Server...");
+        kolosal_server_launcher->stop();
     }
 }
 
@@ -158,6 +166,41 @@ int main(int argc, char* argv[]) {
         signal(SIGTERM, signal_handler);
         LOG_DEBUG("Signal handlers registered");
         
+        // Start Kolosal Server FIRST before anything else
+        LOG_INFO("Starting Kolosal Server...");
+        {
+            SCOPED_TIMER("kolosal_server_startup");
+            
+            // Create server configuration
+            auto server_config = create_default_server_config();
+            server_config.host = "127.0.0.1";
+            server_config.port = 8081;
+            server_config.quiet_mode = true; // Run in background quietly
+            server_config.log_level = "INFO";
+            server_config.timeout = 45; // Give more time for startup
+            
+            kolosal_server_launcher = std::make_unique<KolosalServerLauncher>(server_config);
+            
+            if (kolosal_server_launcher->start()) {
+                LOG_INFO_F("✓ Kolosal Server started successfully at %s", 
+                          kolosal_server_launcher->get_server_url().c_str());
+                
+                // Wait for server to be fully ready
+                LOG_INFO("Waiting for Kolosal Server to be fully ready...");
+                if (kolosal_server_launcher->wait_for_ready(30)) {
+                    LOG_INFO("✓ Kolosal Server is ready for requests");
+                } else {
+                    LOG_WARN("⚠ Kolosal Server startup timeout - proceeding anyway");
+                }
+            } else {
+                LOG_ERROR("✗ Failed to start Kolosal Server - system will proceed without it");
+                LOG_WARN("Agents will use fallback responses only");
+            }
+        }
+        
+        // Now initialize the agent system
+        LOG_INFO("Initializing Agent System...");
+        
         // Create configuration manager and load configuration
         LOG_DEBUG_F("Loading configuration from: %s", config_file.c_str());
         auto config_manager = std::make_shared<AgentConfigManager>();
@@ -187,7 +230,7 @@ int main(int argc, char* argv[]) {
             SCOPED_TIMER("agent_initialization");
             agent_manager->initialize_default_agents();
         }
-        LOG_DEBUG("Default agents initialized successfully");
+        LOG_DEBUG("✓ Default agents initialized successfully");
         
         // Create and start workflow system
         LOG_INFO("Initializing workflow system...");
@@ -243,7 +286,7 @@ int main(int argc, char* argv[]) {
         
         LOG_INFO("Workflow system initialized successfully");
         
-        // Create and start HTTP server with workflow support
+        // Create and start HTTP server with workflow support (no kolosal-server endpoints)
         LOG_DEBUG_F("Creating HTTP server on %s:%d", host.c_str(), port);
         http_server = std::make_unique<HTTPServer>(agent_manager, workflow_manager, workflow_orchestrator, host, port);
         
@@ -307,12 +350,14 @@ int main(int argc, char* argv[]) {
         // Graceful shutdown
         LOG_INFO("Shutting down system...");
         
+        // Stop HTTP server first
         if (http_server) {
             LOG_DEBUG("Stopping HTTP server...");
             http_server->stop();
             http_server.reset();
         }
         
+        // Stop workflow system
         if (workflow_orchestrator) {
             LOG_INFO("Stopping workflow orchestrator...");
             workflow_orchestrator->stop();
@@ -325,8 +370,16 @@ int main(int argc, char* argv[]) {
             workflow_manager.reset();
         }
         
+        // Stop all agents
         LOG_DEBUG("Stopping all agents...");
         agent_manager->stop_all_agents();
+        
+        // Stop Kolosal Server LAST
+        if (kolosal_server_launcher && kolosal_server_launcher->is_running()) {
+            LOG_INFO("Stopping Kolosal Server...");
+            kolosal_server_launcher->stop();
+            LOG_INFO("✓ Kolosal Server stopped");
+        }
         
         LOG_INFO("Kolosal Agent System shutdown complete.");
         return 0;

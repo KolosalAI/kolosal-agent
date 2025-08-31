@@ -1,7 +1,9 @@
 #pragma once
 
 #include <string>
+#include <memory>
 #include <json.hpp>
+#include "kolosal_client.hpp"
 
 using json = nlohmann::json;
 
@@ -11,7 +13,7 @@ using json = nlohmann::json;
  */
 class ModelInterface {
 private:
-    std::string server_url_;
+    std::unique_ptr<KolosalClient> kolosal_client_;
     
 public:
     explicit ModelInterface(const std::string& server_url = "http://localhost:8080");
@@ -74,6 +76,9 @@ public:
 private:
     json model_configurations_;
     
-    // Note: This is a placeholder implementation
-    // For production use, implement actual HTTP client using curl or similar library
+    /**
+     * @brief Get the underlying Kolosal client
+     * @return Reference to the Kolosal client
+     */
+    KolosalClient& get_client() { return *kolosal_client_; }
 };
