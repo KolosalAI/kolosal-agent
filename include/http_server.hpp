@@ -56,6 +56,7 @@ private:
     void handle_stop_agent(socket_t client_socket, const std::string& agent_id);
     void handle_delete_agent(socket_t client_socket, const std::string& agent_id);
     void handle_execute_function(socket_t client_socket, const std::string& agent_id, const std::string& body);
+    void handle_simple_agent_execute(socket_t client_socket, const std::string& body);
     void handle_execute_all_tools(socket_t client_socket, const std::string& agent_id, const json& params);
     void handle_system_status(socket_t client_socket);
     

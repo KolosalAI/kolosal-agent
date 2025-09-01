@@ -29,20 +29,28 @@ system_instruction: |
 # Model configuration for agents - maps to Kolosal Server models
 models:
   - name: "default"
-    actual_name: "gemma3-1b"
+    actual_name: "qwen2.5-0.5b"
     type: "llm"
     server_url: "http://127.0.0.1:8081"
-    description: "Default LLM model (Gemma3-1B)"
+    description: "Default LLM model (Qwen2.5-0.5B)"
     preload: true
-    context_size: 4096
+    context_size: 2048
   
-  - name: "gemma3-1b"
-    actual_name: "gemma3-1b"
+  - name: "qwen2.5-0.5b"
+    actual_name: "qwen2.5-0.5b"
     type: "llm"
     server_url: "http://127.0.0.1:8081"
-    description: "Gemma3-1B language model"
+    description: "Qwen2.5-0.5B language model"
     preload: true
-    context_size: 4096
+    context_size: 2048
+  
+  - name: "qwen3-0.6b"
+    actual_name: "qwen2.5-0.5b"
+    type: "llm"
+    server_url: "http://127.0.0.1:8081"
+    description: "Qwen2.5-0.5B language model (mapped from qwen3-0.6b)"
+    preload: true
+    context_size: 2048
   
   - name: "embedding"
     actual_name: "all-MiniLM-L6-v2-bf16-q4_k"
@@ -486,7 +494,7 @@ kolosal_server:
     max_cpu_percent: 80
   models_directory: "./models"
   required_models:
-    - "gemma3-1b"
+    - "qwen2.5-0.5b"
     - "all-MiniLM-L6-v2-bf16-q4_k"
   model_preload_timeout: 120
   graceful_shutdown_timeout: 30

@@ -1,19 +1,4 @@
-# Workflow Con  simple_research:
-    name: "Simple Research Workflow"
-    description: "Basic research workflow using a single agent with specific LLM"
-    type: "sequential"
-    max_execution_time_ms: 180000
-    allow_partial_failure: false
-    steps:
-      - id: "research_step"
-        agent_name: "Researcher"  # References agent from agent.yaml
-        llm_model: "gemma3-1b"    # Specific LLM model from config.yaml
-        function_name: "research"
-        parameters:
-          - "query"
-          - "depth"
-        timeout_ms: 120000
-        optional: falseolosal Agent System
+# Workflow Configuration for Kolosal Agent System
 # This file defines workflows that use agents from agent.yaml with specific LLM models
 
 # Default workflow settings
@@ -36,7 +21,7 @@ workflows:
     steps:
       - id: "research_step"
         agent_name: "Researcher"  # References agent from agent.yaml
-        llm_model: "gemma3-1b"    # Specific LLM model from config.yaml
+        llm_model: "qwen2.5-0.5b"    # Specific LLM model from config.yaml
         function_name: "research"
         parameters:
           - "query"
@@ -54,7 +39,7 @@ workflows:
     steps:
       - id: "initial_analysis"
         agent_name: "Analyzer"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "analyze"
         parameters:
           - "text"
@@ -64,7 +49,7 @@ workflows:
       
       - id: "detailed_analysis"
         agent_name: "Analyzer"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "analyze"
         parameters:
           - "text"
@@ -84,7 +69,7 @@ workflows:
     steps:
       - id: "assistant_response"
         agent_name: "Assistant"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "chat"
         parameters:
           - "message"
@@ -94,7 +79,7 @@ workflows:
       
       - id: "analysis_feedback"
         agent_name: "Analyzer"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "analyze"
         parameters:
           - "text"
@@ -113,7 +98,7 @@ workflows:
     steps:
       - id: "research_phase"
         agent_name: "Researcher"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "research"
         parameters:
           - "query"
@@ -123,7 +108,7 @@ workflows:
       
       - id: "analysis_phase"
         agent_name: "Analyzer"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "analyze"
         parameters:
           - "text"
@@ -134,7 +119,7 @@ workflows:
       
       - id: "final_summary"
         agent_name: "Assistant"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "chat"
         parameters:
           - "message"
@@ -153,7 +138,7 @@ workflows:
     steps:
       - id: "sentiment_analysis"
         agent_name: "Analyzer"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "analyze"
         parameters:
           - "text"
@@ -163,7 +148,7 @@ workflows:
       
       - id: "keyword_extraction"
         agent_name: "Analyzer"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "analyze"
         parameters:
           - "text"
@@ -173,7 +158,7 @@ workflows:
       
       - id: "summary_generation"
         agent_name: "Assistant"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "chat"
         parameters:
           - "message"
@@ -192,7 +177,7 @@ workflows:
       # Phase 1: Initial Research Planning
       - id: "research_planning"
         agent_name: "Researcher"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "plan_research"
         parameters:
           - "query"
@@ -204,7 +189,7 @@ workflows:
       # Phase 2: Primary Internet Research
       - id: "primary_research"
         agent_name: "Researcher"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "internet_search"
         parameters:
           - "query"
@@ -217,7 +202,7 @@ workflows:
       # Phase 3: Knowledge Base Search
       - id: "knowledge_base_search"
         agent_name: "RetrievalAgent"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "search_documents"
         parameters:
           - "query"
@@ -230,7 +215,7 @@ workflows:
       # Phase 4: Research Synthesis and Gap Analysis
       - id: "research_synthesis"
         agent_name: "Analyzer"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "synthesize_research"
         parameters:
           - "primary_data"
@@ -243,7 +228,7 @@ workflows:
       # Phase 5: Secondary Research (based on gaps identified)
       - id: "secondary_research"
         agent_name: "Researcher"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "targeted_research"
         parameters:
           - "research_gaps"
@@ -256,7 +241,7 @@ workflows:
       # Phase 6: Cross-validation and Fact-checking
       - id: "fact_verification"
         agent_name: "Researcher"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "verify_facts"
         parameters:
           - "findings"
@@ -269,7 +254,7 @@ workflows:
       # Phase 7: Final Analysis and Insights
       - id: "deep_analysis"
         agent_name: "Analyzer"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "analyze"
         parameters:
           - "text"
@@ -282,7 +267,7 @@ workflows:
       # Phase 8: Report Generation with Citations
       - id: "report_generation"
         agent_name: "Assistant"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "generate_research_report"
         parameters:
           - "research_data"
@@ -296,7 +281,7 @@ workflows:
       # Phase 9: Knowledge Base Update (store findings for future use)
       - id: "knowledge_update"
         agent_name: "RetrievalAgent"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "add_document"
         parameters:
           - "content"
@@ -316,7 +301,7 @@ workflows:
     steps:
       - id: "initial_check"
         agent_name: "Assistant"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "chat"
         parameters:
           - "message"
@@ -326,7 +311,7 @@ workflows:
       
       - id: "detailed_processing"
         agent_name: "Analyzer"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "analyze"
         parameters:
           - "text"
@@ -343,24 +328,24 @@ workflows:
 # This section defines valid pairings of agents with LLM models
 agent_llm_mappings:
   Assistant:
-    default_model: "gemma3-1b"
-    supported_models: ["gemma3-1b"]
+    default_model: "qwen2.5-0.5b"
+    supported_models: ["qwen2.5-0.5b"]
     
   Analyzer:
-    default_model: "gemma3-1b"
-    supported_models: ["gemma3-1b"]
+    default_model: "qwen2.5-0.5b"
+    supported_models: ["qwen2.5-0.5b"]
     
   Researcher:
-    default_model: "gemma3-1b"
-    supported_models: ["gemma3-1b"]
+    default_model: "qwen2.5-0.5b"
+    supported_models: ["qwen2.5-0.5b"]
     
   RetrievalAgent:
-    default_model: "gemma3-1b"
-    supported_models: ["gemma3-1b"]
+    default_model: "qwen2.5-0.5b"
+    supported_models: ["qwen2.5-0.5b"]
     
   DeepResearcher:
-    default_model: "gemma3-1b"
-    supported_models: ["gemma3-1b"]
+    default_model: "qwen2.5-0.5b"
+    supported_models: ["qwen2.5-0.5b"]
 
 # Workflow execution settings
 execution:
@@ -405,7 +390,7 @@ templates:
       - name: "model"
         type: "string"
         required: false
-        default: "gemma3-1b"
+        default: "qwen2.5-0.5b"
         description: "LLM model to use"
   
   basic_analysis:

@@ -53,13 +53,13 @@ search:
   default_category: general
 database:
   vector_database: qdrant
-  retrieval_embedding_model: ""
+  retrieval_embedding_model: "all-MiniLM-L6-v2-bf16-q4_k"
   qdrant:
     enabled: true
     host: localhost
     port: 6333
     collection_name: documents
-    default_embedding_model: ""
+    default_embedding_model: "all-MiniLM-L6-v2-bf16-q4_k"
     timeout: 30
     api_key: ""
     max_connections: 10
@@ -93,6 +93,17 @@ models:
       n_gpu_layers: 0
       n_batch: 2048
       n_ubatch: 512
+  - id: all-MiniLM-L6-v2-bf16-q4_k
+    path: D:\Works\Genta\codes\kolosal-agent\models\all-MiniLM-L6-v2-bf16-q4_k.gguf
+    type: embedding
+    load_immediately: true
+    main_gpu_id: 0
+    inference_engine: llama-cpu
+    load_params:
+      n_ctx: 512
+      use_mmap: true
+      use_mlock: false
+      embedding_only: true
 inference_engines:
   - name: llama-cpu
     library_path: D:\Works\Genta\codes\kolosal-agent\build\Debug\llama-cpu.dll

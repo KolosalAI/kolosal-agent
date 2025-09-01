@@ -32,9 +32,9 @@ models:
   
   # LLM Models
   llm_models:
-    - name: "gemma3-1b"
+    - name: "qwen2.5-0.5b"
       file: "qwen2.5-0.5b-instruct-q4_k_m.gguf"  # Using available model
-      context_size: 4096
+      context_size: 2048
       gpu_layers: 0  # Adjust based on available GPU
       threads: 4
       preload: true
