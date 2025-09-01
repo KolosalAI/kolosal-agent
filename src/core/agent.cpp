@@ -831,7 +831,11 @@ void Agent::configure_retrieval(const json& config) {
     
     // Parse configuration - only use fields that exist in new Config
     if (retrieval_config.contains("server_url")) {
-        new_config.server_url = retrieval_config["server_url"];
+        std::string url = retrieval_config["server_url"];
+        if (!url.empty()) {
+            new_config.server_url = url;
+        }
+        // If empty, keep the default value from new_config constructor
     }
     if (retrieval_config.contains("timeout_seconds")) {
         new_config.timeout_seconds = retrieval_config["timeout_seconds"];

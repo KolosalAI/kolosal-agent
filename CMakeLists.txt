@@ -34,6 +34,7 @@ option(BUILD_KOLOSAL_SERVER "Build the Kolosal Server component" ON)
 option(BUILD_WITH_RETRIEVAL "Enable retrieval functionality" ON)
 option(ENABLE_NATIVE_OPTIMIZATION "Enable native CPU optimization (-march=native)" OFF)
 option(BUILD_TESTS "Build unit tests" OFF)
+option(BUILD_TEST_EXECUTABLE "Build kolosal-agent-test.exe for comprehensive testing" ON)
 option(BUILD_EXAMPLES "Build example applications" OFF)
 
 # Ensure BUILD_WITH_RETRIEVAL is compatible with BUILD_KOLOSAL_SERVER
@@ -350,7 +351,7 @@ if(BUILD_KOLOSAL_SERVER)
 endif()
 
 # Testing support
-if(BUILD_TESTS)
+if(BUILD_TESTS OR BUILD_TEST_EXECUTABLE)
     enable_testing()
     add_subdirectory(tests)
 endif()
@@ -368,6 +369,14 @@ install(TARGETS kolosal-agent
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     COMPONENT Runtime
 )
+
+# Install test executable if built
+if(BUILD_TEST_EXECUTABLE AND TARGET kolosal-agent-test)
+    install(TARGETS kolosal-agent-test
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        COMPONENT Testing
+    )
+endif()
 
 # Install kolosal-server targets if built
 if(BUILD_KOLOSAL_SERVER)
@@ -685,6 +694,11 @@ if(BUILD_TESTS)
     message(STATUS "Tests: Enabled")
 else()
     message(STATUS "Tests: Disabled")
+endif()
+if(BUILD_TEST_EXECUTABLE)
+    message(STATUS "Test Executable: Enabled")
+else()
+    message(STATUS "Test Executable: Disabled")
 endif()
 if(BUILD_EXAMPLES)
     message(STATUS "Examples: Enabled")

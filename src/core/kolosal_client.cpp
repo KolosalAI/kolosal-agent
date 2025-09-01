@@ -25,6 +25,13 @@ namespace {
 
 KolosalClient::KolosalClient(const Config& config) : config_(config) {
     TRACE_FUNCTION();
+    
+    // Validate configuration
+    if (config_.server_url.empty()) {
+        LOG_WARN("Server URL is empty, using default: http://127.0.0.1:8081");
+        config_.server_url = "http://127.0.0.1:8081";
+    }
+    
     LOG_INFO_F("KolosalClient initialized with server URL: %s", config_.server_url.c_str());
     
     #ifndef _WIN32
@@ -519,11 +526,22 @@ json KolosalClient::parse_response(const std::string& response_body, long status
 
 std::string KolosalClient::build_url(const std::string& endpoint) const {
     std::string url = config_.server_url;
-    if (url.back() == '/' && endpoint.front() == '/') {
-        url.pop_back();
-    } else if (url.back() != '/' && endpoint.front() != '/') {
-        url += '/';
+    
+    // Handle empty server URL
+    if (url.empty()) {
+        LOG_ERROR("Server URL is empty, cannot build URL for endpoint: " + endpoint);
+        throw std::runtime_error("Server URL is not configured");
     }
+    
+    // Handle URL path construction
+    if (!url.empty() && !endpoint.empty()) {
+        if (url.back() == '/' && endpoint.front() == '/') {
+            url.pop_back();
+        } else if (url.back() != '/' && endpoint.front() != '/') {
+            url += '/';
+        }
+    }
+    
     url += endpoint;
     return url;
 }

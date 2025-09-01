@@ -33,12 +33,24 @@ models:
     type: "llm"
     server_url: "http://127.0.0.1:8081"
     description: "Default LLM model (Gemma3-1B)"
+    preload: true
+    context_size: 4096
   
   - name: "gemma3-1b"
     actual_name: "gemma3-1b"
     type: "llm"
     server_url: "http://127.0.0.1:8081"
     description: "Gemma3-1B language model"
+    preload: true
+    context_size: 4096
+  
+  - name: "embedding"
+    actual_name: "all-MiniLM-L6-v2-bf16-q4_k"
+    type: "embedding"
+    server_url: "http://127.0.0.1:8081"
+    description: "Embedding model for document vectorization and semantic search"
+    preload: true
+    embedding_size: 384
 
 # Default agents to create on startup
 agents:
@@ -462,6 +474,23 @@ performance:
   request_timeout: 30000
   max_request_size: "10MB"
 
+# Kolosal Server configuration
+kolosal_server:
+  auto_start: true
+  startup_timeout: 60
+  health_check_interval: 10
+  max_retries: 3
+  retry_delay: 2000
+  resource_limits:
+    max_memory: "1.5GB"
+    max_cpu_percent: 80
+  models_directory: "./models"
+  required_models:
+    - "gemma3-1b"
+    - "all-MiniLM-L6-v2-bf16-q4_k"
+  model_preload_timeout: 120
+  graceful_shutdown_timeout: 30
+
 # Logging configuration
 logging:
   level: "info"
@@ -477,3 +506,23 @@ security:
   max_request_rate: 100  # requests per minute per IP
   enable_auth: false
   api_key: ""  # Set this if enable_auth is true
+
+# Error handling and fallback configuration
+error_handling:
+  enable_fallbacks: true
+  fallback_responses: true
+  max_retry_attempts: 3
+  retry_backoff_multiplier: 2.0
+  timeout_escalation: true
+  graceful_degradation: true
+  offline_mode:
+    enable: true
+    cache_responses: true
+    max_cache_size: "100MB"
+  
+# Circuit breaker configuration for server reliability
+circuit_breaker:
+  failure_threshold: 5
+  recovery_timeout: 30
+  half_open_max_calls: 3
+  metrics_window: 60
