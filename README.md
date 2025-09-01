@@ -64,7 +64,12 @@ curl http://localhost:8080/agents
 
 ### First API Call
 ```bash
-# Chat with the assistant
+# Simple execute (recommended) - runs all tools automatically
+curl -X POST http://localhost:8080/agent/execute \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What is artificial intelligence?", "context": "Explain for beginners"}'
+
+# Chat with a specific agent
 curl -X POST http://localhost:8080/agents/Assistant/execute \
   -H "Content-Type: application/json" \
   -d '{"function": "chat", "params": {"message": "Hello!", "model": "gemma3-1b"}}'
@@ -472,6 +477,11 @@ curl http://localhost:8080/status
 # List agents
 curl http://localhost:8080/agents
 
+# Simple execute with automatic tool execution (recommended)
+curl -X POST http://localhost:8080/agent/execute \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What are the latest AI trends?", "context": "Focus on 2025 developments"}'
+
 # Chat with assistant
 curl -X POST http://localhost:8080/agents/Assistant/execute \
   -H "Content-Type: application/json" \
@@ -732,6 +742,19 @@ class KolosalAgentClient:
     def __init__(self, base_url="http://localhost:8080"):
         self.base_url = base_url
     
+    def simple_execute(self, query, context=None, model=None, agent=None):
+        """Execute query with automatic agent and tool selection (recommended)"""
+        payload = {"query": query}
+        if context:
+            payload["context"] = context
+        if model:
+            payload["model"] = model
+        if agent:
+            payload["agent"] = agent
+            
+        response = requests.post(f"{self.base_url}/agent/execute", json=payload)
+        return response.json()
+    
     def create_agent(self, name, capabilities):
         response = requests.post(f"{self.base_url}/agents",
                                json={"name": name, "capabilities": capabilities})
@@ -756,12 +779,22 @@ class KolosalAgentClient:
 # Usage Examples
 client = KolosalAgentClient()
 
-# Simple agent function call
-result = client.execute_function("Assistant", "chat", {
+# Simple execute with comprehensive tool execution (recommended)
+result = client.simple_execute(
+    query="What is machine learning?",
+    context="Explain for beginners",
+    model="qwen3-0.6b:UD-Q4_K_XL"
+)
+print("Tools executed:", len(result["tools_executed"]))
+print("Success rate:", f"{result['summary']['successful']}/{result['summary']['total_tools']}")
+print("LLM Response:", result["llm_response"]["response"][:100] + "...")
+
+# Traditional agent function call
+chat_result = client.execute_function("Assistant", "chat", {
     "message": "Hello from Python!",
     "model": "gemma3-1b"
 })
-print("Agent Response:", result)
+print("Agent Response:", chat_result)
 
 # List available workflows
 workflows = client.list_workflows()

@@ -75,8 +75,9 @@ Welcome to the comprehensive documentation for Kolosal Agent System v2.0 - a nex
 ## 🎯 Key Features
 
 - ✅ Multi-agent orchestration
+- ✅ **Simple Execute Endpoint** - One-call comprehensive research and analysis
 - ✅ Real-time web search
-- ✅ Document retrieval system
+- ✅ Document retrieval system  
 - ✅ Workflow automation
 - ✅ REST API interface
 - ✅ Configuration management

@@ -10,6 +10,34 @@ The Kolosal Agent System provides a comprehensive REST API for managing agents, 
 **Content Type**: `application/json`  
 **API Version**: `v1`
 
+## 🚀 Endpoint Quick Reference
+
+### Recommended Endpoints
+
+| Endpoint | Use Case | Response Type |
+|----------|----------|---------------|
+| `POST /agent/execute` | **General queries & research** | Comprehensive multi-tool execution |
+| `POST /v1/agents/{id}/execute` | **Specific function calls** | Single function result |
+| `GET /v1/agents` | **Agent management** | Agent list and status |
+| `GET /v1/system/status` | **Health monitoring** | System metrics |
+
+### Endpoint Comparison
+
+**Simple Execute (`/agent/execute`)**:
+- ✅ Automatic agent selection
+- ✅ Multi-tool execution (21+ tools)
+- ✅ Comprehensive research capabilities
+- ✅ LLM-powered synthesis
+- ✅ Graceful fallback handling
+- 🎯 **Best for**: Research, analysis, general queries
+
+**Function Execute (`/v1/agents/{id}/execute`)**:
+- ✅ Precise control over execution
+- ✅ Single function focus
+- ✅ Lower latency
+- ✅ Specific agent targeting
+- 🎯 **Best for**: Targeted tasks, integration workflows
+
 ## 🔐 Authentication
 
 ### API Key Authentication (Optional)
@@ -235,9 +263,105 @@ POST /v1/agents/{agent_id}/stop
 
 ## ⚡ Function Execution
 
+### Simple Agent Execute (Recommended)
+
+Execute a query with automatic tool execution and LLM response generation. This endpoint automatically selects the best available agent, runs all relevant tools, and provides a comprehensive response.
+
+```http
+POST /agent/execute
+Content-Type: application/json
+```
+
+**Request Body**:
+```json
+{
+  "query": "What is artificial intelligence?",
+  "context": "Explain in simple terms for beginners",
+  "model": "qwen3-0.6b:UD-Q4_K_XL",
+  "agent": "Assistant"
+}
+```
+
+**Parameters**:
+- `query` (string, required): The main question or task to execute
+- `context` (string, optional): Additional context to guide the response
+- `model` (string, optional): Specific model to use for LLM responses (defaults to system default)
+- `agent` (string, optional): Specific agent name to use (if not provided, selects best available agent automatically)
+
+**Response**:
+```json
+{
+  "agent_id": "abb29fc0-f07d-4e85-9894-3298a61ebc5b",
+  "agent_name": "RetrievalAgent",
+  "context": "Explain in simple terms for beginners",
+  "query": "What is artificial intelligence?",
+  "model": "qwen3-0.6b:UD-Q4_K_XL",
+  "timestamp": "1756722373",
+  "summary": {
+    "total_tools": 21,
+    "successful": 10,
+    "failed": 11
+  },
+  "execution_log": [
+    {
+      "function": "analyze",
+      "status": "success",
+      "result_summary": "Data retrieved"
+    },
+    {
+      "function": "add_document",
+      "status": "failed",
+      "error": "Retrieval system not available"
+    }
+  ],
+  "tool_responses": {
+    "analyze": {
+      "agent": "RetrievalAgent",
+      "analysis_type": "basic",
+      "basic_stats": {
+        "characters": 32,
+        "lines": 1,
+        "words": 4
+      },
+      "summary": "Text analysis completed by RetrievalAgent"
+    },
+    "cross_reference_search": {
+      "correlation_threshold": 0.7,
+      "databases_searched": ["internet", "knowledge_base"],
+      "overall_correlation_score": 0.78,
+      "status": "completed"
+    }
+  },
+  "tools_executed": [
+    "add_document", "analyze", "cross_reference_search", 
+    "generate_research_report", "plan_research", "verify_facts"
+  ],
+  "llm_response": {
+    "agent": "RetrievalAgent",
+    "model_used": "qwen3-0.6b:UD-Q4_K_XL",
+    "status": "fallback_success",
+    "response": "I apologize, but I'm currently unable to connect to the specified model. However, I can provide information based on the tool execution results...",
+    "timestamp": "2025-09-01 17:26:11"
+  }
+}
+```
+
+**Features**:
+- **Automatic Agent Selection**: Intelligently selects running agents over stopped ones
+- **Multi-Tool Execution**: Automatically runs all available tools (21 functions)
+- **Comprehensive Results**: Provides both individual tool results and synthesized LLM response
+- **Graceful Fallback**: Returns useful information even when LLM models are unavailable
+- **Rich Context**: Includes tool results in LLM context for enhanced responses
+
+**Use Cases**:
+- Quick research and analysis tasks
+- Comprehensive information gathering
+- Multi-tool workflow execution
+- System capability demonstration
+
 ### Execute Function
 
-Execute a function on a specific agent.
+Execute a specific function on a designated agent.
 
 ```http
 POST /v1/agents/{agent_id}/execute
@@ -712,14 +836,19 @@ All error responses follow a consistent format:
 | HTTP Status | Error Code | Description |
 |-------------|------------|-------------|
 | 400 | `INVALID_REQUEST` | Request validation failed |
+| 400 | `MISSING_QUERY` | Query parameter is required |
+| 400 | `INVALID_MODEL` | Specified model not available |
 | 401 | `UNAUTHORIZED` | Authentication required |
 | 403 | `FORBIDDEN` | Insufficient permissions |
 | 404 | `AGENT_NOT_FOUND` | Agent does not exist |
 | 404 | `FUNCTION_NOT_FOUND` | Function does not exist |
 | 409 | `AGENT_ALREADY_EXISTS` | Agent with same ID exists |
+| 409 | `NO_AGENTS_AVAILABLE` | No running agents available |
+| 422 | `TOOL_EXECUTION_FAILED` | All tool executions failed |
 | 429 | `RATE_LIMIT_EXCEEDED` | Too many requests |
 | 500 | `INTERNAL_ERROR` | Internal server error |
 | 503 | `SERVICE_UNAVAILABLE` | System temporarily unavailable |
+| 503 | `MODEL_UNAVAILABLE` | LLM model service unavailable |
 
 ### Error Examples
 
@@ -751,6 +880,28 @@ All error responses follow a consistent format:
 ```
 
 ## 📝 Request/Response Examples
+
+### Quick Start with Simple Execute
+
+The fastest way to get started is using the simple execute endpoint:
+
+```bash
+# Simple AI question with automatic tool execution
+curl -X POST http://localhost:8080/agent/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What is machine learning?",
+    "context": "Explain for beginners",
+    "model": "qwen3-0.6b:UD-Q4_K_XL"
+  }'
+```
+
+**Response Summary**:
+- Automatically selects best available agent
+- Executes 21+ research and analysis tools
+- Provides comprehensive results with tool outputs
+- Includes LLM-generated summary response
+- Returns execution statistics and error details
 
 ### Complete Agent Workflow
 
@@ -802,6 +953,23 @@ class KolosalClient:
         if api_key:
             self.headers["X-API-Key"] = api_key
     
+    def simple_execute(self, query, context=None, model=None, agent=None):
+        """Execute query with automatic agent and tool selection"""
+        payload = {"query": query}
+        if context:
+            payload["context"] = context
+        if model:
+            payload["model"] = model
+        if agent:
+            payload["agent"] = agent
+            
+        response = requests.post(
+            f"{self.base_url}/agent/execute",
+            json=payload,
+            headers=self.headers
+        )
+        return response.json()
+    
     def create_agent(self, name, capabilities):
         response = requests.post(
             f"{self.base_url}/v1/agents",
@@ -818,8 +986,19 @@ class KolosalClient:
         )
         return response.json()
 
-# Usage
+# Usage Examples
 client = KolosalClient()
+
+# Simple execute (recommended for most use cases)
+result = client.simple_execute(
+    query="What is artificial intelligence?",
+    context="Explain for beginners",
+    model="qwen3-0.6b:UD-Q4_K_XL"
+)
+print(f"Tools executed: {len(result['tools_executed'])}")
+print(f"Success rate: {result['summary']['successful']}/{result['summary']['total_tools']}")
+
+# Traditional agent workflow
 agent = client.create_agent("TestAgent", ["chat"])
 result = client.execute_function(
     agent["agent_id"], 
@@ -838,6 +1017,16 @@ class KolosalClient {
         if (apiKey) {
             this.headers['X-API-Key'] = apiKey;
         }
+    }
+    
+    async simpleExecute(query, options = {}) {
+        const payload = { query, ...options };
+        const response = await fetch(`${this.baseUrl}/agent/execute`, {
+            method: 'POST',
+            headers: this.headers,
+            body: JSON.stringify(payload)
+        });
+        return response.json();
     }
     
     async createAgent(name, capabilities) {
@@ -859,10 +1048,23 @@ class KolosalClient {
     }
 }
 
-// Usage
+// Usage Examples
 const client = new KolosalClient();
+
+// Simple execute (recommended)
+const result = await client.simpleExecute(
+    'What is machine learning?',
+    {
+        context: 'Explain for beginners',
+        model: 'qwen3-0.6b:UD-Q4_K_XL'
+    }
+);
+console.log(`Tools executed: ${result.tools_executed.length}`);
+console.log(`Success rate: ${result.summary.successful}/${result.summary.total_tools}`);
+
+// Traditional workflow
 const agent = await client.createAgent('TestAgent', ['chat']);
-const result = await client.executeFunction(
+const chatResult = await client.executeFunction(
     agent.agent_id, 
     'chat', 
     {message: 'Hello!', model: 'gemma3-1b'}
