@@ -41,68 +41,6 @@
 			"group": "build"
 		},
 		{
-			"label": "CMake: Build Test Executable (kolosal-agent-test.exe)",
-			"type": "shell",
-			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TEST_EXECUTABLE=ON -DBUILD_KOLOSAL_SERVER=ON -DUSE_PODOFO=OFF -DUSE_FAISS=OFF; cmake --build . --config Debug --target kolosal-agent-test",
-			"group": "build",
-			"problemMatcher": [
-				"$msCompile"
-			]
-		},
-		{
-			"label": "CMake: Build Test Executable (Debug with extensive logging)",
-			"type": "shell",
-			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TEST_EXECUTABLE=ON -DBUILD_KOLOSAL_SERVER=ON -DBUILD_WITH_RETRIEVAL=ON; cmake --build . --config Debug --target kolosal-agent-test",
-			"group": "build",
-			"problemMatcher": [
-				"$msCompile"
-			]
-		},
-		{
-			"label": "Run kolosal-agent-test.exe",
-			"type": "shell",
-			"command": "if (Test-Path 'build/kolosal-agent-test.exe') { & 'build/kolosal-agent-test.exe' } elseif (Test-Path 'build/Debug/kolosal-agent-test.exe') { & 'build/Debug/kolosal-agent-test.exe' } else { Write-Error 'kolosal-agent-test.exe not found. Build it first.' }",
-			"group": "test",
-			"dependsOn": "CMake: Build Test Executable (Debug with extensive logging)",
-			"problemMatcher": []
-		},
-		{
-			"label": "Run kolosal-agent-test.exe (verbose)",
-			"type": "shell",
-			"command": "if (Test-Path 'build/kolosal-agent-test.exe') { & 'build/kolosal-agent-test.exe' '--gtest_color=yes' '--gtest_print_time=1' '--verbose' } elseif (Test-Path 'build/Debug/kolosal-agent-test.exe') { & 'build/Debug/kolosal-agent-test.exe' '--gtest_color=yes' '--gtest_print_time=1' '--verbose' } else { Write-Error 'kolosal-agent-test.exe not found. Build it first.' }",
-			"group": "test",
-			"dependsOn": "CMake: Build Test Executable (Debug with extensive logging)",
-			"problemMatcher": []
-		},
-		{
-			"label": "CMake: Build Full Integration Test System",
-			"type": "shell",
-			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TEST_EXECUTABLE=ON -DBUILD_KOLOSAL_SERVER=ON -DBUILD_WITH_RETRIEVAL=ON -DINIT_SUBMODULES=ON; cmake --build . --config Debug",
-			"group": "build",
-			"problemMatcher": [
-				"$msCompile"
-			]
-		},
-		{
-			"label": "Run Full Integration Tests (Python Runner)",
-			"type": "shell",
-			"command": "python scripts/run_integration_tests.py --workspace .",
-			"group": "test",
-			"dependsOn": "CMake: Build Full Integration Test System",
-			"problemMatcher": [],
-			"options": {
-				"cwd": "${workspaceFolder}"
-			}
-		},
-		{
-			"label": "Run Integration Tests (Direct Executable)",
-			"type": "shell",
-			"command": "if (Test-Path 'build/kolosal-agent-test.exe') { & 'build/kolosal-agent-test.exe' '--gtest_color=yes' '--gtest_print_time=1' '--gtest_filter=*Integration*' } elseif (Test-Path 'build/Debug/kolosal-agent-test.exe') { & 'build/Debug/kolosal-agent-test.exe' '--gtest_color=yes' '--gtest_print_time=1' '--gtest_filter=*Integration*' } else { Write-Error 'kolosal-agent-test.exe not found. Build it first.' }",
-			"group": "test",
-			"dependsOn": "CMake: Build Full Integration Test System",
-			"problemMatcher": []
-		},
-		{
 			"label": "Health Check System",
 			"type": "shell",
 			"command": "python scripts/health_check.py --save-report",
@@ -117,17 +55,6 @@
 			"type": "shell",
 			"command": "python scripts/comprehensive_test.py --report",
 			"group": "test",
-			"problemMatcher": [],
-			"options": {
-				"cwd": "${workspaceFolder}"
-			}
-		},
-		{
-			"label": "Build and Run All Tests (Complete Pipeline)",
-			"type": "shell",
-			"command": "Write-Host '🚀 Starting Complete Test Pipeline'; python scripts/run_integration_tests.py --workspace .; if ($LASTEXITCODE -eq 0) { Write-Host '✅ Integration tests passed, running comprehensive tests'; python scripts/comprehensive_test.py --report } else { Write-Host '❌ Integration tests failed' }",
-			"group": "test",
-			"dependsOn": "CMake: Build Full Integration Test System",
 			"problemMatcher": [],
 			"options": {
 				"cwd": "${workspaceFolder}"
