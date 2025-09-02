@@ -822,7 +822,34 @@ void Agent::setup_retrieval_functions() {
 }
 
 void Agent::configure_retrieval(const json& config) {
-    if (!config.contains("retrieval")) {
+    if (!config.contains("retrieval") || config["retrieval"].is_null()) {
+        // If no retrieval config provided, use defaults if agent has retrieval capabilities
+        bool has_retrieval_capabilities = false;
+        for (const auto& capability : capabilities_) {
+            if (capability == "retrieval" || capability == "document_management" || 
+                capability == "semantic_search" || capability == "knowledge_base" || 
+                capability == "vector_search") {
+                has_retrieval_capabilities = true;
+                break;
+            }
+        }
+        
+        if (has_retrieval_capabilities) {
+            // Use default configuration for retrieval
+            RetrievalManager::Config new_config; // Uses defaults from header
+            retrieval_manager_ = std::make_unique<RetrievalManager>(new_config);
+            
+            // Add capabilities based on what's available
+            if (retrieval_manager_->is_available()) {
+                add_capability("document_management");
+                add_capability("semantic_search");
+                
+                if (new_config.search_enabled) {
+                    add_capability("internet_search");
+                    add_capability("research");
+                }
+            }
+        }
         return;
     }
     

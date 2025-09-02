@@ -101,16 +101,14 @@ bool AgentConfigManager::load_from_file(const std::string& file_path) {
         config_.models.clear();
         if (config["models"]) {
             for (const auto& model_node : config["models"]) {
-                std::string model_id = model_node.first.as<std::string>();
                 AgentSystemConfig::ModelConfig model_config;
                 
-                auto model_data = model_node.second;
-                model_config.id = model_id;
-                model_config.actual_name = model_data["actual_name"].as<std::string>(model_id);
-                model_config.type = model_data["type"].as<std::string>("llm");
-                model_config.description = model_data["description"].as<std::string>("");
+                model_config.id = model_node["name"].as<std::string>();
+                model_config.actual_name = model_node["actual_name"].as<std::string>(model_config.id);
+                model_config.type = model_node["type"].as<std::string>("llm");
+                model_config.description = model_node["description"].as<std::string>("");
                 
-                config_.models[model_id] = model_config;
+                config_.models[model_config.id] = model_config;
             }
         }
         

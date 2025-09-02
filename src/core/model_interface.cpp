@@ -16,8 +16,8 @@ ModelInterface::ModelInterface(const std::string& server_url) {
     // Set up default model configurations if none are provided
     json default_models = json::array();
     json default_model;
-    default_model["id"] = "gemma3-1b";
-    default_model["actual_name"] = "gemma3-1b";
+    default_model["id"] = "default";
+    default_model["actual_name"] = "qwen3-0.6b:UD-Q4_K_XL";
     default_model["type"] = "llm";
     default_models.push_back(default_model);
     

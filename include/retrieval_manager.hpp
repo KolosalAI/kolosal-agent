@@ -22,7 +22,7 @@ public:
         int max_retries = 3;
         
         // Search config  
-        bool search_enabled = false;
+        bool search_enabled = true;  // Enable search by default
         int max_results = 10;
     };
     

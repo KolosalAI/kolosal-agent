@@ -77,8 +77,37 @@ std::string AgentManager::create_agent_with_config(const std::string& name, cons
     std::string agent_id = agent->get_id();
     
 #ifdef BUILD_WITH_RETRIEVAL
-    // Configure retrieval if specified
-    agent->configure_retrieval(config);
+    // Configure retrieval if specified or if agent has retrieval capabilities
+    if (config.contains("retrieval")) {
+        agent->configure_retrieval(config);
+    } else {
+        // Check if agent has retrieval capabilities and provide default config
+        bool has_retrieval_capabilities = false;
+        if (config.contains("capabilities") && config["capabilities"].is_array()) {
+            for (const auto& capability : config["capabilities"]) {
+                if (capability.is_string()) {
+                    std::string cap = capability.get<std::string>();
+                    if (cap == "retrieval" || cap == "document_management" || 
+                        cap == "semantic_search" || cap == "knowledge_base" || 
+                        cap == "vector_search") {
+                        has_retrieval_capabilities = true;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (has_retrieval_capabilities) {
+            // Apply default retrieval configuration
+            json default_retrieval_config;
+            default_retrieval_config["retrieval"]["server_url"] = "http://127.0.0.1:8081";
+            default_retrieval_config["retrieval"]["timeout_seconds"] = 30;
+            default_retrieval_config["retrieval"]["max_retries"] = 3;
+            default_retrieval_config["retrieval"]["search_enabled"] = true;
+            default_retrieval_config["retrieval"]["max_results"] = 10;
+            agent->configure_retrieval(default_retrieval_config);
+        }
+    }
 #endif
     
     // Add capabilities from config

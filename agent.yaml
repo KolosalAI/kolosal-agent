@@ -29,26 +29,26 @@ system_instruction: |
 # Model configuration for agents - maps to Kolosal Server models
 models:
   - name: "default"
-    actual_name: "qwen2.5-0.5b"
+    actual_name: "qwen3-0.6b:UD-Q4_K_XL"
     type: "llm"
     server_url: "http://127.0.0.1:8081"
-    description: "Default LLM model (Qwen2.5-0.5B)"
+    description: "Default LLM model (Qwen3-0.6B)"
     preload: true
     context_size: 2048
   
   - name: "qwen2.5-0.5b"
-    actual_name: "qwen2.5-0.5b"
+    actual_name: "qwen3-0.6b:UD-Q4_K_XL"
     type: "llm"
     server_url: "http://127.0.0.1:8081"
-    description: "Qwen2.5-0.5B language model"
+    description: "Qwen3-0.6B language model (mapped from qwen2.5-0.5b)"
     preload: true
     context_size: 2048
   
   - name: "qwen3-0.6b"
-    actual_name: "qwen2.5-0.5b"
+    actual_name: "qwen3-0.6b:UD-Q4_K_XL"
     type: "llm"
     server_url: "http://127.0.0.1:8081"
-    description: "Qwen2.5-0.5B language model (mapped from qwen3-0.6b)"
+    description: "Qwen3-0.6B language model"
     preload: true
     context_size: 2048
   
@@ -79,8 +79,14 @@ agents:
       Provide detailed analysis with clear insights and actionable conclusions.
 
   - name: "Researcher"
-    capabilities: ["research", "web_search", "fact_checking"]
+    capabilities: ["research", "web_search", "fact_checking", "retrieval", "document_management"]
     auto_start: false
+    retrieval:
+      server_url: "http://127.0.0.1:8081"
+      timeout_seconds: 30
+      max_retries: 3
+      search_enabled: true
+      max_results: 20
     system_prompt: |
       You are an AI researcher specialized in information gathering and fact-checking.
       Your role is to help users find accurate information and verify facts.
@@ -89,12 +95,18 @@ agents:
   - name: "RetrievalAgent"
     capabilities: ["retrieval", "document_management", "semantic_search", "knowledge_base", "vector_search"]
     auto_start: true
+    retrieval:
+      server_url: "http://127.0.0.1:8081"
+      timeout_seconds: 30
+      max_retries: 3
+      search_enabled: true
+      max_results: 10
     system_prompt: |
       You are an AI agent specialized in information retrieval and document management.
       Your primary functions include:
       - Managing and organizing documents in a vector database
       - Performing semantic search across document collections
-      - Retrieving relevant information based on user queries
+      - Retrieving relevant information based to user queries
       - Maintaining knowledge bases and document repositories
       - Providing context-aware responses using retrieved information
       
@@ -104,8 +116,14 @@ agents:
       when returning information from documents.
 
   - name: "DeepResearcher"
-    capabilities: ["deep_research", "iterative_search", "fact_verification", "research_planning", "synthesis"]
+    capabilities: ["deep_research", "iterative_search", "fact_verification", "research_planning", "synthesis", "retrieval", "document_management", "semantic_search"]
     auto_start: false
+    retrieval:
+      server_url: "http://127.0.0.1:8081"
+      timeout_seconds: 60
+      max_retries: 3
+      search_enabled: true
+      max_results: 15
     system_prompt: |
       You are an AI agent specialized in comprehensive deep research and analysis.
       Your primary functions include:
