@@ -1,3 +1,45 @@
+# Configuration validation rules
+validation:
+  enabled: true
+  strict_mode: false  # If true, fails on warnings; if false, continues with warnings
+  schema_version: "1.0.0"
+  
+  # Port validation
+  port_ranges:
+    system_port: [1024, 65535]
+    kolosal_server_port: [1024, 65535]
+  
+  # Memory validation
+  memory_limits:
+    min_system_memory: "1GB"
+    max_memory_percent: 90
+    min_cache_size: "64MB"
+  
+  # Timeout validation
+  timeout_limits:
+    min_timeout: 1000   # 1 second
+    max_timeout: 300000 # 5 minutes
+    default_timeout: 30000
+  
+  # Model validation
+  model_requirements:
+    require_default_model: true
+    require_embedding_model: true
+    validate_model_files: true
+    check_model_compatibility: true
+  
+  # Agent validation
+  agent_requirements:
+    min_agents: 1
+    max_agents: 50
+    required_capabilities: ["chat"]
+  
+  # Function validation
+  function_requirements:
+    min_functions: 3
+    required_functions: ["chat", "status", "analyze"]
+    validate_parameters: true
+
 # Kolosal Agent System Configuration
 system:
   name: "Kolosal Agent System"
@@ -26,34 +68,35 @@ system_instruction: |
   
   Your responses should be informative and helpful while being concise when appropriate.
 
-# Model configuration for agents - maps to Kolosal Server models
+# Model configuration for agents - maps to actual model files available
 models:
   - name: "default"
-    actual_name: "qwen3-0.6b:UD-Q4_K_XL"
+    actual_name: "qwen2.5-0.5b-instruct-q4_k_m"
+    model_file: "qwen2.5-0.5b-instruct-q4_k_m.gguf"
     type: "llm"
     server_url: "http://127.0.0.1:8081"
-    description: "Default LLM model (Qwen3-0.6B)"
+    description: "Default LLM model (Qwen2.5-0.5B Instruct)"
     preload: true
     context_size: 2048
+    max_tokens: 1024
+    temperature: 0.7
+    top_p: 0.9
   
   - name: "qwen2.5-0.5b"
-    actual_name: "qwen3-0.6b:UD-Q4_K_XL"
+    actual_name: "qwen2.5-0.5b-instruct-q4_k_m"
+    model_file: "qwen2.5-0.5b-instruct-q4_k_m.gguf"
     type: "llm"
     server_url: "http://127.0.0.1:8081"
-    description: "Qwen3-0.6B language model (mapped from qwen2.5-0.5b)"
+    description: "Qwen2.5-0.5B Instruct language model"
     preload: true
     context_size: 2048
-  
-  - name: "qwen3-0.6b"
-    actual_name: "qwen3-0.6b:UD-Q4_K_XL"
-    type: "llm"
-    server_url: "http://127.0.0.1:8081"
-    description: "Qwen3-0.6B language model"
-    preload: true
-    context_size: 2048
+    max_tokens: 1024
+    temperature: 0.7
+    top_p: 0.9
   
   - name: "embedding"
     actual_name: "all-MiniLM-L6-v2-bf16-q4_k"
+    model_file: "all-MiniLM-L6-v2-bf16-q4_k.gguf"
     type: "embedding"
     server_url: "http://127.0.0.1:8081"
     description: "Embedding model for document vectorization and semantic search"
@@ -492,13 +535,33 @@ functions:
         required: false
         description: "Criteria for credibility assessment"
 
-# Performance and resource configuration
+# Performance and resource configuration with dynamic detection
 performance:
-  max_memory_usage: "2GB"
-  cache_size: "512MB"
-  worker_threads: 4
+  max_memory_usage: "auto"  # Auto-detect system memory, fallback to 2GB
+  min_memory_required: "512MB"
+  max_memory_percent: 75  # Maximum percentage of system memory to use
+  cache_size: "auto"  # Auto-calculate based on available memory
+  min_cache_size: "128MB"
+  max_cache_size: "1GB"
+  worker_threads: "auto"  # Auto-detect based on CPU cores
+  min_worker_threads: 2
+  max_worker_threads: 16
   request_timeout: 30000
   max_request_size: "10MB"
+  disk_space_monitoring:
+    enabled: true
+    min_free_space: "1GB"
+    warning_threshold: "2GB"
+    check_interval: 300  # seconds
+  resource_limits:
+    cpu_usage_threshold: 80  # percentage
+    memory_usage_threshold: 85  # percentage
+    disk_usage_threshold: 90  # percentage
+  graceful_degradation:
+    enabled: true
+    reduce_cache_on_memory_pressure: true
+    reduce_workers_on_cpu_pressure: true
+    queue_limit_on_resource_pressure: 50
 
 # Kolosal Server configuration
 kolosal_server:
@@ -512,8 +575,14 @@ kolosal_server:
     max_cpu_percent: 80
   models_directory: "./models"
   required_models:
-    - "qwen2.5-0.5b"
-    - "all-MiniLM-L6-v2-bf16-q4_k"
+    - name: "qwen2.5-0.5b-instruct-q4_k_m"
+      file: "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+      type: "llm"
+      required: true
+    - name: "all-MiniLM-L6-v2-bf16-q4_k"
+      file: "all-MiniLM-L6-v2-bf16-q4_k.gguf"
+      type: "embedding"
+      required: true
   model_preload_timeout: 120
   graceful_shutdown_timeout: 30
 

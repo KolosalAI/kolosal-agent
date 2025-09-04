@@ -30,16 +30,41 @@ bool AgentManager::load_configuration(const std::string& config_file) {
         config_manager_ = std::make_shared<AgentConfigManager>();
     }
     
-    bool loaded = config_manager_->load_config(config_file);
-    if (loaded && config_manager_->validate_config()) {
+    ValidationResult load_result = config_manager_->load_config(config_file);
+    ValidationResult validation_result = config_manager_->validate_config();
+    
+    if (load_result.is_valid && validation_result.is_valid) {
         config_manager_->print_config_summary();
+        
+        // Print any warnings
+        if (validation_result.has_warnings()) {
+            config_manager_->print_validation_results(validation_result);
+        }
         
         // Load model configurations for all agents after config is loaded
         load_model_configurations();
         
         return true;
     }
-    return loaded; // Still return true even if validation shows warnings
+    
+    // Print validation errors/warnings but continue if only warnings
+    if (!load_result.is_valid || !validation_result.is_valid) {
+        if (load_result.has_errors()) {
+            std::cerr << "Configuration loading errors:" << std::endl;
+            for (const auto& error : load_result.errors) {
+                std::cerr << "ERROR: " << error << std::endl;
+            }
+        }
+        if (validation_result.has_errors()) {
+            std::cerr << "Configuration validation errors:" << std::endl;
+            for (const auto& error : validation_result.errors) {
+                std::cerr << "ERROR: " << error << std::endl;
+            }
+        }
+        return false;
+    }
+    
+    return true;
 }
 
 std::string AgentManager::create_agent(const std::string& name, const std::vector<std::string>& capabilities) {
