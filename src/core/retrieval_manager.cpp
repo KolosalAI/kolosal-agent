@@ -7,7 +7,7 @@ RetrievalManager::RetrievalManager(const Config& config) : config_(config) {
 
 RetrievalManager::~RetrievalManager() = default;
 
-void RetrievalManager::initialize() {
+bool RetrievalManager::initialize() {
     try {
         // Create KolosalClient with server configuration
         KolosalClient::Config client_config;
@@ -21,13 +21,16 @@ void RetrievalManager::initialize() {
         if (kolosal_client_->is_server_healthy()) {
             available_ = true;
             std::cout << "RetrievalManager initialized successfully with Kolosal Server at " << config_.server_url << std::endl;
+            return true;
         } else {
             std::cout << "RetrievalManager: Kolosal Server not available at " << config_.server_url << std::endl;
             available_ = false;
+            return false;
         }
     } catch (const std::exception& e) {
         std::cout << "RetrievalManager initialization failed: " << e.what() << std::endl;
         available_ = false;
+        return false;
     }
 }
 
@@ -122,7 +125,7 @@ json RetrievalManager::internet_search(const json& params) {
     
     try {
         std::string query = params.value("query", "");
-        int results = params.value("results", config_.max_results);
+        int results = params.value("results", config_.max_search_results);
         
         return kolosal_client_->internet_search(query, results);
     } catch (const std::exception& e) {

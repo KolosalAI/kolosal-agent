@@ -277,7 +277,7 @@ TEST_F(ConfigTest, ShouldValidateConfiguration) {
 ```cpp
 // tests/integration/test_http_server.cpp
 #include <gtest/gtest.h>
-#include "http_server.hpp"
+#include "server_http.hpp"
 #include "agent_manager.hpp"
 #include <curl/curl.h>
 #include <thread>

@@ -3,7 +3,7 @@
 #include <string>
 #include <memory>
 #include <json.hpp>
-#include "kolosal_client.hpp"
+#include "client.hpp"
 
 using json = nlohmann::json;
 

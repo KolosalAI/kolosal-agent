@@ -79,7 +79,7 @@ endif()
 
 # Compiler-specific flags
 if(MSVC)
-    add_compile_options(/W4 /utf-8)
+    add_compile_options(/W4 /utf-8 /FS)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
     
     # Fix for Debug builds with kolosal-server: avoid RTC/optimization conflicts
@@ -146,14 +146,18 @@ set(CORE_SOURCES
     src/core/agent_manager.cpp
     src/core/agent_config.cpp
     src/core/model_interface.cpp
-    src/core/kolosal_client.cpp
+    src/core/client.cpp
     src/core/logger.cpp
-    src/core/kolosal_server_launcher.cpp
+    src/core/server_launcher.cpp
     src/core/main.cpp
+    src/core/retrieval_enhanced.cpp
 )
 
 set(API_SOURCES
-    src/api/http_server.cpp
+    src/api/server_http.cpp
+    src/api/metrics.cpp
+    src/api/service_async.cpp
+    src/api/logger_advanced.cpp
 )
 
 set(WORKFLOW_SOURCES
@@ -162,8 +166,8 @@ set(WORKFLOW_SOURCES
 )
 
 set(TOOL_SOURCES
-    src/functions/retrieval_functions.cpp
-    src/functions/deep_research_functions.cpp
+    src/functions/retrieval.cpp
+    src/functions/research.cpp
 )
 
 # Add retrieval manager if kolosal-server is built
@@ -196,6 +200,11 @@ set_target_properties(kolosal-agent PROPERTIES
     OUTPUT_NAME "kolosal-agent"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
+
+# Add /FS flag specifically to the kolosal-agent target for MSVC
+if(MSVC)
+    target_compile_options(kolosal-agent PRIVATE /FS)
+endif()
 
 # Define BUILD_WITH_RETRIEVAL if the option is enabled
 if(BUILD_WITH_RETRIEVAL)

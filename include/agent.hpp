@@ -16,7 +16,7 @@ using json = nlohmann::json;
 #endif
 
 // Include enhanced retrieval functions
-#include "functions/retrieval_functions.hpp"
+#include "functions/retrieval.hpp"
 
 /**
  * @brief Agent Class - Core functionality with system prompt support

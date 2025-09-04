@@ -43,7 +43,7 @@
 		{
 			"label": "Health Check System",
 			"type": "shell",
-			"command": "python scripts/health_check.py --save-report",
+			"command": "python scripts/health.py --save-report",
 			"group": "test",
 			"problemMatcher": [],
 			"options": {
@@ -53,7 +53,7 @@
 		{
 			"label": "Run Comprehensive Tests",
 			"type": "shell",
-			"command": "python scripts/comprehensive_test.py --report",
+			"command": "python scripts/test_full.py --report",
 			"group": "test",
 			"problemMatcher": [],
 			"options": {

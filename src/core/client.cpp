@@ -1,4 +1,4 @@
-#include "kolosal_client.hpp"
+#include "client.hpp"
 #include <stdexcept>
 #include <chrono>
 #include <thread>

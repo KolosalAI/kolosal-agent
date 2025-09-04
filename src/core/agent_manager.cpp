@@ -460,11 +460,25 @@ std::string AgentManager::get_kolosal_server_url() const {
     return "";
 }
 
-KolosalServerLauncher::Status AgentManager::get_kolosal_server_status() const {
+json AgentManager::get_kolosal_server_status() const {
+    json status_info;
+    
     if (server_launcher_) {
-        return server_launcher_->get_status();
+        auto status = server_launcher_->get_status();
+        status_info["running"] = (status == KolosalServerLauncher::Status::RUNNING);
+        status_info["status"] = server_launcher_->get_status_string();
+        status_info["url"] = server_launcher_->get_server_url();
+        status_info["healthy"] = server_launcher_->is_healthy();
+        status_info["models_loaded"] = 1; // Placeholder - could be enhanced
+    } else {
+        status_info["running"] = false;
+        status_info["status"] = "not_initialized";
+        status_info["url"] = "";
+        status_info["healthy"] = false;
+        status_info["models_loaded"] = 0;
     }
-    return KolosalServerLauncher::Status::STOPPED;
+    
+    return status_info;
 }
 
 void AgentManager::initialize_server_launcher() {
@@ -538,4 +552,14 @@ void AgentManager::setup_server_status_callback() {
             load_model_configurations();
         }
     });
+}
+
+size_t AgentManager::get_active_agent_count() const {
+    size_t count = 0;
+    for (const auto& [agent_id, agent] : agents_) {
+        if (agent && agent->is_running()) {
+            count++;
+        }
+    }
+    return count;
 }

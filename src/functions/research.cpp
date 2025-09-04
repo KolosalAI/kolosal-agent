@@ -1,4 +1,4 @@
-#include "../include/functions/deep_research_functions.hpp"
+#include "../include/functions/research.hpp"
 #include <algorithm>
 #include <regex>
 #include <sstream>

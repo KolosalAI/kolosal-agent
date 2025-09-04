@@ -1,4 +1,4 @@
-#include "../include/http_server.hpp"
+#include "../include/server_http.hpp"
 #include <iostream>
 #include <sstream>
 #include <regex>
@@ -1245,6 +1245,188 @@ void HTTPServer::handle_stop_kolosal_server(socket_t client_socket) {
         response["status"] = agent_manager_->get_kolosal_server_status();
         
         send_response(client_socket, success ? 200 : 500, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+// Metrics and Monitoring Handlers
+void HTTPServer::handle_get_system_metrics(socket_t client_socket) {
+    try {
+        json response;
+        response["timestamp"] = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        
+        // Get system metrics from MetricsCollector
+        // This would integrate with the MetricsCollector we created
+        response["system"] = {
+            {"uptime_seconds", 0}, // Placeholder
+            {"cpu_usage_percent", 0.0},
+            {"memory_usage_mb", 0.0},
+            {"thread_count", std::thread::hardware_concurrency()}
+        };
+        
+        response["requests"] = {
+            {"total_count", 0},
+            {"success_count", 0},
+            {"error_count", 0},
+            {"avg_response_time_ms", 0.0}
+        };
+        
+        response["agents"] = {
+            {"active_count", agent_manager_ ? agent_manager_->get_active_agent_count() : 0},
+            {"total_operations", 0}
+        };
+        
+        response["workflows"] = {
+            {"active_executions", workflow_orchestrator_ ? workflow_orchestrator_->list_active_executions().size() : 0},
+            {"total_executions", 0}
+        };
+        
+        send_response(client_socket, 200, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_get_health_status(socket_t client_socket) {
+    try {
+        json response;
+        response["status"] = "healthy";
+        response["timestamp"] = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        response["version"] = "2.0.0";
+        
+        // Component health checks
+        json components;
+        
+        // Agent Manager
+        components["agent_manager"] = {
+            {"status", agent_manager_ ? "healthy" : "unhealthy"},
+            {"active_agents", agent_manager_ ? agent_manager_->get_active_agent_count() : 0}
+        };
+        
+        // Workflow Orchestrator
+        components["workflow_orchestrator"] = {
+            {"status", workflow_orchestrator_ ? "healthy" : "unhealthy"},
+            {"active_executions", workflow_orchestrator_ ? workflow_orchestrator_->list_active_executions().size() : 0}
+        };
+        
+        // Kolosal Server
+        if (agent_manager_) {
+            auto kolosal_status = agent_manager_->get_kolosal_server_status();
+            components["kolosal_server"] = {
+                {"status", kolosal_status["running"].get<bool>() ? "healthy" : "unhealthy"},
+                {"url", kolosal_status.value("url", "")},
+                {"models_loaded", kolosal_status.value("models_loaded", 0)}
+            };
+        } else {
+            components["kolosal_server"] = {
+                {"status", "unknown"}
+            };
+        }
+        
+        response["components"] = components;
+        
+        // Overall health
+        bool all_healthy = true;
+        for (const auto& [name, component] : components.items()) {
+            if (component["status"] != "healthy") {
+                all_healthy = false;
+                break;
+            }
+        }
+        
+        if (!all_healthy) {
+            response["status"] = "degraded";
+        }
+        
+        send_response(client_socket, all_healthy ? 200 : 503, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_get_prometheus_metrics(socket_t client_socket) {
+    try {
+        std::ostringstream prometheus;
+        
+        // Basic system metrics in Prometheus format
+        prometheus << "# HELP kolosal_uptime_seconds Total uptime in seconds\n";
+        prometheus << "# TYPE kolosal_uptime_seconds counter\n";
+        prometheus << "kolosal_uptime_seconds 0\n\n"; // Placeholder
+        
+        prometheus << "# HELP kolosal_http_requests_total Total HTTP requests\n";
+        prometheus << "# TYPE kolosal_http_requests_total counter\n";
+        prometheus << "kolosal_http_requests_total 0\n\n";
+        
+        prometheus << "# HELP kolosal_active_agents Number of active agents\n";
+        prometheus << "# TYPE kolosal_active_agents gauge\n";
+        prometheus << "kolosal_active_agents " << (agent_manager_ ? agent_manager_->get_active_agent_count() : 0) << "\n\n";
+        
+        prometheus << "# HELP kolosal_active_workflows Number of active workflow executions\n";
+        prometheus << "# TYPE kolosal_active_workflows gauge\n";
+        prometheus << "kolosal_active_workflows " << (workflow_orchestrator_ ? workflow_orchestrator_->list_active_executions().size() : 0) << "\n\n";
+        
+        // Send response with appropriate content type
+        std::string response = prometheus.str();
+        std::string http_response = "HTTP/1.1 200 OK\r\n";
+        http_response += "Content-Type: text/plain; charset=utf-8\r\n";
+        http_response += "Content-Length: " + std::to_string(response.length()) + "\r\n";
+        http_response += "Connection: close\r\n\r\n";
+        http_response += response;
+        
+        send(client_socket, http_response.c_str(), http_response.length(), 0);
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_get_performance_metrics(socket_t client_socket) {
+    try {
+        json response;
+        response["timestamp"] = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        
+        // Request performance metrics
+        response["requests"] = {
+            {"total_count", 0},
+            {"average_duration_ms", 0.0},
+            {"p50_duration_ms", 0.0},
+            {"p95_duration_ms", 0.0},
+            {"p99_duration_ms", 0.0},
+            {"requests_per_second", 0.0}
+        };
+        
+        // Agent performance metrics
+        response["agents"] = {
+            {"total_operations", 0},
+            {"average_execution_time_ms", 0.0},
+            {"success_rate", 1.0},
+            {"most_used_functions", json::array()}
+        };
+        
+        // Workflow performance metrics
+        response["workflows"] = {
+            {"total_executions", 0},
+            {"average_execution_time_ms", 0.0},
+            {"success_rate", 1.0},
+            {"most_executed_workflows", json::array()}
+        };
+        
+        // System performance metrics
+        response["system"] = {
+            {"cpu_usage_percent", 0.0},
+            {"memory_usage_mb", 0.0},
+            {"disk_usage_percent", 0.0},
+            {"network_io_bytes", 0}
+        };
+        
+        send_response(client_socket, 200, response.dump(2));
         
     } catch (const std::exception& e) {
         send_error(client_socket, 500, e.what());

@@ -2,7 +2,7 @@
 
 #include "agent.hpp"
 #include "agent_config.hpp"
-#include "kolosal_server_launcher.hpp"
+#include "server_launcher.hpp"
 #include <map>
 #include <memory>
 #include <string>
@@ -34,7 +34,7 @@ public:
     bool stop_kolosal_server();
     bool is_kolosal_server_running() const;
     std::string get_kolosal_server_url() const;
-    KolosalServerLauncher::Status get_kolosal_server_status() const;
+    json get_kolosal_server_status() const;
     
     // Agent lifecycle
     std::string create_agent(const std::string& name, const std::vector<std::string>& capabilities = {});
@@ -56,6 +56,7 @@ public:
     // Bulk operations
     json list_agents() const;
     void stop_all_agents();
+    size_t get_active_agent_count() const;
     
     // Function execution
     json execute_agent_function(const std::string& agent_id, 

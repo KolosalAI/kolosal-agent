@@ -3,7 +3,7 @@
 #include "logger.hpp"
 #ifdef BUILD_WITH_RETRIEVAL
 #include "retrieval_manager.hpp"
-#include "../include/functions/deep_research_functions.hpp"
+#include "../include/functions/research.hpp"
 #endif
 #include <iostream>
 #include <chrono>

@@ -80,6 +80,12 @@ private:
     void handle_control_workflow_execution(socket_t client_socket, const std::string& execution_id, const std::string& action);
     void handle_list_workflow_executions(socket_t client_socket);
     
+    // Metrics and monitoring handlers
+    void handle_get_system_metrics(socket_t client_socket);
+    void handle_get_health_status(socket_t client_socket);
+    void handle_get_prometheus_metrics(socket_t client_socket);
+    void handle_get_performance_metrics(socket_t client_socket);
+    
     // Utility
     std::string extract_path_parameter(const std::string& path, const std::string& prefix);
     std::string resolve_agent_identifier(const std::string& agent_identifier);

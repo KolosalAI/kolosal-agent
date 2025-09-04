@@ -237,7 +237,7 @@ TEST_F(AgentTest, CapabilityManagement) {
 // tests/integration/test_agent_api.cpp
 #include <gtest/gtest.h>
 #include <curl/curl.h>
-#include "http_server.hpp"
+#include "server_http.hpp"
 #include "agent_manager.hpp"
 
 class AgentAPITest : public ::testing::Test {

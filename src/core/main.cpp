@@ -1,10 +1,10 @@
 #include "agent.hpp"
 #include "agent_manager.hpp"
 #include "agent_config.hpp"
-#include "http_server.hpp"
+#include "server_http.hpp"
 #include "workflow_manager.hpp"
 #include "workflow_types.hpp"
-#include "kolosal_server_launcher.hpp"
+#include "server_launcher.hpp"
 #include "logger.hpp"
 #include <iostream>
 #include <memory>
