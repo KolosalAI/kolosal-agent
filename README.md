@@ -403,11 +403,75 @@ inference_engines:
 - **🔒 Secret Management**: Supports integration with secret management systems
 - **📝 Environment Documentation**: Comprehensive variable documentation
 
+### Security Configuration
+
+The default configuration files are designed for development use and do not include production security settings. Configure the following per deployment:
+
+#### Authentication & API Keys
+```bash
+# Set API keys via environment variables (production)
+export KOLOSAL_API_KEY="your-secure-api-key"
+export KOLOSAL_SEARCH_API_KEY="your-search-api-key"
+export KOLOSAL_QDRANT_API_KEY="your-qdrant-api-key"
+```
+
+#### CORS Configuration
+```yaml
+# In config.yaml - configure allowed origins per deployment
+auth:
+  cors:
+    enabled: true
+    allowed_origins:
+      - "https://yourdomain.com"
+      - "https://app.yourdomain.com"
+```
+
+#### Rate Limiting
+```yaml
+# Configure per deployment in config.yaml
+auth:
+  rate_limit:
+    enabled: true
+    max_requests: 100  # Adjust based on needs
+    window_size: 60
+```
+
+#### Production Security Checklist
+- [ ] Set unique API keys via environment variables
+- [ ] Configure specific CORS origins (never use "*" in production)
+- [ ] Enable authentication: `enabled: true`
+- [ ] Set appropriate rate limits for your use case
+- [ ] Use HTTPS in production environments
+- [ ] Regularly rotate API keys
+- [ ] Monitor and log authentication attempts
+
 ### Configuration Documentation
 
 - **[Environment Variables Guide](docs/environment-variables.md)** - Complete list of supported variables
 - **[Configuration Migration](docs/config-migration.md)** - Guide for migrating existing configs
 - **[Example Configuration](config/config.example.yaml)** - Full example with all options
+
+### Security Configuration Migration
+
+If you have existing configuration files with hardcoded security settings, follow these steps to migrate:
+
+1. **Remove hardcoded API keys and CORS origins** from your YAML files
+2. **Copy `.env.template` to `.env`** and configure your specific values
+3. **Use environment variables** for all sensitive configuration
+4. **Never commit `.env` files** to version control
+
+Example migration:
+```yaml
+# OLD (insecure - hardcoded values)
+security:
+  api_key: "your-api-key-here"
+  allowed_origins: ["*"]
+
+# NEW (secure - environment variables)  
+security:
+  api_key: ${KOLOSAL_API_KEY:-}
+  allowed_origins: ["${KOLOSAL_CORS_ORIGIN_1:-}"]
+```
 
 ## 🌐 API Reference
 

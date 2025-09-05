@@ -594,14 +594,6 @@ logging:
   max_files: ${KOLOSAL_LOG_MAX_FILES:-10}
   console_output: ${KOLOSAL_LOG_CONSOLE:-true}
 
-# Security configuration
-security:
-  enable_cors: ${KOLOSAL_ENABLE_CORS:-true}
-  allowed_origins: ["http://localhost:3000", "http://127.0.0.1:3000"]
-  max_request_rate: ${KOLOSAL_RATE_LIMIT:-100}  # requests per minute per IP
-  enable_auth: ${KOLOSAL_ENABLE_AUTH:-false}
-  api_key: ${KOLOSAL_API_KEY:-}  # Set this if enable_auth is true
-
 # Error handling and fallback configuration
 error_handling:
   enable_fallbacks: true

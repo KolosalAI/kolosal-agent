@@ -33,7 +33,7 @@ auth:
     allow_credentials: false
     max_age: 86400
     allowed_origins:
-      - ${KOLOSAL_CORS_ORIGIN_1:-*}
+      - ${KOLOSAL_CORS_ORIGIN_1:-}
     allowed_methods:
       - GET
       - POST

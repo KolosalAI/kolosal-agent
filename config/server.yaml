@@ -7,9 +7,9 @@ server:
   host: "127.0.0.1"
   port: 8081
   
-  # Security settings
-  cors_enabled: true
-  cors_origins: ["http://localhost:8080", "http://127.0.0.1:8080"]
+  # Security settings - configure per deployment
+  cors_enabled: false
+  cors_origins: []
   
   # Performance settings
   max_connections: 100
