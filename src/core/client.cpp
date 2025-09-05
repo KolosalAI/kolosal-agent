@@ -160,7 +160,11 @@ json KolosalClient::add_document(const json& document_data) {
     SCOPED_TIMER("add_document");
     
     try {
-        return make_request_with_retry("POST", "/documents", document_data);
+        // Wrap the document in the format expected by /add_documents endpoint
+        json request_body;
+        request_body["documents"] = json::array({document_data});
+        
+        return make_request_with_retry("POST", "/add_documents", request_body);
     } catch (const std::exception& e) {
         LOG_ERROR_F("Failed to add document: %s", e.what());
         throw std::runtime_error("Failed to add document: " + std::string(e.what()));
@@ -176,12 +180,12 @@ json KolosalClient::search_documents(const std::string& query,
     try {
         json request_data;
         request_data["query"] = query;
-        request_data["limit"] = limit;
+        request_data["k"] = limit;  // Server expects 'k', not 'limit'
         if (!filters.empty()) {
             request_data["filters"] = filters;
         }
         
-        return make_request_with_retry("POST", "/documents/search", request_data);
+        return make_request_with_retry("POST", "/retrieve", request_data);
     } catch (const std::exception& e) {
         LOG_ERROR_F("Failed to search documents: %s", e.what());
         throw std::runtime_error("Failed to search documents: " + std::string(e.what()));
@@ -193,7 +197,11 @@ json KolosalClient::remove_document(const std::string& document_id) {
     SCOPED_TIMER("remove_document");
     
     try {
-        return make_request_with_retry("DELETE", "/documents/" + document_id);
+        // Wrap the document ID in the format expected by /remove_documents endpoint
+        json request_body;
+        request_body["ids"] = json::array({document_id});
+        
+        return make_request_with_retry("POST", "/remove_documents", request_body);
     } catch (const std::exception& e) {
         LOG_ERROR_F("Failed to remove document: %s", e.what());
         throw std::runtime_error("Failed to remove document: " + std::string(e.what()));
@@ -205,8 +213,8 @@ json KolosalClient::list_documents(int offset, int limit) {
     SCOPED_TIMER("list_documents");
     
     try {
-        std::string endpoint = "/documents?offset=" + std::to_string(offset) + "&limit=" + std::to_string(limit);
-        return make_request_with_retry("GET", endpoint);
+        // The /list_documents endpoint doesn't take parameters, just returns all document IDs
+        return make_request_with_retry("GET", "/list_documents");
     } catch (const std::exception& e) {
         LOG_ERROR_F("Failed to list documents: %s", e.what());
         throw std::runtime_error("Failed to list documents: " + std::string(e.what()));
@@ -252,7 +260,8 @@ bool KolosalClient::is_server_healthy() {
     
     try {
         auto response = make_request("GET", "/health");
-        return response.contains("status") && response["status"] == "ok";
+        return response.contains("status") && 
+               (response["status"] == "ok" || response["status"] == "healthy");
     } catch (const std::exception& e) {
         LOG_DEBUG_F("Server health check failed: %s", e.what());
         return false;

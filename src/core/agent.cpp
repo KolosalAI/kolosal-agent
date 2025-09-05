@@ -630,30 +630,94 @@ void Agent::setup_retrieval_functions() {
     // Document management functions
     register_function("add_document", [this](const json& params) -> json {
         if (!retrieval_manager_ || !retrieval_manager_->is_available()) {
-            throw std::runtime_error("Retrieval system not available");
+            LOG_WARN("Retrieval system not available - skipping document addition");
+            json response;
+            response["status"] = "skipped";
+            response["message"] = "Retrieval system not available";
+            response["reason"] = "Vector database (Qdrant) not running";
+            return response;
         }
-        return retrieval_manager_->add_document(params);
+        
+        try {
+            return retrieval_manager_->add_document(params);
+        } catch (const std::exception& e) {
+            LOG_WARN_F("Failed to add document: %s", e.what());
+            json response;
+            response["status"] = "failed";
+            response["message"] = e.what();
+            response["reason"] = "Document service initialization failed";
+            return response;
+        }
     });
     
     register_function("search_documents", [this](const json& params) -> json {
         if (!retrieval_manager_ || !retrieval_manager_->is_available()) {
-            throw std::runtime_error("Retrieval system not available");
+            LOG_WARN("Retrieval system not available - skipping document search");
+            json response;
+            response["status"] = "skipped";
+            response["message"] = "Retrieval system not available";
+            response["reason"] = "Vector database (Qdrant) not running";
+            response["results"] = json::array();
+            return response;
         }
-        return retrieval_manager_->search_documents(params);
+        
+        try {
+            return retrieval_manager_->search_documents(params);
+        } catch (const std::exception& e) {
+            LOG_WARN_F("Failed to search documents: %s", e.what());
+            json response;
+            response["status"] = "failed";
+            response["message"] = e.what();
+            response["reason"] = "Document service initialization failed";
+            response["results"] = json::array();
+            return response;
+        }
     });
     
     register_function("list_documents", [this](const json& params) -> json {
         if (!retrieval_manager_ || !retrieval_manager_->is_available()) {
-            throw std::runtime_error("Retrieval system not available");
+            LOG_WARN("Retrieval system not available - skipping document listing");
+            json response;
+            response["status"] = "skipped";
+            response["message"] = "Retrieval system not available";
+            response["reason"] = "Vector database (Qdrant) not running";
+            response["documents"] = json::array();
+            return response;
         }
-        return retrieval_manager_->list_documents(params);
+        
+        try {
+            return retrieval_manager_->list_documents(params);
+        } catch (const std::exception& e) {
+            LOG_WARN_F("Failed to list documents: %s", e.what());
+            json response;
+            response["status"] = "failed";
+            response["message"] = e.what();
+            response["reason"] = "Document service initialization failed";
+            response["documents"] = json::array();
+            return response;
+        }
     });
     
     register_function("remove_document", [this](const json& params) -> json {
         if (!retrieval_manager_ || !retrieval_manager_->is_available()) {
-            throw std::runtime_error("Retrieval system not available");
+            LOG_WARN("Retrieval system not available - skipping document removal");
+            json response;
+            response["status"] = "skipped";
+            response["message"] = "Retrieval system not available";
+            response["reason"] = "Vector database (Qdrant) not running";
+            return response;
         }
-        return retrieval_manager_->remove_document(params);
+        
+        try {
+            return retrieval_manager_->remove_document(params);
+        } catch (const std::exception& e) {
+            LOG_WARN_F("Failed to remove document: %s", e.what());
+            json response;
+            response["status"] = "failed";
+            response["message"] = e.what();
+            response["reason"] = "Document service initialization failed";
+            return response;
+        }
     });
     
     // Search functions
