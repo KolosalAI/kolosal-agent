@@ -3,17 +3,17 @@
 A powerful multi-agent platform with LLM integration, designed for building sophisticated AI-powered applications with dynamic agent management and real-time inference capabilities.
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/KolosalAI/kolosal-agent)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](#building)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](#installation)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](#building)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](#installation)
 
 ## 📚 Table of Contents
 
 - [🚀 Quick Start](#-quick-start)
 - [🌟 Features](#-features)
-- [🏗️ Architecture](#️-architecture)
-- [🛠️ Installation](#️-installation)
-- [⚙️ Configuration](#️-configuration)
+- [🏗️ Architecture](#-architecture)
+- [🛠️ Installation](#-installation)
+- [⚙️ Configuration](#-configuration)
 - [🌐 API Reference](#-api-reference)
 - [🧪 Testing](#-testing)
 - [🔌 Integration](#-integration)
@@ -45,42 +45,45 @@ cmake .. -DCMAKE_BUILD_TYPE=Debug
 cmake --build . --config Debug
 
 # Run the system
-./kolosal-agent                    # Linux/macOS (uses workflow.yaml by default)
-.\Debug\kolosal-agent.exe          # Windows (uses workflow.yaml by default)
+./kolosal-agent                    # Linux/macOS (uses config.yaml by default)
+.\Debug\kolosal-agent.exe          # Windows (uses config.yaml by default)
 
 # Run with custom configuration files
-./kolosal-agent --workflow my-workflows.yaml    # Custom workflow config
-./kolosal-agent --config my-agents.yaml --workflow my-workflows.yaml  # Custom configs
+docker run -d \
+  --name kolosal-agent \
+  -p 8081:8081 \
+  -v $(pwd)/config:/app/config \
+  kolosal-agent:latest
 ```
 
 ### Verification
 ```bash
 # Test the API
-curl http://localhost:8080/status
+curl http://localhost:8081/status
 
 # List default agents
-curl http://localhost:8080/agents
+curl http://localhost:8081/agents
 ```
 
 ### First API Call
 ```bash
 # Simple execute (recommended) - runs all tools automatically
-curl -X POST http://localhost:8080/agent/execute \
+curl -X POST http://localhost:8081/agent/execute \
   -H "Content-Type: application/json" \
   -d '{"query": "What is artificial intelligence?", "context": "Explain for beginners"}'
 
 # Chat with a specific agent
-curl -X POST http://localhost:8080/agents/Assistant/execute \
+curl -X POST http://localhost:8081/agents/Assistant/execute \
   -H "Content-Type: application/json" \
-  -d '{"function": "chat", "params": {"message": "Hello!", "model": "gemma3-1b"}}'
+  -d '{"function": "chat", "params": {"message": "Hello!", "model": "qwen2.5-0.5b"}}'
 
 # Execute a workflow
-curl -X POST http://localhost:8080/workflows/simple_research/execute \
+curl -X POST http://localhost:8081/workflows/simple_research/execute \
   -H "Content-Type: application/json" \
   -d '{"input_data": {"query": "AI trends"}}'
 
 # List available workflows
-curl http://localhost:8080/workflows
+curl http://localhost:8081/workflows
 ```
 
 ## 🌟 Features
@@ -183,8 +186,10 @@ The Kolosal Agent System features a layered architecture designed for scalabilit
 <summary><b>🪟 Windows (PowerShell)</b></summary>
 
 ```powershell
+### Clone Repository
+```bash
 # Clone the repository
-git clone --recursive https://github.com/kolosalai/kolosal-agent.git
+git clone --recursive https://github.com/KolosalAI/kolosal-agent.git
 cd kolosal-agent
 
 # Create build directory
@@ -209,7 +214,7 @@ sudo apt update
 sudo apt install build-essential cmake git libcurl4-openssl-dev
 
 # Clone and build
-git clone --recursive https://github.com/kolosalai/kolosal-agent.git
+git clone --recursive https://github.com/KolosalAI/kolosal-agent.git
 cd kolosal-agent && mkdir build && cd build
 
 # Configure and build
@@ -229,7 +234,7 @@ make -j$(nproc)
 brew install cmake git curl yaml-cpp
 
 # Clone and build
-git clone --recursive https://github.com/kolosal-ai/kolosal-agent.git
+git clone --recursive https://github.com/KolosalAI/kolosal-agent.git
 cd kolosal-agent && mkdir build && cd build
 
 # Configure and build
@@ -262,7 +267,7 @@ ls build/Debug/                     # Windows
 ls build/                           # Linux/macOS
 
 # Test the application
-curl http://localhost:8080/status
+curl http://localhost:8081/status
 ```
 
 ## ⚙️ Configuration
@@ -276,7 +281,7 @@ system:
   name: "Kolosal Agent System"
   version: "1.0.0"
   host: "127.0.0.1"
-  port: 8080
+  port: 8081
   log_level: "info"
 
 system_instruction: |
@@ -335,7 +340,7 @@ workflows:
     steps:
       - id: "research_step"
         agent_name: "Researcher"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "research"
         parameters: ["query", "depth"]
         timeout_ms: 120000
@@ -346,20 +351,20 @@ workflows:
     steps:
       - id: "sentiment_analysis"
         agent_name: "Analyzer"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "analyze"
       - id: "keyword_extraction"
         agent_name: "Analyzer"
-        llm_model: "gemma3-1b"
+        llm_model: "qwen2.5-0.5b"
         function_name: "analyze"
 
 agent_llm_mappings:
   Assistant:
-    default_model: "gemma3-1b"
-    supported_models: ["gemma3-1b"]
+    default_model: "qwen2.5-0.5b"
+    supported_models: ["qwen2.5-0.5b"]
   Analyzer:
-    default_model: "gemma3-1b"
-    supported_models: ["gemma3-1b"]
+    default_model: "qwen2.5-0.5b"
+    supported_models: ["qwen2.5-0.5b"]
 ```
 
 ### Kolosal Server Configuration (`config.yaml`)
@@ -373,7 +378,7 @@ server:
   idle_timeout: 300
 
 models:
-  - id: gemma3-1b
+  - id: qwen2.5-0.5b
     path: path/to/model.gguf
     type: llm
     load_immediately: true
@@ -382,8 +387,8 @@ models:
       n_gpu_layers: 100
 
 database:
-  vector_database: faiss
-  retrieval_embedding_model: qwen3-embedding-0.6b
+  vector_database: qdrant
+  retrieval_embedding_model: all-MiniLM-L6-v2-bf16-q4_k
 
 search:
   enabled: true
@@ -426,7 +431,7 @@ Content-Type: application/json
   "function": "chat",
   "params": {
     "message": "Hello!",
-    "model": "your_model"
+    "model": "qwen2.5-0.5b"
   }
 }
 ```
@@ -452,7 +457,7 @@ Content-Type: application/json
       "id": "step1",
       "agent_name": "Assistant",
       "function_name": "chat",
-      "parameters": {"message": "Hello", "model": "gemma3-1b"}
+      "parameters": {"message": "Hello", "model": "qwen2.5-0.5b"}
     }
   ]
 }
@@ -472,36 +477,36 @@ Content-Type: application/json
 
 ```bash
 # System status
-curl http://localhost:8080/status
+curl http://localhost:8081/status
 
 # List agents
-curl http://localhost:8080/agents
+curl http://localhost:8081/agents
 
 # Simple execute with automatic tool execution (recommended)
-curl -X POST http://localhost:8080/agent/execute \
+curl -X POST http://localhost:8081/agent/execute \
   -H "Content-Type: application/json" \
   -d '{"query": "What are the latest AI trends?", "context": "Focus on 2025 developments"}'
 
 # Chat with assistant
-curl -X POST http://localhost:8080/agents/Assistant/execute \
+curl -X POST http://localhost:8081/agents/Assistant/execute \
   -H "Content-Type: application/json" \
-  -d '{"function": "chat", "params": {"message": "Hello!", "model": "your_model"}}'
+  -d '{"function": "chat", "params": {"message": "Hello!", "model": "qwen2.5-0.5b"}}'
 
 # Analyze text
-curl -X POST http://localhost:8080/agents/Analyzer/execute \
+curl -X POST http://localhost:8081/agents/Analyzer/execute \
   -H "Content-Type: application/json" \
   -d '{"function": "analyze", "params": {"text": "Sample text"}}'
 
 # Document retrieval
-curl -X POST http://localhost:8080/agents/RetrievalAgent/execute \
+curl -X POST http://localhost:8081/agents/RetrievalAgent/execute \
   -H "Content-Type: application/json" \
   -d '{"function": "retrieve_and_answer", "params": {"question": "What is AI?"}}'
 
 # List available workflows
-curl http://localhost:8080/workflows
+curl http://localhost:8081/workflows
 
 # Execute a workflow
-curl -X POST http://localhost:8080/workflows/simple_research/execute \
+curl -X POST http://localhost:8081/workflows/simple_research/execute \
   -H "Content-Type: application/json" \
   -d '{"input_data": {"query": "machine learning trends"}}'
 ```
@@ -783,7 +788,7 @@ client = KolosalAgentClient()
 result = client.simple_execute(
     query="What is machine learning?",
     context="Explain for beginners",
-    model="qwen3-0.6b:UD-Q4_K_XL"
+    model="qwen2.5-0.5b"
 )
 print("Tools executed:", len(result["tools_executed"]))
 print("Success rate:", f"{result['summary']['successful']}/{result['summary']['total_tools']}")
@@ -792,7 +797,7 @@ print("LLM Response:", result["llm_response"]["response"][:100] + "...")
 # Traditional agent function call
 chat_result = client.execute_function("Assistant", "chat", {
     "message": "Hello from Python!",
-    "model": "gemma3-1b"
+    "model": "qwen2.5-0.5b"
 })
 print("Agent Response:", chat_result)
 
@@ -825,7 +830,7 @@ RUN mkdir build && cd build && \
 # Copy configuration files
 COPY agent.yaml workflow.yaml config.yaml ./build/
 
-EXPOSE 8080
+EXPOSE 8081
 CMD ["./build/kolosal-agent"]
 ```
 
@@ -887,17 +892,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support & Documentation
 
 - **📖 Complete Documentation**: [`docs/`](docs/) directory
-  - [API Reference](docs/API_REFERENCE.md)
-  - [Architecture Guide](docs/ARCHITECTURE.md)
-  - [Configuration Guide](docs/CONFIGURATION.md)
-  - [Developer Guide](docs/DEVELOPER_GUIDE.md)
-  - [Installation Guide](docs/INSTALLATION.md)
-  - [Quick Start Guide](docs/QUICK_START.md)
-  - [Testing Guide](docs/TESTING.md)
-  - [Troubleshooting](docs/TROUBLESHOOTING.md)
+  - [API Reference](docs/api.md)
+  - [Architecture Guide](docs/architecture.md)
+  - [Configuration Guide](docs/config.md)
+  - [Developer Guide](docs/development.md)
+  - [Installation Guide](docs/install.md)
+  - [Quick Start Guide](docs/quickstart.md)
+  - [Testing Guide](docs/testing.md)
+  - [Troubleshooting](docs/troubleshooting.md)
 
 - **🐛 Issues & Support**: [GitHub Issues](https://github.com/KolosalAI/kolosal-agent/issues)
-- **💡 Examples & Demos**: [`tests/`](tests/) directory
+- **💡 Examples & Demos**: [`workflows/`](workflows/) directory
 - **🔧 Build Scripts**: Available via VS Code tasks or direct cmake commands
 
 ---

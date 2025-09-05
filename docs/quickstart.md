@@ -2,9 +2,35 @@
 
 Get the Kolosal Agent System running in just 5 minutes!
 
-## 🚀 Super Quick Setup
+## 🚀 Su```bash
+curl http://localhost:8081/v1/health
+```
 
-### Prerequisites Check
+```bash
+curl -X POST http://localhost:8081/v1/agents/agent-001/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "function": "chat",
+    "parameters": {
+      "message": "Hello, world!",
+      "model": "qwen2.5-0.5b"
+    }
+  }'
+```sponse:
+```json
+{
+  "status": "healthy",
+  "timestamp": 1703123456,
+  "uptime": 120,
+  "system_running": true
+}
+```
+
+### 2. List Agents
+
+```bash
+curl http://localhost:8081/v1/agents
+```### Prerequisites Check
 Before starting, ensure you have:
 - **CMake** 3.14 or higher
 - **C++17** compatible compiler
@@ -15,7 +41,7 @@ Before starting, ensure you have:
 
 ```bash
 # Clone the repository with submodules
-git clone --recursive https://github.com/kolosalai/kolosal-agent.git
+git clone --recursive https://github.com/KolosalAI/kolosal-agent.git
 cd kolosal-agent
 
 # Create build directory
@@ -38,10 +64,10 @@ cmake --build . --config Debug
 
 ```bash
 # Check system status
-curl http://localhost:8080/v1/system/status
+curl http://localhost:8081/v1/system/status
 
 # List available agents
-curl http://localhost:8080/v1/agents
+curl http://localhost:8081/v1/agents
 ```
 
 ## 🎯 Expected Output
@@ -49,11 +75,11 @@ curl http://localhost:8080/v1/agents
 When the system starts successfully, you should see:
 
 ```
-Kolosal Agent System v2.0 Starting...
+Kolosal Agent System v1.0 Starting...
 ✓ Configuration loaded: config.yaml
 ✓ Agent Manager initialized
 ✓ Default agents created: 3
-✓ HTTP Server started on http://localhost:8080
+✓ HTTP Server started on http://localhost:8081
 ✓ System ready for requests
 ```
 
@@ -74,7 +100,7 @@ cp config.yaml my-config.yaml
 ```yaml
 # my-config.yaml
 server:
-  port: 8080              # Change port if needed
+  port: 8081              # Change port if needed
   host: "0.0.0.0"         # Allow external connections
   
 logging:
@@ -89,7 +115,7 @@ auth:
 ### 1. System Health Check
 
 ```bash
-curl http://localhost:8080/v1/health
+curl http://localhost:8081/v1/health
 ```
 
 Expected response:
@@ -105,7 +131,7 @@ Expected response:
 ### 2. List Agents
 
 ```bash
-curl http://localhost:8080/v1/agents
+curl http://localhost:8081/v1/agents
 ```
 
 Expected response:
@@ -127,7 +153,7 @@ Expected response:
 ### 3. Execute Function
 
 ```bash
-curl -X POST http://localhost:8080/v1/agents/agent-001/execute \
+curl -X POST http://localhost:8081/v1/agents/agent-001/execute \
   -H "Content-Type: application/json" \
   -d '{
     "function": "chat",
@@ -143,15 +169,15 @@ curl -X POST http://localhost:8080/v1/agents/agent-001/execute \
 You now have a running Kolosal Agent System! Here's what you can do next:
 
 ### Explore the Web Interface
-- Open http://localhost:8080 in your browser
+- Open http://localhost:8081 in your browser
 - View system status and agent information
 - Monitor real-time metrics
 
 ### Learn More
-- 📖 Read the [Configuration Guide](CONFIGURATION.md) for advanced settings
-- 🏗️ Understand the [Architecture Overview](ARCHITECTURE.md)
-- 💻 Try the [Code Examples](EXAMPLES.md)
-- 🔧 Follow the [Developer Guide](DEVELOPER_GUIDE.md) if you want to contribute
+- 📖 Read the [Configuration Guide](config.md) for advanced settings
+- 🏗️ Understand the [Architecture Overview](architecture.md)
+- 💻 Try the [Examples](examples.md)
+- 🔧 Follow the [Developer Guide](development.md) if you want to contribute
 
 ### Build with Tests (Optional)
 
@@ -199,12 +225,20 @@ git submodule update --init --recursive
 **Port Already in Use:**
 ```bash
 # Use different port
+**Port Conflicts
+```bash
+# Check port usage
+netstat -tlnp | grep 8081
+lsof -i :8081
+
+# Use different port
 ./kolosal-agent --port 9090
+```
 ```
 
 **Permission Denied:**
 ```bash
-# Linux/macOS: Check if port 8080 requires privileges
+# Linux/macOS: Check if port 8081 requires privileges
 sudo ./kolosal-agent  # or use port > 1024
 ```
 
@@ -236,7 +270,7 @@ sudo ./kolosal-agent  # or use port > 1024
 - [ ] Repository cloned with `--recursive` flag
 - [ ] Build completed without errors
 - [ ] Application starts and shows initialization messages
-- [ ] HTTP server responds on port 8080
+- [ ] HTTP server responds on port 8081
 - [ ] System status endpoint returns healthy status
 - [ ] At least one agent is listed and running
 
@@ -244,10 +278,10 @@ sudo ./kolosal-agent  # or use port > 1024
 
 If you encounter issues:
 
-1. Check the [Troubleshooting Guide](TROUBLESHOOTING.md)
-2. Review your configuration in [Configuration Guide](CONFIGURATION.md)
-3. Open an issue on [GitHub Issues](https://github.com/kolosalai/kolosal-agent/issues)
+1. Check the [Troubleshooting Guide](troubleshooting.md)
+2. Review your configuration in [Configuration Guide](config.md)
+3. Open an issue on [GitHub Issues](https://github.com/KolosalAI/kolosal-agent/issues)
 
 ---
 
-**Congratulations!** 🎉 You now have Kolosal Agent System v2.0 running. Happy coding!
+**Congratulations!** 🎉 You now have Kolosal Agent System v1.0 running. Happy coding!

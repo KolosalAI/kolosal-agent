@@ -1,12 +1,12 @@
 # REST API Reference
 
-Complete reference for the Kolosal Agent System v2.0 REST API.
+Complete reference for the Kolosal Agent System v1.0 REST API.
 
 ## 📖 API Overview
 
 The Kolosal Agent System provides a comprehensive REST API for managing agents, executing functions, and monitoring system health.
 
-**Base URL**: `http://localhost:8080`  
+**Base URL**: `http://localhost:8081`  
 **Content Type**: `application/json`  
 **API Version**: `v1`
 
@@ -277,7 +277,7 @@ Content-Type: application/json
 {
   "query": "What is artificial intelligence?",
   "context": "Explain in simple terms for beginners",
-  "model": "qwen3-0.6b:UD-Q4_K_XL",
+  "model": "qwen2.5-0.5b",
   "agent": "Assistant"
 }
 ```
@@ -295,7 +295,7 @@ Content-Type: application/json
   "agent_name": "RetrievalAgent",
   "context": "Explain in simple terms for beginners",
   "query": "What is artificial intelligence?",
-  "model": "qwen3-0.6b:UD-Q4_K_XL",
+  "model": "qwen2.5-0.5b",
   "timestamp": "1756722373",
   "summary": {
     "total_tools": 21,
@@ -338,7 +338,7 @@ Content-Type: application/json
   ],
   "llm_response": {
     "agent": "RetrievalAgent",
-    "model_used": "qwen3-0.6b:UD-Q4_K_XL",
+    "model_used": "qwen2.5-0.5b",
     "status": "fallback_success",
     "response": "I apologize, but I'm currently unable to connect to the specified model. However, I can provide information based on the tool execution results...",
     "timestamp": "2025-09-01 17:26:11"
@@ -376,7 +376,7 @@ Content-Type: application/json
     "data_source": "sales_report.csv",
     "analysis_type": "comprehensive",
     "output_format": "json",
-    "model": "gemma3-1b"
+    "model": "qwen2.5-0.5b"
   },
   "timeout": 60000,
   "async": false
@@ -480,7 +480,7 @@ GET /v1/system/status
 {
   "system_running": true,
   "status": "healthy",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "uptime_seconds": 86400,
   "total_agents": 4,
   "running_agents": 3,
@@ -887,12 +887,12 @@ The fastest way to get started is using the simple execute endpoint:
 
 ```bash
 # Simple AI question with automatic tool execution
-curl -X POST http://localhost:8080/agent/execute \
+curl -X POST http://localhost:8081/agent/execute \
   -H "Content-Type: application/json" \
   -d '{
     "query": "What is machine learning?",
     "context": "Explain for beginners",
-    "model": "qwen3-0.6b:UD-Q4_K_XL"
+    "model": "qwen2.5-0.5b"
   }'
 ```
 
@@ -907,7 +907,7 @@ curl -X POST http://localhost:8080/agent/execute \
 
 1. **Create Agent**:
 ```bash
-curl -X POST http://localhost:8080/v1/agents \
+curl -X POST http://localhost:8081/v1/agents \
   -H "Content-Type: application/json" \
   -d '{
     "name": "DataAnalyst",
@@ -918,7 +918,7 @@ curl -X POST http://localhost:8080/v1/agents \
 
 2. **Execute Function**:
 ```bash
-curl -X POST http://localhost:8080/v1/agents/data-analyst-001/execute \
+curl -X POST http://localhost:8081/v1/agents/data-analyst-001/execute \
   -H "Content-Type: application/json" \
   -d '{
     "function": "analyze_data",
@@ -931,12 +931,12 @@ curl -X POST http://localhost:8080/v1/agents/data-analyst-001/execute \
 
 3. **Check Status**:
 ```bash
-curl http://localhost:8080/v1/agents/data-analyst-001
+curl http://localhost:8081/v1/agents/data-analyst-001
 ```
 
 4. **Clean Up**:
 ```bash
-curl -X DELETE http://localhost:8080/v1/agents/data-analyst-001
+curl -X DELETE http://localhost:8081/v1/agents/data-analyst-001
 ```
 
 ## 🔧 SDK Examples
@@ -947,7 +947,7 @@ curl -X DELETE http://localhost:8080/v1/agents/data-analyst-001
 import requests
 
 class KolosalClient:
-    def __init__(self, base_url="http://localhost:8080", api_key=None):
+    def __init__(self, base_url="http://localhost:8081", api_key=None):
         self.base_url = base_url
         self.headers = {"Content-Type": "application/json"}
         if api_key:
@@ -993,7 +993,7 @@ client = KolosalClient()
 result = client.simple_execute(
     query="What is artificial intelligence?",
     context="Explain for beginners",
-    model="qwen3-0.6b:UD-Q4_K_XL"
+    model="qwen2.5-0.5b"
 )
 print(f"Tools executed: {len(result['tools_executed'])}")
 print(f"Success rate: {result['summary']['successful']}/{result['summary']['total_tools']}")
@@ -1003,7 +1003,7 @@ agent = client.create_agent("TestAgent", ["chat"])
 result = client.execute_function(
     agent["agent_id"], 
     "chat", 
-    {"message": "Hello!", "model": "gemma3-1b"}
+    {"message": "Hello!", "model": "qwen2.5-0.5b"}
 )
 ```
 
@@ -1011,7 +1011,7 @@ result = client.execute_function(
 
 ```javascript
 class KolosalClient {
-    constructor(baseUrl = 'http://localhost:8080', apiKey = null) {
+    constructor(baseUrl = 'http://localhost:8081', apiKey = null) {
         this.baseUrl = baseUrl;
         this.headers = {'Content-Type': 'application/json'};
         if (apiKey) {
@@ -1056,7 +1056,7 @@ const result = await client.simpleExecute(
     'What is machine learning?',
     {
         context: 'Explain for beginners',
-        model: 'qwen3-0.6b:UD-Q4_K_XL'
+        model: 'qwen2.5-0.5b'
     }
 );
 console.log(`Tools executed: ${result.tools_executed.length}`);
@@ -1067,10 +1067,10 @@ const agent = await client.createAgent('TestAgent', ['chat']);
 const chatResult = await client.executeFunction(
     agent.agent_id, 
     'chat', 
-    {message: 'Hello!', model: 'gemma3-1b'}
+    {message: 'Hello!', model: 'qwen2.5-0.5b'}
 );
 ```
 
 ---
 
-For more examples and advanced usage, see the [Examples Guide](EXAMPLES.md) and [Developer Guide](DEVELOPER_GUIDE.md).
+For more examples and advanced usage, see the [Examples Guide](examples.md) and [Developer Guide](development.md).

@@ -1,6 +1,6 @@
 # Configuration Guide
 
-Complete reference for configuring the Kolosal Agent System v2.0.
+Complete reference for configuring the Kolosal Agent System v1.0.
 
 ## 📋 Configuration Overview
 
@@ -14,7 +14,7 @@ The Kolosal Agent System uses two main configuration files:
 
 ```yaml
 server:
-  port: 8080                    # HTTP server port
+  port: 8081                    # HTTP server port
   host: "0.0.0.0"              # Bind address (0.0.0.0 for all interfaces)
   idle_timeout: 300            # Connection idle timeout in seconds
   allow_public_access: false   # Allow external connections
@@ -88,8 +88,8 @@ search:
 
 ```yaml
 database:
-  vector_database: "faiss"     # Vector database type
-  retrieval_embedding_model: "qwen3-embedding-0.6b"  # Embedding model
+  vector_database: "qdrant"     # Vector database type
+  retrieval_embedding_model: "all-MiniLM-L6-v2-bf16-q4_k"  # Embedding model
   
   faiss:
     index_type: "Flat"         # FAISS index type
@@ -107,8 +107,8 @@ database:
 
 ```yaml
 models:
-  - id: "gemma3-1b"           # Model identifier
-    path: "https://huggingface.co/kolosal/gemma-3-1b/resolve/main/google_gemma-3-1b-it_q4_k_m.gguf"
+  - id: "qwen2.5-0.5b"           # Model identifier
+    path: "https://huggingface.co/models/qwen2.5-0.5b/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
     type: "llm"               # Model type: llm/embedding
     load_immediately: true    # Load on startup
     main_gpu_id: 0           # Primary GPU device
@@ -157,7 +157,7 @@ system:
   name: "Kolosal Agent System"  # System name
   version: "1.0.0"              # System version
   host: "127.0.0.1"            # Host address
-  port: 8080                   # Port number
+  port: 8081                   # Port number
   log_level: "info"            # Log level
   max_concurrent_requests: 100  # Max concurrent requests
 ```
@@ -276,7 +276,7 @@ security:
 ```yaml
 # config.yaml (Development)
 server:
-  port: 8080
+  port: 8081
   host: "127.0.0.1"
   allow_public_access: false
 
@@ -298,7 +298,7 @@ features:
 ```yaml
 # config.yaml (Production)
 server:
-  port: 8080
+  port: 8081
   host: "0.0.0.0"
   allow_public_access: true
   idle_timeout: 600
@@ -341,7 +341,7 @@ system:
 
 # Use GPU acceleration
 models:
-  - id: "gemma3-1b"
+  - id: "qwen2.5-0.5b"
     load_params:
       n_gpu_layers: -1        # Use all GPU layers
       n_parallel: 4           # More parallel sequences
@@ -397,7 +397,7 @@ The system validates configuration on startup:
 
 ```bash
 # Reload configuration without restart
-curl -X POST http://localhost:8080/v1/system/reload \
+curl -X POST http://localhost:8081/v1/system/reload \
   -H "Content-Type: application/json" \
   -d '{"config_file": "new-config.yaml"}'
 ```
@@ -502,4 +502,4 @@ See the repository for complete example configurations:
 
 ---
 
-For more advanced configuration topics, see the [Developer Guide](DEVELOPER_GUIDE.md) and [Deployment Guide](DEPLOYMENT.md).
+For more advanced configuration topics, see the [Developer Guide](development.md).

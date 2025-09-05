@@ -1,6 +1,6 @@
 # Installation Guide
 
-Complete installation instructions for Kolosal Agent System v2.0 across different platforms.
+Complete installation instructions for Kolosal Agent System v1.0 across different platforms.
 
 ## 📋 System Requirements
 
@@ -98,7 +98,7 @@ pip install requests pyyaml pytest
 #### Step 1: Clone Repository
 ```bash
 # Clone with submodules
-git clone --recursive https://github.com/kolosalai/kolosal-agent.git
+git clone --recursive https://github.com/KolosalAI/kolosal-agent.git
 cd kolosal-agent
 
 # If you already cloned without --recursive, initialize submodules:
@@ -128,7 +128,7 @@ cmake --build . --config Release
 .\Release\kolosal-agent.exe         # Windows
 
 # Test basic functionality
-curl http://localhost:8080/v1/health
+curl http://localhost:8081/v1/health
 ```
 
 ### Method 2: Docker Installation
@@ -140,7 +140,7 @@ curl http://localhost:8080/v1/health
 #### Using Docker Compose
 ```bash
 # Clone repository
-git clone --recursive https://github.com/kolosalai/kolosal-agent.git
+git clone --recursive https://github.com/KolosalAI/kolosal-agent.git
 cd kolosal-agent
 
 # Build and start with Docker Compose
@@ -161,7 +161,7 @@ docker build -t kolosal-agent:latest .
 # Run container
 docker run -d \
   --name kolosal-agent \
-  -p 8080:8080 \
+  -p 8081:8081 \
   -v $(pwd)/config:/app/config \
   kolosal-agent:latest
 
@@ -496,11 +496,11 @@ RUN useradd -m -s /bin/bash kolosal
 USER kolosal
 
 # Expose port
-EXPOSE 8080
+EXPOSE 8081
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/v1/health || exit 1
+    CMD curl -f http://localhost:8081/v1/health || exit 1
 
 # Start application
 CMD ["./kolosal-agent"]
@@ -515,7 +515,7 @@ services:
   kolosal-agent:
     build: .
     ports:
-      - "8080:8080"
+      - "8081:8081"
     volumes:
       - ./config:/app/config:ro
       - ./data:/app/data
@@ -523,10 +523,10 @@ services:
     environment:
       - KOLOSAL_LOG_LEVEL=INFO
       - KOLOSAL_SERVER_HOST=0.0.0.0
-      - KOLOSAL_SERVER_PORT=8080
+      - KOLOSAL_SERVER_PORT=8081
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8081/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -565,10 +565,10 @@ volumes:
 ./kolosal-agent --version
 
 # Test HTTP server
-curl http://localhost:8080/v1/health
+curl http://localhost:8081/v1/health
 
 # Check system status
-curl http://localhost:8080/v1/system/status
+curl http://localhost:8081/v1/system/status
 ```
 
 ### Comprehensive Testing
@@ -578,21 +578,21 @@ cd build
 ctest --output-on-failure
 
 # Test API endpoints
-curl -X GET http://localhost:8080/v1/agents
-curl -X GET http://localhost:8080/v1/functions
-curl -X GET http://localhost:8080/v1/system/metrics
+curl -X GET http://localhost:8081/v1/agents
+curl -X GET http://localhost:8081/v1/functions
+curl -X GET http://localhost:8081/v1/system/metrics
 ```
 
 ### Performance Testing
 ```bash
 # Simple load test
 for i in {1..10}; do
-    curl -s http://localhost:8080/v1/health > /dev/null &
+    curl -s http://localhost:8081/v1/health > /dev/null &
 done
 wait
 
 # Check response times
-time curl http://localhost:8080/v1/system/status
+time curl http://localhost:8081/v1/system/status
 ```
 
 ## 🔧 Post-Installation Configuration
@@ -699,8 +699,8 @@ export CXX=g++-11
 #### Port Conflicts
 ```bash
 # Check port usage
-netstat -tlnp | grep 8080
-lsof -i :8080
+netstat -tlnp | grep 8081
+lsof -i :8081
 
 # Use different port
 ./kolosal-agent --port 9090
@@ -761,9 +761,8 @@ cat /etc/os-release
 
 After successful installation:
 
-1. **Configure the system**: See [Configuration Guide](CONFIGURATION.md)
-2. **Learn the API**: Review [API Reference](API_REFERENCE.md)
-3. **Try examples**: Check [Examples Guide](EXAMPLES.md)
-4. **Deploy to production**: Follow [Deployment Guide](DEPLOYMENT.md)
+1. **Configure the system**: See [Configuration Guide](config.md)
+2. **Learn the API**: Review [API Reference](api.md)
+3. **Try examples**: Check [Examples Guide](examples.md)
 
-Congratulations! You now have Kolosal Agent System v2.0 installed and ready to use.
+Congratulations! You now have Kolosal Agent System v1.0 installed and ready to use.
