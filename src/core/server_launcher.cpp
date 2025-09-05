@@ -1,4 +1,5 @@
 #include "server_launcher.hpp"
+#include "logger.hpp"
 #include <iostream>
 #include <chrono>
 #include <thread>

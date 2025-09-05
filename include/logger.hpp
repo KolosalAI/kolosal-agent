@@ -2,94 +2,82 @@
 
 #include <string>
 #include <iostream>
-#include <fstream>
-#include <mutex>
 #include <memory>
+#include <mutex>
+#include <fstream>
 #include <iomanip>
 #include <chrono>
+#include <thread>
 #include <sstream>
-#include <unordered_map>
-
-// Prevent Windows ERROR macro conflicts
-#ifdef ERROR
-#undef ERROR
-#endif
+#include <cstdio>
 
 namespace KolosalAgent {
 
 enum class LogLevel {
-    DEBUG_LVL = 0,
-    INFO_LVL = 1,
-    WARN_LVL = 2,
-    ERROR_LVL = 3,
-    FATAL_LVL = 4
+    TRACE = 0,
+    DEBUG = 1,
+    INFO = 2,
+    WARNING = 3,
+    ERROR = 4,
+    FATAL = 5
+};
+
+// Convenience constants for backward compatibility
+const LogLevel TRACE_LVL = LogLevel::TRACE;
+const LogLevel DEBUG_LVL = LogLevel::DEBUG;
+const LogLevel INFO_LVL = LogLevel::INFO;
+const LogLevel WARNING_LVL = LogLevel::WARNING;
+const LogLevel ERROR_LVL = LogLevel::ERROR;
+const LogLevel FATAL_LVL = LogLevel::FATAL;
+
+// Legacy enum for backward compatibility
+enum LogLevelLegacy {
+    INFO_LVL_LEGACY = 2
 };
 
 class Logger {
 public:
     static Logger& instance();
     
-    // Configure logger
+    // For backward compatibility
+    static Logger& get_instance();
+    
+    // Configuration
     void set_level(LogLevel level);
+    void set_level(int level);
+    void set_log_level(const std::string& level);
     void set_console_output(bool enabled);
-    void set_file_output(const std::string& filename);
     void enable_timestamps(bool enabled);
-    void enable_thread_id(bool enabled);
-    void enable_function_tracing(bool enabled);
+    void set_log_file(const std::string& filename);
     
-    // Logging methods
-    void debug(const std::string& message, const std::string& function = "", const std::string& file = "", int line = 0);
-    void info(const std::string& message, const std::string& function = "", const std::string& file = "", int line = 0);
-    void warn(const std::string& message, const std::string& function = "", const std::string& file = "", int line = 0);
-    void error(const std::string& message, const std::string& function = "", const std::string& file = "", int line = 0);
-    void fatal(const std::string& message, const std::string& function = "", const std::string& file = "", int line = 0);
+    // Core logging methods
+    void trace(const std::string& message);
+    void debug(const std::string& message);
+    void info(const std::string& message);
+    void warn(const std::string& message);
+    void error(const std::string& message);
+    void fatal(const std::string& message);
     
-    // Variadic template logging
-    template<typename... Args>
-    void debug(const std::string& format, Args&&... args) {
-        if (should_log(LogLevel::DEBUG_LVL)) {
-            log(LogLevel::DEBUG_LVL, format_string(format, std::forward<Args>(args)...), "", "", 0);
-        }
-    }
+    // Formatted logging methods
+    void trace_f(const std::string& format);
+    void debug_f(const std::string& format);
+    void info_f(const std::string& format);
+    void warn_f(const std::string& format);
+    void error_f(const std::string& format);
+    void fatal_f(const std::string& format);
     
-    template<typename... Args>
-    void info(const std::string& format, Args&&... args) {
-        if (should_log(LogLevel::INFO_LVL)) {
-            log(LogLevel::INFO_LVL, format_string(format, std::forward<Args>(args)...), "", "", 0);
-        }
-    }
+    // Legacy methods with explicit parameters for backward compatibility  
+    void debug(const std::string& message, const std::string& function, const std::string& file, int line);
+    void info(const std::string& message, const std::string& function, const std::string& file, int line);
+    void warn(const std::string& message, const std::string& function, const std::string& file, int line);
+    void error(const std::string& message, const std::string& function, const std::string& file, int line);
+    void fatal(const std::string& message, const std::string& function, const std::string& file, int line);
     
-    template<typename... Args>
-    void warn(const std::string& format, Args&&... args) {
-        if (should_log(LogLevel::WARN_LVL)) {
-            log(LogLevel::WARN_LVL, format_string(format, std::forward<Args>(args)...), "", "", 0);
-        }
-    }
+    // Utility methods
+    bool should_log(LogLevel level) const;
     
-    template<typename... Args>
-    void error(const std::string& format, Args&&... args) {
-        if (should_log(LogLevel::ERROR_LVL)) {
-            log(LogLevel::ERROR_LVL, format_string(format, std::forward<Args>(args)...), "", "", 0);
-        }
-    }
-    
-    template<typename... Args>
-    void fatal(const std::string& format, Args&&... args) {
-        if (should_log(LogLevel::FATAL_LVL)) {
-            log(LogLevel::FATAL_LVL, format_string(format, std::forward<Args>(args)...), "", "", 0);
-        }
-    }
-    
-    // Function tracing for debug builds
-    void trace_function_entry(const std::string& function, const std::string& file, int line);
-    void trace_function_exit(const std::string& function, const std::string& file, int line);
-    
-    // Performance timing
-    void start_timer(const std::string& timer_name);
-    void end_timer(const std::string& timer_name);
-    
-    LogLevel get_level() const { return current_level_; }
-    bool should_log(LogLevel level) const { return level >= current_level_; }
+    // Control
+    void shutdown();
     
 private:
     Logger();
@@ -97,19 +85,9 @@ private:
     Logger(const Logger&) = delete;
     Logger& operator=(const Logger&) = delete;
     
-    void log(LogLevel level, const std::string& message, const std::string& function, const std::string& file, int line);
-    std::string get_timestamp() const;
-    std::string get_thread_id() const;
+    // Internal logging method
+    void log_message(LogLevel level, const std::string& message);
     std::string level_to_string(LogLevel level) const;
-    std::string level_to_color(LogLevel level) const;
-    
-    template<typename... Args>
-    std::string format_string(const std::string& format, Args&&... args) {
-        size_t size = std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
-        std::unique_ptr<char[]> buf(new char[size]);
-        std::snprintf(buf.get(), size, format.c_str(), args...);
-        return std::string(buf.get(), buf.get() + size - 1);
-    }
     
     LogLevel current_level_;
     bool console_output_enabled_;
@@ -119,13 +97,9 @@ private:
     bool function_tracing_enabled_;
     bool colors_enabled_;
     
-    std::string log_filename_;
-    std::ofstream log_file_;
+    std::string filename_;
+    std::ofstream file_stream_;
     std::mutex log_mutex_;
-    
-    // Performance timing
-    std::unordered_map<std::string, std::chrono::steady_clock::time_point> timers_;
-    std::mutex timer_mutex_;
 };
 
 // RAII class for function tracing
@@ -138,7 +112,6 @@ private:
     std::string function_name_;
     std::string file_name_;
     int line_number_;
-    std::chrono::steady_clock::time_point start_time_;
 };
 
 // Timer RAII class
@@ -151,8 +124,6 @@ private:
     std::string timer_name_;
 };
 
-} // namespace KolosalAgent
-
 // Convenience macros that automatically include debug information
 #ifdef DEBUG_BUILD
     #define LOG_DEBUG(message) KolosalAgent::Logger::instance().debug(message, __FUNCTION__, __FILE__, __LINE__)
@@ -161,11 +132,31 @@ private:
     #define LOG_ERROR(message) KolosalAgent::Logger::instance().error(message, __FUNCTION__, __FILE__, __LINE__)
     #define LOG_FATAL(message) KolosalAgent::Logger::instance().fatal(message, __FUNCTION__, __FILE__, __LINE__)
     
-    #define LOG_DEBUG_F(format, ...) KolosalAgent::Logger::instance().debug(format, ##__VA_ARGS__)
-    #define LOG_INFO_F(format, ...) KolosalAgent::Logger::instance().info(format, ##__VA_ARGS__)
-    #define LOG_WARN_F(format, ...) KolosalAgent::Logger::instance().warn(format, ##__VA_ARGS__)
-    #define LOG_ERROR_F(format, ...) KolosalAgent::Logger::instance().error(format, ##__VA_ARGS__)
-    #define LOG_FATAL_F(format, ...) KolosalAgent::Logger::instance().fatal(format, ##__VA_ARGS__)
+    #define LOG_DEBUG_F(format, ...) { \
+        char buffer[1024]; \
+        std::snprintf(buffer, sizeof(buffer), format, ##__VA_ARGS__); \
+        KolosalAgent::Logger::instance().debug(std::string(buffer), __FUNCTION__, __FILE__, __LINE__); \
+    }
+    #define LOG_INFO_F(format, ...) { \
+        char buffer[1024]; \
+        std::snprintf(buffer, sizeof(buffer), format, ##__VA_ARGS__); \
+        KolosalAgent::Logger::instance().info(std::string(buffer), __FUNCTION__, __FILE__, __LINE__); \
+    }
+    #define LOG_WARN_F(format, ...) { \
+        char buffer[1024]; \
+        std::snprintf(buffer, sizeof(buffer), format, ##__VA_ARGS__); \
+        KolosalAgent::Logger::instance().warn(std::string(buffer), __FUNCTION__, __FILE__, __LINE__); \
+    }
+    #define LOG_ERROR_F(format, ...) { \
+        char buffer[1024]; \
+        std::snprintf(buffer, sizeof(buffer), format, ##__VA_ARGS__); \
+        KolosalAgent::Logger::instance().error(std::string(buffer), __FUNCTION__, __FILE__, __LINE__); \
+    }
+    #define LOG_FATAL_F(format, ...) { \
+        char buffer[1024]; \
+        std::snprintf(buffer, sizeof(buffer), format, ##__VA_ARGS__); \
+        KolosalAgent::Logger::instance().fatal(std::string(buffer), __FUNCTION__, __FILE__, __LINE__); \
+    }
     
     #define TRACE_FUNCTION() KolosalAgent::FunctionTracer _tracer(__FUNCTION__, __FILE__, __LINE__)
     #define SCOPED_TIMER(name) KolosalAgent::ScopedTimer _timer(name)
@@ -176,19 +167,34 @@ private:
     #define LOG_ERROR(message) KolosalAgent::Logger::instance().error(message)
     #define LOG_FATAL(message) KolosalAgent::Logger::instance().fatal(message)
     
-    #define LOG_DEBUG_F(format, ...) KolosalAgent::Logger::instance().debug(format, ##__VA_ARGS__)
-    #define LOG_INFO_F(format, ...) KolosalAgent::Logger::instance().info(format, ##__VA_ARGS__)
-    #define LOG_WARN_F(format, ...) KolosalAgent::Logger::instance().warn(format, ##__VA_ARGS__)
-    #define LOG_ERROR_F(format, ...) KolosalAgent::Logger::instance().error(format, ##__VA_ARGS__)
-    #define LOG_FATAL_F(format, ...) KolosalAgent::Logger::instance().fatal(format, ##__VA_ARGS__)
+    #define LOG_DEBUG_F(format, ...) { \
+        char buffer[1024]; \
+        std::snprintf(buffer, sizeof(buffer), format, ##__VA_ARGS__); \
+        KolosalAgent::Logger::instance().debug(std::string(buffer)); \
+    }
+    #define LOG_INFO_F(format, ...) { \
+        char buffer[1024]; \
+        std::snprintf(buffer, sizeof(buffer), format, ##__VA_ARGS__); \
+        KolosalAgent::Logger::instance().info(std::string(buffer)); \
+    }
+    #define LOG_WARN_F(format, ...) { \
+        char buffer[1024]; \
+        std::snprintf(buffer, sizeof(buffer), format, ##__VA_ARGS__); \
+        KolosalAgent::Logger::instance().warn(std::string(buffer)); \
+    }
+    #define LOG_ERROR_F(format, ...) { \
+        char buffer[1024]; \
+        std::snprintf(buffer, sizeof(buffer), format, ##__VA_ARGS__); \
+        KolosalAgent::Logger::instance().error(std::string(buffer)); \
+    }
+    #define LOG_FATAL_F(format, ...) { \
+        char buffer[1024]; \
+        std::snprintf(buffer, sizeof(buffer), format, ##__VA_ARGS__); \
+        KolosalAgent::Logger::instance().fatal(std::string(buffer)); \
+    }
     
     #define TRACE_FUNCTION() // No-op in release builds
     #define SCOPED_TIMER(name) // No-op in release builds
 #endif
 
-// Simplified macros for basic logging without debug info
-#define SIMPLE_LOG_DEBUG(message) if (KolosalAgent::Logger::instance().should_log(KolosalAgent::LogLevel::DEBUG_LVL)) { KolosalAgent::Logger::instance().debug(message); }
-#define SIMPLE_LOG_INFO(message) if (KolosalAgent::Logger::instance().should_log(KolosalAgent::LogLevel::INFO_LVL)) { KolosalAgent::Logger::instance().info(message); }
-#define SIMPLE_LOG_WARN(message) if (KolosalAgent::Logger::instance().should_log(KolosalAgent::LogLevel::WARN_LVL)) { KolosalAgent::Logger::instance().warn(message); }
-#define SIMPLE_LOG_ERROR(message) if (KolosalAgent::Logger::instance().should_log(KolosalAgent::LogLevel::ERROR_LVL)) { KolosalAgent::Logger::instance().error(message); }
-#define SIMPLE_LOG_FATAL(message) if (KolosalAgent::Logger::instance().should_log(KolosalAgent::LogLevel::FATAL_LVL)) { KolosalAgent::Logger::instance().fatal(message); }
+} // namespace KolosalAgent

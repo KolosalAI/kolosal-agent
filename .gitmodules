@@ -1,7 +1,3 @@
 [submodule "kolosal-server"]
 	path = kolosal-server
 	url = https://github.com/kolosalai/kolosal-server
-
-[submodule "external/googletest"]
-	path = external/googletest
-	url = https://github.com/google/googletest.git

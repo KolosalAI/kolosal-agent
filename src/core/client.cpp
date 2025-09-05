@@ -1,4 +1,5 @@
 #include "client.hpp"
+#include "logger.hpp"
 #include <stdexcept>
 #include <chrono>
 #include <thread>

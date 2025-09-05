@@ -86,6 +86,7 @@ std::string ModelInterface::chat_with_model(const std::string& model_name,
         std::string actual_model_name = resolve_model_name(model_name);
         std::cout << "[ModelInterface] Resolving model '" << model_name << "' to '" << actual_model_name << "'" << std::endl;
         
+        // For now, ignore conversation_history and just call the 3-parameter version
         return kolosal_client_->chat_with_model(actual_model_name, message, system_prompt);
     } catch (const std::exception& e) {
         std::cerr << "Error in chat_with_model: " << e.what() << std::endl;

@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <sstream>
 #include <algorithm>
+#include <iostream>
 
 AsyncServiceLayer::AsyncServiceLayer(size_t worker_threads) 
     : worker_count_(worker_threads),

@@ -1,4 +1,4 @@
-#include "retrieval_enhanced.hpp"
+#include "../include/functions/retrieval.hpp"
 #include <algorithm>
 #include <random>
 #include <future>
@@ -358,10 +358,10 @@ std::string FAISSVectorStore::generate_uuid() {
     return ss.str();
 }
 
-// EnhancedRetrievalManager Implementation
-EnhancedRetrievalManager::EnhancedRetrievalManager() : initialized_(false) {}
+// RetrievalManager Implementation
+RetrievalManager::RetrievalManager() : initialized_(false) {}
 
-bool EnhancedRetrievalManager::initialize(const RetrievalConfig& config) {
+bool RetrievalManager::initialize(const RetrievalConfig& config) {
     config_ = config;
     
     // Initialize vector stores
@@ -392,7 +392,7 @@ bool EnhancedRetrievalManager::initialize(const RetrievalConfig& config) {
     return true;
 }
 
-std::string EnhancedRetrievalManager::add_document(const Document& document) {
+std::string RetrievalManager::add_document(const Document& document) {
     if (!initialized_) return "";
     
     // Generate embedding (placeholder)
@@ -421,7 +421,7 @@ std::string EnhancedRetrievalManager::add_document(const Document& document) {
     return doc_id;
 }
 
-std::vector<std::string> EnhancedRetrievalManager::batch_add_documents(const std::vector<Document>& documents) {
+std::vector<std::string> RetrievalManager::batch_add_documents(const std::vector<Document>& documents) {
     std::vector<std::string> ids;
     ids.reserve(documents.size());
     
@@ -453,7 +453,7 @@ std::vector<std::string> EnhancedRetrievalManager::batch_add_documents(const std
     return ids;
 }
 
-std::vector<SearchResult> EnhancedRetrievalManager::search(const std::string& query, 
+std::vector<SearchResult> RetrievalManager::search(const std::string& query, 
                                                           const SearchOptions& options) {
     if (!initialized_) return {};
     
@@ -501,14 +501,14 @@ std::vector<SearchResult> EnhancedRetrievalManager::search(const std::string& qu
     return results;
 }
 
-std::vector<SearchResult> EnhancedRetrievalManager::semantic_search(const std::string& query, 
+std::vector<SearchResult> RetrievalManager::semantic_search(const std::string& query, 
                                                                    const SearchOptions& options) {
     // For semantic search, we could apply query expansion or reranking
     // For now, it's the same as regular search
     return search(query, options);
 }
 
-std::vector<SearchResult> EnhancedRetrievalManager::hybrid_search(const std::string& query,
+std::vector<SearchResult> RetrievalManager::hybrid_search(const std::string& query,
                                                                  const SearchOptions& options) {
     // Hybrid search combines vector similarity with keyword matching
     auto semantic_results = semantic_search(query, options);
@@ -542,7 +542,7 @@ std::vector<SearchResult> EnhancedRetrievalManager::hybrid_search(const std::str
     return hybrid_results;
 }
 
-bool EnhancedRetrievalManager::delete_document(const std::string& document_id) {
+bool RetrievalManager::delete_document(const std::string& document_id) {
     if (!initialized_) return false;
     
     bool success = true;
@@ -566,7 +566,7 @@ bool EnhancedRetrievalManager::delete_document(const std::string& document_id) {
     return success;
 }
 
-std::optional<Document> EnhancedRetrievalManager::get_document(const std::string& document_id) {
+std::optional<Document> RetrievalManager::get_document(const std::string& document_id) {
     // Check cache first
     {
         std::lock_guard<std::mutex> lock(cache_mutex_);
@@ -590,7 +590,7 @@ std::optional<Document> EnhancedRetrievalManager::get_document(const std::string
     return std::nullopt;
 }
 
-RetrievalStats EnhancedRetrievalManager::get_stats() const {
+RetrievalStats RetrievalManager::get_stats() const {
     std::lock_guard<std::mutex> lock(cache_mutex_);
     
     RetrievalStats stats;
@@ -601,12 +601,12 @@ RetrievalStats EnhancedRetrievalManager::get_stats() const {
     return stats;
 }
 
-void EnhancedRetrievalManager::clear_cache() {
+void RetrievalManager::clear_cache() {
     std::lock_guard<std::mutex> lock(cache_mutex_);
     document_cache_.clear();
 }
 
-std::vector<float> EnhancedRetrievalManager::generate_embedding(const std::string& text) {
+std::vector<float> RetrievalManager::generate_embedding(const std::string& text) {
     // Placeholder embedding generation
     // In a real implementation, this would use a model like Sentence-BERT, OpenAI embeddings, etc.
     
@@ -625,7 +625,7 @@ std::vector<float> EnhancedRetrievalManager::generate_embedding(const std::strin
     return normalize_vector(embedding);
 }
 
-std::string EnhancedRetrievalManager::to_lowercase(const std::string& str) {
+std::string RetrievalManager::to_lowercase(const std::string& str) {
     std::string result = str;
     std::transform(result.begin(), result.end(), result.begin(), ::tolower);
     return result;

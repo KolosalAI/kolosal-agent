@@ -1,6 +1,6 @@
-#include "../include/workflow_types.hpp"
-#include "../include/workflow_manager.hpp"
-#include "../include/logger.hpp"
+#include "workflow_types.hpp"
+#include "workflow_manager.hpp"
+#include "logger.hpp"
 #include <random>
 #include <future>
 #include <algorithm>

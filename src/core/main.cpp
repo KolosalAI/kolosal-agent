@@ -54,16 +54,11 @@ void print_banner() {
     auto& logger = KolosalAgent::Logger::instance();
     
 #ifdef DEBUG_BUILD
-    logger.set_level(KolosalAgent::LogLevel::DEBUG_LVL);
-    logger.enable_function_tracing(true);
-    logger.enable_thread_id(true);
-    logger.set_file_output("kolosal_agent_debug.log");
+    logger.set_level(KolosalAgent::DEBUG_LVL); // DEBUG level
     LOG_INFO("Debug build detected - enabling verbose logging");
     LOG_DEBUG("Function tracing and debug features enabled");
 #else
-    logger.set_level(KolosalAgent::LogLevel::INFO_LVL);
-    logger.enable_function_tracing(false);
-    logger.enable_thread_id(false);
+    logger.set_level(KolosalAgent::INFO_LVL);
     LOG_INFO("Release build - using standard logging level");
 #endif
     

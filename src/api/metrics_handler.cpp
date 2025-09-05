@@ -1,10 +1,9 @@
-#include "../../include/metrics.hpp"
+#include "../../include/metrics_handler.hpp"
 #include "../../include/logger.hpp"
 #include <chrono>
 #include <sstream>
 #include <thread>
 #include <numeric>
-#include <iostream>
 
 MetricsCollector::MetricsCollector() : running_(false) {
     start_time_ = std::chrono::steady_clock::now();
