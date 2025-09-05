@@ -31,7 +31,6 @@
 *.out
 *.app
 
-
 # Build Files
 build*
 *.cmake
@@ -43,15 +42,70 @@ build*
 *.dll
 *.exe
 
+# Logs
 *.log
+logs/
 
-# model for testing
+# Models for testing
 models/*
 
-# python codes
+# Python files and virtual environments
 *.py
 pythons/*
 .venv*
+.venv/
+venv/
+env/
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
 
+# Jupyter Notebook
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Test builds
 tests_build/
+
+# Environment variables and secrets (SECURITY)
+.env
+.env.*
+!.env.template
+!.env.example
+
+# Local configuration overrides
+config.local.yaml
+agent.local.yaml
+workflow.local.yaml
+
+# Data directories
+data/
+cache/
+tmp/
+temp/
+
+# IDE and editor files
+.vscode/settings.json
+.vscode/launch.json
+*.swp
+*.swo
+*~
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Backup files
+*.backup
+*.bak
+*.orig

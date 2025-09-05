@@ -42,11 +42,11 @@ auth:
       - Origin
 search:
   enabled: true
-  searxng_url: https://searx.stream/
+  searxng_url: ${KOLOSAL_SEARXNG_URL:-https://searx.stream/}
   timeout: 30
   max_results: 20
   default_engine: ""
-  api_key: ""
+  api_key: ${KOLOSAL_SEARCH_API_KEY:-}
   enable_safe_search: true
   default_format: json
   default_language: en
@@ -56,18 +56,18 @@ database:
   retrieval_embedding_model: "all-MiniLM-L6-v2-bf16-q4_k"
   qdrant:
     enabled: true
-    host: localhost
-    port: 6333
-    collection_name: documents
+    host: ${KOLOSAL_QDRANT_HOST:-localhost}
+    port: ${KOLOSAL_QDRANT_PORT:-6333}
+    collection_name: ${KOLOSAL_QDRANT_COLLECTION:-documents}
     default_embedding_model: "all-MiniLM-L6-v2-bf16-q4_k"
     timeout: 30
-    api_key: ""
+    api_key: ${KOLOSAL_QDRANT_API_KEY:-}
     max_connections: 10
     connection_timeout: 5
     embedding_batch_size: 5
   faiss:
     index_type: Flat
-    index_path: D:\Works\Genta\codes\kolosal-agent\data\faiss_index
+    index_path: ${KOLOSAL_FAISS_INDEX_PATH:-./data/faiss_index}
     dimensions: 1536
     normalize_vectors: true
     nlist: 100
@@ -77,7 +77,7 @@ database:
     metric_type: IP
 models:
   - id: qwen2.5-0.5b
-    path: D:\Works\Genta\codes\kolosal-agent\models\qwen2.5-0.5b-instruct-q4_k_m.gguf
+    path: ${KOLOSAL_MODEL_PATH:-./models}/qwen2.5-0.5b-instruct-q4_k_m.gguf
     type: llm
     load_immediately: true
     main_gpu_id: 0
@@ -94,7 +94,7 @@ models:
       n_batch: 2048
       n_ubatch: 512
   - id: all-MiniLM-L6-v2-bf16-q4_k
-    path: D:\Works\Genta\codes\kolosal-agent\models\all-MiniLM-L6-v2-bf16-q4_k.gguf
+    path: ${KOLOSAL_MODEL_PATH:-./models}/all-MiniLM-L6-v2-bf16-q4_k.gguf
     type: embedding
     load_immediately: true
     main_gpu_id: 0
@@ -106,7 +106,7 @@ models:
       embedding_only: true
 inference_engines:
   - name: llama-cpu
-    library_path: D:\Works\Genta\codes\kolosal-agent\build\Debug\llama-cpu.dll
+    library_path: ${KOLOSAL_ENGINE_PATH:-./build/Debug}/llama-cpu.dll
     version: 1.0.0
     description: CPU-based inference engine for LLaMA models
     load_on_startup: true

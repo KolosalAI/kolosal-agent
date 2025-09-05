@@ -272,7 +272,49 @@ curl http://localhost:8081/status
 
 ## ⚙️ Configuration
 
-The system uses YAML configuration files for customization.
+The system uses YAML configuration files with environment variable support for security and portability.
+
+### Quick Setup with Environment Variables
+
+1. **Copy the environment template**:
+   ```bash
+   cp .env.template .env
+   ```
+
+2. **Edit `.env` with your values**:
+   ```bash
+   # API Keys (keep these secret!)
+   KOLOSAL_API_KEY=your-api-key-here
+   KOLOSAL_SEARCH_API_KEY=your-search-api-key
+   KOLOSAL_QDRANT_API_KEY=your-qdrant-api-key
+   
+   # Paths (relative to project root)
+   KOLOSAL_MODEL_PATH=./models
+   KOLOSAL_ENGINE_PATH=./build/Debug  # Windows
+   # KOLOSAL_ENGINE_PATH=./build      # Linux/macOS
+   
+   # Network settings
+   KOLOSAL_HOST=127.0.0.1
+   KOLOSAL_PORT=8081
+   ```
+
+3. **Load environment and start**:
+   ```bash
+   # Linux/macOS
+   source .env && ./kolosal-agent
+   
+   # Windows PowerShell
+   Get-Content .env | ForEach-Object { if ($_ -match '^([^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process') } }
+   .\Debug\kolosal-agent.exe
+   ```
+
+### Configuration Files
+
+The system supports three main configuration approaches:
+
+1. **Environment Variables** (Recommended) - See [Environment Variables Guide](docs/environment-variables.md)
+2. **Direct YAML Configuration** - Traditional approach
+3. **Hybrid** - YAML with environment variable substitution
 
 ### Agent System Configuration (`agent.yaml`)
 
@@ -280,23 +322,17 @@ The system uses YAML configuration files for customization.
 system:
   name: "Kolosal Agent System"
   version: "1.0.0"
-  host: "127.0.0.1"
-  port: 8081
-  log_level: "info"
+  host: ${KOLOSAL_HOST:-127.0.0.1}
+  port: ${KOLOSAL_PORT:-8081}
+  log_level: ${KOLOSAL_LOG_LEVEL:-info}
 
-system_instruction: |
-  You are a helpful AI assistant that is part of the Kolosal Agent System.
-  Be helpful, accurate, and professional in your responses.
+# API key for authentication (when enabled)
+security:
+  api_key: ${KOLOSAL_API_KEY:-}
 
 agents:
   - name: "Assistant"
     capabilities: ["chat", "analysis", "reasoning"]
-    auto_start: true
-    system_prompt: |
-      You are an AI assistant specialized in general conversation and help.
-
-  - name: "Analyzer" 
-    capabilities: ["analysis", "data_processing", "summarization"]
     auto_start: true
 
   - name: "RetrievalAgent"
@@ -306,7 +342,6 @@ agents:
 functions:
   chat:
     description: "Interactive chat functionality"
-    timeout: 30000
     parameters:
       - name: "message"
         type: "string"
@@ -314,57 +349,6 @@ functions:
       - name: "model"
         type: "string"
         required: true
-
-  analyze:
-    description: "Text and data analysis"
-    timeout: 60000
-    parameters:
-      - name: "text"
-        type: "string"
-        required: true
-```
-
-### Workflow Configuration (`workflow.yaml`)
-
-```yaml
-settings:
-  max_concurrent_workflows: 10
-  default_timeout_ms: 300000
-  cleanup_completed_after_hours: 24
-
-workflows:
-  - id: "simple_research"
-    name: "Simple Research Workflow"
-    description: "Basic research workflow"
-    type: "sequential"
-    steps:
-      - id: "research_step"
-        agent_name: "Researcher"
-        llm_model: "qwen2.5-0.5b"
-        function_name: "research"
-        parameters: ["query", "depth"]
-        timeout_ms: 120000
-
-  - id: "parallel_analysis"
-    name: "Parallel Analysis Workflow"
-    type: "parallel"
-    steps:
-      - id: "sentiment_analysis"
-        agent_name: "Analyzer"
-        llm_model: "qwen2.5-0.5b"
-        function_name: "analyze"
-      - id: "keyword_extraction"
-        agent_name: "Analyzer"
-        llm_model: "qwen2.5-0.5b"
-        function_name: "analyze"
-
-agent_llm_mappings:
-  Assistant:
-    default_model: "qwen2.5-0.5b"
-    supported_models: ["qwen2.5-0.5b"]
-  Analyzer:
-    default_model: "qwen2.5-0.5b"
-    supported_models: ["qwen2.5-0.5b"]
 ```
 
 ### Kolosal Server Configuration (`config.yaml`)
@@ -373,28 +357,57 @@ agent_llm_mappings:
 
 ```yaml
 server:
-  port: 8080
-  host: 0.0.0.0
+  port: ${KOLOSAL_PORT:-8081}
+  host: ${KOLOSAL_HOST:-127.0.0.1}
   idle_timeout: 300
 
+# Models with environment variable paths
 models:
   - id: qwen2.5-0.5b
-    path: path/to/model.gguf
+    path: ${KOLOSAL_MODEL_PATH:-./models}/qwen2.5-0.5b-instruct-q4_k_m.gguf
     type: llm
     load_immediately: true
-    load_params:
-      n_ctx: 2048
-      n_gpu_layers: 100
 
+  - id: all-MiniLM-L6-v2-bf16-q4_k
+    path: ${KOLOSAL_MODEL_PATH:-./models}/all-MiniLM-L6-v2-bf16-q4_k.gguf
+    type: embedding
+    load_immediately: true
+
+# Database configuration with API key support
 database:
-  vector_database: qdrant
-  retrieval_embedding_model: all-MiniLM-L6-v2-bf16-q4_k
+  vector_database: ${KOLOSAL_VECTOR_DB:-qdrant}
+  qdrant:
+    host: ${KOLOSAL_QDRANT_HOST:-localhost}
+    port: ${KOLOSAL_QDRANT_PORT:-6333}
+    api_key: ${KOLOSAL_QDRANT_API_KEY:-}
+  faiss:
+    index_path: ${KOLOSAL_FAISS_INDEX_PATH:-./data/faiss_index}
 
+# Search with API key externalization
 search:
   enabled: true
-  searxng_url: https://searx.stream/
-  timeout: 30
+  searxng_url: ${KOLOSAL_SEARXNG_URL:-https://searx.stream/}
+  api_key: ${KOLOSAL_SEARCH_API_KEY:-}
+
+# Inference engines with relative paths
+inference_engines:
+  - name: llama-cpu
+    library_path: ${KOLOSAL_ENGINE_PATH:-./build/Debug}/llama-cpu.dll
 ```
+
+### Security Features
+
+- **🔐 API Key Externalization**: All API keys use environment variables
+- **📁 Relative Paths**: No hardcoded absolute paths
+- **🌍 Platform Independence**: Works across Windows, Linux, and macOS
+- **🔒 Secret Management**: Supports integration with secret management systems
+- **📝 Environment Documentation**: Comprehensive variable documentation
+
+### Configuration Documentation
+
+- **[Environment Variables Guide](docs/environment-variables.md)** - Complete list of supported variables
+- **[Configuration Migration](docs/config-migration.md)** - Guide for migrating existing configs
+- **[Example Configuration](config/config.example.yaml)** - Full example with all options
 
 ## 🌐 API Reference
 
@@ -896,6 +909,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
   - [Architecture Guide](docs/architecture.md)
   - [Configuration Guide](docs/config.md)
   - [Developer Guide](docs/development.md)
+  - [Environment Variables](docs/environment-variables.md)
+  - [Configuration Migration](docs/config-migration.md)
+  - [Python Virtual Environment Setup](docs/python-venv-setup.md)
   - [Installation Guide](docs/install.md)
   - [Quick Start Guide](docs/quickstart.md)
   - [Testing Guide](docs/testing.md)

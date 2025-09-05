@@ -44,10 +44,10 @@ validation:
 system:
   name: "Kolosal Agent System"
   version: "1.0.0"
-  host: "127.0.0.1"
-  port: 8080
-  log_level: "info"
-  max_concurrent_requests: 100
+  host: ${KOLOSAL_HOST:-127.0.0.1}
+  port: ${KOLOSAL_PORT:-8080}
+  log_level: ${KOLOSAL_LOG_LEVEL:-info}
+  max_concurrent_requests: ${KOLOSAL_MAX_REQUESTS:-100}
 
 # System instruction/prompt that will be used for all agents
 system_instruction: |
@@ -565,42 +565,42 @@ performance:
 
 # Kolosal Server configuration
 kolosal_server:
-  auto_start: true
-  startup_timeout: 60
-  health_check_interval: 10
-  max_retries: 3
-  retry_delay: 2000
+  auto_start: ${KOLOSAL_SERVER_AUTO_START:-true}
+  startup_timeout: ${KOLOSAL_SERVER_STARTUP_TIMEOUT:-60}
+  health_check_interval: ${KOLOSAL_SERVER_HEALTH_INTERVAL:-10}
+  max_retries: ${KOLOSAL_SERVER_MAX_RETRIES:-3}
+  retry_delay: ${KOLOSAL_SERVER_RETRY_DELAY:-2000}
   resource_limits:
-    max_memory: "1.5GB"
-    max_cpu_percent: 80
-  models_directory: "./models"
+    max_memory: ${KOLOSAL_SERVER_MAX_MEMORY:-1.5GB}
+    max_cpu_percent: ${KOLOSAL_SERVER_MAX_CPU:-80}
+  models_directory: ${KOLOSAL_MODEL_PATH:-./models}
   required_models:
-    - name: "qwen2.5-0.5b-instruct-q4_k_m"
-      file: "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+    - name: ${KOLOSAL_LLM_MODEL_NAME:-qwen2.5-0.5b-instruct-q4_k_m}
+      file: ${KOLOSAL_LLM_MODEL_FILE:-qwen2.5-0.5b-instruct-q4_k_m.gguf}
       type: "llm"
       required: true
-    - name: "all-MiniLM-L6-v2-bf16-q4_k"
-      file: "all-MiniLM-L6-v2-bf16-q4_k.gguf"
+    - name: ${KOLOSAL_EMBEDDING_MODEL_NAME:-all-MiniLM-L6-v2-bf16-q4_k}
+      file: ${KOLOSAL_EMBEDDING_MODEL_FILE:-all-MiniLM-L6-v2-bf16-q4_k.gguf}
       type: "embedding"
       required: true
-  model_preload_timeout: 120
-  graceful_shutdown_timeout: 30
+  model_preload_timeout: ${KOLOSAL_MODEL_PRELOAD_TIMEOUT:-120}
+  graceful_shutdown_timeout: ${KOLOSAL_SHUTDOWN_TIMEOUT:-30}
 
 # Logging configuration
 logging:
-  level: "info"
-  file: "agent_system.log"
-  max_file_size: "100MB"
-  max_files: 10
-  console_output: true
+  level: ${KOLOSAL_LOG_LEVEL:-info}
+  file: ${KOLOSAL_LOG_FILE:-agent_system.log}
+  max_file_size: ${KOLOSAL_LOG_MAX_SIZE:-100MB}
+  max_files: ${KOLOSAL_LOG_MAX_FILES:-10}
+  console_output: ${KOLOSAL_LOG_CONSOLE:-true}
 
 # Security configuration
 security:
-  enable_cors: true
+  enable_cors: ${KOLOSAL_ENABLE_CORS:-true}
   allowed_origins: ["http://localhost:3000", "http://127.0.0.1:3000"]
-  max_request_rate: 100  # requests per minute per IP
-  enable_auth: false
-  api_key: ""  # Set this if enable_auth is true
+  max_request_rate: ${KOLOSAL_RATE_LIMIT:-100}  # requests per minute per IP
+  enable_auth: ${KOLOSAL_ENABLE_AUTH:-false}
+  api_key: ${KOLOSAL_API_KEY:-}  # Set this if enable_auth is true
 
 # Error handling and fallback configuration
 error_handling:
