@@ -127,6 +127,11 @@ set(NLOHMANN_JSON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann")
 if(EXISTS "${NLOHMANN_JSON_DIR}/json.hpp")
     # Add as SYSTEM include with highest priority to override kolosal-server's version
     include_directories(SYSTEM BEFORE ${NLOHMANN_JSON_DIR})
+    
+    # Ensure JSON exceptions are enabled instead of calling abort()
+    add_compile_definitions(JSON_THROW_USER=throw)
+    add_compile_definitions(JSON_NOEXCEPTION=0)
+    
     message(STATUS "Using nlohmann/json from: ${NLOHMANN_JSON_DIR}")
 else()
     message(FATAL_ERROR "nlohmann/json not found at ${NLOHMANN_JSON_DIR}")

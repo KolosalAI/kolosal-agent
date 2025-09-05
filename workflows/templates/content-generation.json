@@ -1,0 +1,151 @@
+{
+  "id": "content_generation_workflow",
+  "name": "Content Generation Workflow",
+  "description": "Comprehensive content creation workflow: research -> outline -> draft -> review -> finalize",
+  "type": 0,
+  "version": "1.0",
+  "max_execution_time_ms": 720000,
+  "allow_partial_failure": false,
+  "global_context": {
+    "content_type": "article",
+    "target_audience": "general",
+    "tone": "professional"
+  },
+  "retry_policy": {
+    "max_retries": 3,
+    "backoff_multiplier": 2.0,
+    "initial_delay_ms": 1000,
+    "max_delay_ms": 30000
+  },
+  "steps": [
+    {
+      "id": "research_topic",
+      "agent_name": "Researcher",
+      "function_name": "research",
+      "parameters": {
+        "topic": "{{content_topic}}",
+        "depth": "moderate",
+        "focus_areas": "{{key_areas}}",
+        "target_audience": "{{target_audience}}"
+      },
+      "dependencies": [],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 120000,
+      "optional": false
+    },
+    {
+      "id": "create_outline",
+      "agent_name": "Planner",
+      "function_name": "outline",
+      "parameters": {
+        "research_data": "{{research_topic.findings}}",
+        "content_type": "{{content_type}}",
+        "target_length": "{{target_length}}",
+        "key_points": "{{key_points}}"
+      },
+      "dependencies": ["research_topic"],
+      "condition": {
+        "field": "research_topic.status",
+        "operator": "equals",
+        "value": "success"
+      },
+      "llm_model": "",
+      "timeout_ms": 60000,
+      "optional": false
+    },
+    {
+      "id": "write_draft",
+      "agent_name": "Writer",
+      "function_name": "write",
+      "parameters": {
+        "outline": "{{create_outline.structure}}",
+        "research_material": "{{research_topic.findings}}",
+        "tone": "{{tone}}",
+        "style_guide": "{{style_requirements}}"
+      },
+      "dependencies": ["create_outline"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 180000,
+      "optional": false
+    },
+    {
+      "id": "fact_check",
+      "agent_name": "FactChecker",
+      "function_name": "verify",
+      "parameters": {
+        "content": "{{write_draft.text}}",
+        "original_research": "{{research_topic.findings}}",
+        "verification_level": "high"
+      },
+      "dependencies": ["write_draft"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 90000,
+      "optional": true,
+      "retry_policy": {
+        "max_retries": 2,
+        "backoff_multiplier": 1.5,
+        "initial_delay_ms": 2000,
+        "max_delay_ms": 15000
+      }
+    },
+    {
+      "id": "style_review",
+      "agent_name": "Editor",
+      "function_name": "edit",
+      "parameters": {
+        "content": "{{write_draft.text}}",
+        "focus": ["grammar", "style", "clarity", "flow"],
+        "target_audience": "{{target_audience}}",
+        "tone": "{{tone}}"
+      },
+      "dependencies": ["write_draft"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 75000,
+      "optional": false
+    },
+    {
+      "id": "final_review",
+      "agent_name": "Reviewer",
+      "function_name": "review",
+      "parameters": {
+        "content": "{{style_review.edited_text}}",
+        "fact_check_results": "{{fact_check.verification}}",
+        "quality_criteria": ["accuracy", "completeness", "readability"],
+        "approval_threshold": 0.8
+      },
+      "dependencies": ["style_review"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 60000,
+      "optional": false
+    },
+    {
+      "id": "finalize_content",
+      "agent_name": "Publisher",
+      "function_name": "finalize",
+      "parameters": {
+        "reviewed_content": "{{final_review.approved_content}}",
+        "metadata": {
+          "title": "{{content_title}}",
+          "author": "AI Content Team",
+          "created_date": "{{timestamp}}",
+          "version": "1.0"
+        },
+        "format": "{{output_format}}"
+      },
+      "dependencies": ["final_review"],
+      "condition": {
+        "field": "final_review.approval_score",
+        "operator": "greater_equal",
+        "value": 0.8
+      },
+      "llm_model": "",
+      "timeout_ms": 30000,
+      "optional": false
+    }
+  ]
+}

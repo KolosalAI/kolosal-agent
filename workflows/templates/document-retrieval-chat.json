@@ -1,0 +1,119 @@
+{
+  "id": "document_retrieval_and_chat",
+  "name": "Document Retrieval and Chat",
+  "description": "Retrieves relevant documents and engages in informed conversation based on the content",
+  "type": 2,
+  "version": "1.0",
+  "max_execution_time_ms": 300000,
+  "allow_partial_failure": false,
+  "global_context": {
+    "conversation_style": "informative",
+    "max_documents": 5
+  },
+  "retry_policy": {
+    "max_retries": 2,
+    "backoff_multiplier": 1.5,
+    "initial_delay_ms": 500,
+    "max_delay_ms": 15000
+  },
+  "steps": [
+    {
+      "id": "parse_query",
+      "agent_name": "QueryProcessor",
+      "function_name": "parse",
+      "parameters": {
+        "user_query": "{{user_input}}",
+        "extract_keywords": true,
+        "identify_intent": true
+      },
+      "dependencies": [],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 15000,
+      "optional": false
+    },
+    {
+      "id": "retrieve_documents",
+      "agent_name": "Retriever",
+      "function_name": "search",
+      "parameters": {
+        "keywords": "{{parse_query.keywords}}",
+        "intent": "{{parse_query.intent}}",
+        "max_results": "{{max_documents}}",
+        "relevance_threshold": 0.7
+      },
+      "dependencies": ["parse_query"],
+      "condition": {
+        "field": "parse_query.keywords",
+        "operator": "exists",
+        "value": null
+      },
+      "llm_model": "",
+      "timeout_ms": 45000,
+      "optional": false
+    },
+    {
+      "id": "check_relevance",
+      "agent_name": "Analyzer",
+      "function_name": "evaluate",
+      "parameters": {
+        "documents": "{{retrieve_documents.results}}",
+        "query": "{{user_input}}",
+        "min_relevance": 0.6
+      },
+      "dependencies": ["retrieve_documents"],
+      "condition": {
+        "field": "retrieve_documents.count",
+        "operator": "greater_than",
+        "value": 0
+      },
+      "llm_model": "",
+      "timeout_ms": 30000,
+      "optional": true
+    },
+    {
+      "id": "generate_response",
+      "agent_name": "Assistant",
+      "function_name": "chat",
+      "parameters": {
+        "message": "{{user_input}}",
+        "context_documents": "{{retrieve_documents.results}}",
+        "relevance_scores": "{{check_relevance.scores}}",
+        "conversation_style": "{{conversation_style}}"
+      },
+      "dependencies": ["retrieve_documents"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 60000,
+      "optional": false
+    },
+    {
+      "id": "fallback_response",
+      "agent_name": "Assistant",
+      "function_name": "chat",
+      "parameters": {
+        "message": "{{user_input}}",
+        "fallback_mode": true,
+        "explanation": "No relevant documents found"
+      },
+      "dependencies": [],
+      "condition": {
+        "or": [
+          {
+            "field": "retrieve_documents.count",
+            "operator": "equals",
+            "value": 0
+          },
+          {
+            "field": "generate_response.status",
+            "operator": "equals",
+            "value": "failed"
+          }
+        ]
+      },
+      "llm_model": "",
+      "timeout_ms": 30000,
+      "optional": false
+    }
+  ]
+}

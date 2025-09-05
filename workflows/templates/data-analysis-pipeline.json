@@ -1,0 +1,126 @@
+{
+  "id": "data_analysis_pipeline",
+  "name": "Data Analysis Pipeline",
+  "description": "Complete data analysis workflow: validate -> preprocess -> analyze -> visualize -> report",
+  "type": 4,
+  "version": "1.0",
+  "max_execution_time_ms": 900000,
+  "allow_partial_failure": false,
+  "global_context": {
+    "analysis_type": "statistical",
+    "confidence_level": 0.95
+  },
+  "retry_policy": {
+    "max_retries": 2,
+    "backoff_multiplier": 1.8,
+    "initial_delay_ms": 2000,
+    "max_delay_ms": 45000
+  },
+  "steps": [
+    {
+      "id": "validate_data",
+      "agent_name": "DataValidator",
+      "function_name": "validate",
+      "parameters": {
+        "data_source": "{{input_data}}",
+        "schema_validation": true,
+        "completeness_check": true,
+        "quality_threshold": 0.85
+      },
+      "dependencies": [],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 60000,
+      "optional": false
+    },
+    {
+      "id": "clean_and_preprocess",
+      "agent_name": "DataProcessor",
+      "function_name": "preprocess",
+      "parameters": {
+        "raw_data": "{{validate_data.clean_data}}",
+        "missing_value_strategy": "{{missing_strategy}}",
+        "outlier_detection": true,
+        "normalization": "{{normalization_method}}"
+      },
+      "dependencies": ["validate_data"],
+      "condition": {
+        "field": "validate_data.quality_score",
+        "operator": "greater_equal",
+        "value": 0.7
+      },
+      "llm_model": "",
+      "timeout_ms": 120000,
+      "optional": false
+    },
+    {
+      "id": "exploratory_analysis",
+      "agent_name": "Analyzer",
+      "function_name": "explore",
+      "parameters": {
+        "processed_data": "{{clean_and_preprocess.result}}",
+        "analysis_depth": "comprehensive",
+        "generate_statistics": true,
+        "correlation_analysis": true
+      },
+      "dependencies": ["clean_and_preprocess"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 180000,
+      "optional": false
+    },
+    {
+      "id": "statistical_analysis",
+      "agent_name": "Statistician",
+      "function_name": "analyze",
+      "parameters": {
+        "data": "{{clean_and_preprocess.result}}",
+        "analysis_type": "{{analysis_type}}",
+        "confidence_level": "{{confidence_level}}",
+        "hypothesis": "{{research_hypothesis}}"
+      },
+      "dependencies": ["exploratory_analysis"],
+      "condition": {
+        "field": "exploratory_analysis.data_suitable",
+        "operator": "equals",
+        "value": true
+      },
+      "llm_model": "",
+      "timeout_ms": 240000,
+      "optional": false
+    },
+    {
+      "id": "create_visualizations",
+      "agent_name": "Visualizer",
+      "function_name": "visualize",
+      "parameters": {
+        "data": "{{clean_and_preprocess.result}}",
+        "analysis_results": "{{statistical_analysis.results}}",
+        "chart_types": ["distribution", "correlation", "trend"],
+        "export_format": "{{viz_format}}"
+      },
+      "dependencies": ["statistical_analysis"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 90000,
+      "optional": true
+    },
+    {
+      "id": "generate_report",
+      "agent_name": "Reporter",
+      "function_name": "report",
+      "parameters": {
+        "analysis_results": "{{statistical_analysis.results}}",
+        "visualizations": "{{create_visualizations.charts}}",
+        "data_summary": "{{exploratory_analysis.summary}}",
+        "conclusions": "{{statistical_analysis.conclusions}}",
+        "report_format": "{{report_format}}"
+      },
+      "dependencies": ["statistical_analysis"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 120000,
+      "optional": false
+    }
+  ]
+}

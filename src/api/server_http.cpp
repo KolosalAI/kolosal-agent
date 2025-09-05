@@ -124,10 +124,17 @@ bool HTTPServer::start() {
         std::cout << "\nWorkflow Orchestration endpoints:\n";
         std::cout << "  GET    /workflows             - List workflow definitions\n";
         std::cout << "  POST   /workflows             - Register workflow definition\n";
+        std::cout << "  GET    /workflows/{id}        - Get workflow definition\n";
+        std::cout << "  PUT    /workflows/{id}        - Update workflow definition\n";
+        std::cout << "  DELETE /workflows/{id}        - Delete workflow definition\n";
         std::cout << "  POST   /workflows/{id}/execute     - Execute workflow\n";
         std::cout << "  GET    /workflows/executions/{id} - Get execution status\n";
         std::cout << "  PUT    /workflows/executions/{id}/{action} - Control execution (pause/resume/cancel)\n";
         std::cout << "  GET    /workflows/executions  - List workflow executions\n";
+        std::cout << "  GET    /workflow_templates    - List built-in workflow templates\n";
+        std::cout << "  POST   /workflow_templates/{id}/execute - Execute workflow template\n";
+        std::cout << "  GET    /workflow_executions/{id}/progress - Get detailed execution progress\n";
+        std::cout << "  GET    /workflow_executions/{id}/logs - Get execution logs\n";
     }
     std::cout << "\n";
     std::cout << "Execute function format:\n";
@@ -342,6 +349,43 @@ void HTTPServer::handle_client(socket_t client_socket) {
             std::cout << "[HTTP-ROUTE] Matched route: List workflow executions\n";
             route_matched = true;
             handle_list_workflow_executions(client_socket);
+        } else if (workflow_orchestrator_ && path.find("/workflows/") == 0 && method == "GET" && path.find("/execute") == std::string::npos) {
+            std::string workflow_id = extract_path_parameter(path, "/workflows/");
+            std::cout << "[HTTP-ROUTE] Matched route: Get workflow definition for ID: " << workflow_id << "\n";
+            route_matched = true;
+            handle_get_workflow(client_socket, workflow_id);
+        } else if (workflow_orchestrator_ && path.find("/workflows/") == 0 && method == "PUT") {
+            std::string workflow_id = extract_path_parameter(path, "/workflows/");
+            std::cout << "[HTTP-ROUTE] Matched route: Update workflow ID: " << workflow_id << "\n";
+            route_matched = true;
+            handle_update_workflow(client_socket, workflow_id, body);
+        } else if (workflow_orchestrator_ && path.find("/workflows/") == 0 && method == "DELETE") {
+            std::string workflow_id = extract_path_parameter(path, "/workflows/");
+            std::cout << "[HTTP-ROUTE] Matched route: Delete workflow ID: " << workflow_id << "\n";
+            route_matched = true;
+            handle_delete_workflow(client_socket, workflow_id);
+        } else if (workflow_orchestrator_ && path == "/workflow_templates" && method == "GET") {
+            std::cout << "[HTTP-ROUTE] Matched route: List workflow templates\n";
+            route_matched = true;
+            handle_get_workflow_templates(client_socket);
+        } else if (workflow_orchestrator_ && path.find("/workflow_templates/") == 0 && path.find("/execute") != std::string::npos && method == "POST") {
+            std::string template_id = extract_path_parameter(path, "/workflow_templates/");
+            template_id = template_id.substr(0, template_id.length() - 8); // Remove "/execute"
+            std::cout << "[HTTP-ROUTE] Matched route: Execute workflow template ID: " << template_id << "\n";
+            route_matched = true;
+            handle_execute_workflow_template(client_socket, template_id, body);
+        } else if (workflow_orchestrator_ && path.find("/workflow_executions/") == 0 && path.find("/progress") != std::string::npos && method == "GET") {
+            std::string execution_id = extract_path_parameter(path, "/workflow_executions/");
+            execution_id = execution_id.substr(0, execution_id.length() - 9); // Remove "/progress"
+            std::cout << "[HTTP-ROUTE] Matched route: Get workflow execution progress for ID: " << execution_id << "\n";
+            route_matched = true;
+            handle_workflow_execution_progress(client_socket, execution_id);
+        } else if (workflow_orchestrator_ && path.find("/workflow_executions/") == 0 && path.find("/logs") != std::string::npos && method == "GET") {
+            std::string execution_id = extract_path_parameter(path, "/workflow_executions/");
+            execution_id = execution_id.substr(0, execution_id.length() - 5); // Remove "/logs"
+            std::cout << "[HTTP-ROUTE] Matched route: Get workflow execution logs for ID: " << execution_id << "\n";
+            route_matched = true;
+            handle_workflow_execution_logs(client_socket, execution_id);
         }
         
         if (!route_matched) {
@@ -1425,6 +1469,343 @@ void HTTPServer::handle_get_performance_metrics(socket_t client_socket) {
             {"disk_usage_percent", 0.0},
             {"network_io_bytes", 0}
         };
+        
+        send_response(client_socket, 200, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+// New workflow management handlers
+
+void HTTPServer::handle_get_workflow(socket_t client_socket, const std::string& workflow_id) {
+    try {
+        auto workflow = workflow_orchestrator_->get_workflow(workflow_id);
+        if (!workflow) {
+            send_error(client_socket, 404, "Workflow not found");
+            return;
+        }
+        
+        json response;
+        response["id"] = workflow->id;
+        response["name"] = workflow->name;
+        response["description"] = workflow->description;
+        response["type"] = static_cast<int>(workflow->type);
+        response["max_execution_time_ms"] = workflow->max_execution_time_ms;
+        response["allow_partial_failure"] = workflow->allow_partial_failure;
+        response["global_context"] = workflow->global_context;
+        
+        json steps = json::array();
+        for (const auto& step : workflow->steps) {
+            json step_json;
+            step_json["id"] = step.id;
+            step_json["agent_name"] = step.agent_name;
+            step_json["function_name"] = step.function_name;
+            step_json["llm_model"] = step.llm_model;
+            step_json["parameters"] = step.parameters;
+            step_json["timeout_ms"] = step.timeout_ms;
+            step_json["optional"] = step.optional;
+            step_json["dependencies"] = step.dependencies;
+            step_json["conditions"] = step.conditions;
+            steps.push_back(step_json);
+        }
+        response["steps"] = steps;
+        
+        send_response(client_socket, 200, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_update_workflow(socket_t client_socket, const std::string& workflow_id, const std::string& body) {
+    try {
+        // Check if workflow exists
+        auto existing_workflow = workflow_orchestrator_->get_workflow(workflow_id);
+        if (!existing_workflow) {
+            send_error(client_socket, 404, "Workflow not found");
+            return;
+        }
+        
+        json workflow_data = json::parse(body);
+        workflow_data["id"] = workflow_id; // Ensure ID matches URL parameter
+        
+        // Create updated workflow definition from JSON
+        WorkflowDefinition workflow(
+            workflow_id, 
+            workflow_data["name"],
+            static_cast<WorkflowType>(workflow_data.value("type", 0))
+        );
+        
+        workflow.description = workflow_data.value("description", "");
+        workflow.max_execution_time_ms = workflow_data.value("max_execution_time_ms", 300000);
+        workflow.allow_partial_failure = workflow_data.value("allow_partial_failure", false);
+        workflow.global_context = workflow_data.value("global_context", json{});
+        
+        // Parse steps
+        for (const auto& step_data : workflow_data["steps"]) {
+            WorkflowStep step(
+                step_data["id"],
+                step_data["agent_name"],
+                step_data["function_name"],
+                step_data.value("parameters", json::array()),
+                step_data.value("llm_model", "")
+            );
+            
+            step.timeout_ms = step_data.value("timeout_ms", 60000);
+            step.optional = step_data.value("optional", false);
+            
+            if (step_data.contains("dependencies") && step_data["dependencies"].is_array()) {
+                for (const auto& dep : step_data["dependencies"]) {
+                    step.dependencies.push_back(dep);
+                }
+            }
+            
+            if (step_data.contains("conditions")) {
+                step.conditions = step_data["conditions"];
+            }
+            
+            workflow.steps.push_back(step);
+        }
+        
+        // Register the updated workflow
+        workflow_orchestrator_->register_workflow(workflow);
+        
+        json response;
+        response["message"] = "Workflow updated successfully";
+        response["workflow_id"] = workflow_id;
+        
+        send_response(client_socket, 200, response.dump(2));
+        
+    } catch (const json::parse_error& e) {
+        send_error(client_socket, 400, "Invalid JSON: " + std::string(e.what()));
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_delete_workflow(socket_t client_socket, const std::string& workflow_id) {
+    try {
+        bool success = workflow_orchestrator_->remove_workflow(workflow_id);
+        
+        if (success) {
+            json response;
+            response["message"] = "Workflow deleted successfully";
+            response["workflow_id"] = workflow_id;
+            send_response(client_socket, 200, response.dump(2));
+        } else {
+            send_error(client_socket, 404, "Workflow not found");
+        }
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_get_workflow_templates(socket_t client_socket) {
+    try {
+        json response = json::array();
+        
+        // Built-in templates information
+        json research_template;
+        research_template["id"] = "research_workflow";
+        research_template["name"] = "Research and Analysis Workflow";
+        research_template["description"] = "Comprehensive research workflow: question -> research -> analyze -> summarize";
+        research_template["type"] = "sequential";
+        research_template["input_parameters"] = json::array({"query", "depth"});
+        response.push_back(research_template);
+        
+        json analysis_template;
+        analysis_template["id"] = "analysis_workflow";
+        analysis_template["name"] = "Data Analysis Workflow";
+        analysis_template["description"] = "Data analysis workflow: input -> preprocess -> analyze -> report";
+        analysis_template["type"] = "sequential";
+        analysis_template["input_parameters"] = json::array({"text", "analysis_type"});
+        response.push_back(analysis_template);
+        
+        json pipeline_template;
+        pipeline_template["id"] = "data_pipeline_workflow";
+        pipeline_template["name"] = "Data Pipeline Workflow";
+        pipeline_template["description"] = "Data processing pipeline: extract -> transform -> validate -> load";
+        pipeline_template["type"] = "pipeline";
+        pipeline_template["input_parameters"] = json::array({"data", "format"});
+        response.push_back(pipeline_template);
+        
+        json decision_template;
+        decision_template["id"] = "decision_workflow";
+        decision_template["name"] = "Decision Making Workflow";
+        decision_template["description"] = "Decision making workflow: gather info -> analyze options -> decide -> execute";
+        decision_template["type"] = "sequential";
+        decision_template["input_parameters"] = json::array({"question", "context"});
+        response.push_back(decision_template);
+        
+        send_response(client_socket, 200, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_execute_workflow_template(socket_t client_socket, const std::string& template_id, const std::string& body) {
+    try {
+        json request_data = json::parse(body);
+        json input_data = request_data.value("input_data", json{});
+        bool async_execution = request_data.value("async", true);
+        
+        std::string execution_id;
+        if (async_execution) {
+            execution_id = workflow_orchestrator_->execute_workflow_async(template_id, input_data);
+        } else {
+            execution_id = workflow_orchestrator_->execute_workflow(template_id, input_data);
+        }
+        
+        json response;
+        response["execution_id"] = execution_id;
+        response["template_id"] = template_id;
+        response["async"] = async_execution;
+        response["status"] = "submitted";
+        
+        send_response(client_socket, 200, response.dump(2));
+        
+    } catch (const json::parse_error& e) {
+        send_error(client_socket, 400, "Invalid JSON: " + std::string(e.what()));
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_workflow_execution_progress(socket_t client_socket, const std::string& execution_id) {
+    try {
+        auto execution = workflow_orchestrator_->get_execution_status(execution_id);
+        if (!execution) {
+            send_error(client_socket, 404, "Execution not found");
+            return;
+        }
+        
+        json response;
+        response["execution_id"] = execution->execution_id;
+        response["workflow_id"] = execution->workflow_id;
+        response["state"] = static_cast<int>(execution->state);
+        response["progress_percentage"] = execution->progress_percentage;
+        
+        // Calculate step progress
+        auto workflow = workflow_orchestrator_->get_workflow(execution->workflow_id);
+        if (workflow) {
+            response["total_steps"] = workflow->steps.size();
+            response["completed_steps"] = execution->step_results.size();
+            
+            json step_progress = json::array();
+            for (const auto& step : workflow->steps) {
+                json step_info;
+                step_info["id"] = step.id;
+                step_info["name"] = step.function_name;
+                
+                if (execution->step_results.find(step.id) != execution->step_results.end()) {
+                    step_info["status"] = "completed";
+                    if (execution->step_outputs.find(step.id) != execution->step_outputs.end()) {
+                        step_info["has_output"] = true;
+                    }
+                } else {
+                    step_info["status"] = "pending";
+                }
+                
+                step_progress.push_back(step_info);
+            }
+            response["step_progress"] = step_progress;
+        }
+        
+        // Timing information
+        response["start_time"] = std::chrono::duration_cast<std::chrono::seconds>(
+            execution->start_time.time_since_epoch()).count();
+        
+        if (execution->end_time != std::chrono::system_clock::time_point{}) {
+            response["end_time"] = std::chrono::duration_cast<std::chrono::seconds>(
+                execution->end_time.time_since_epoch()).count();
+            
+            auto duration = execution->end_time - execution->start_time;
+            response["duration_ms"] = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+        } else {
+            auto duration = std::chrono::system_clock::now() - execution->start_time;
+            response["elapsed_ms"] = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+        }
+        
+        response["error_message"] = execution->error_message;
+        
+        send_response(client_socket, 200, response.dump(2));
+        
+    } catch (const std::exception& e) {
+        send_error(client_socket, 500, e.what());
+    }
+}
+
+void HTTPServer::handle_workflow_execution_logs(socket_t client_socket, const std::string& execution_id) {
+    try {
+        auto execution = workflow_orchestrator_->get_execution_status(execution_id);
+        if (!execution) {
+            send_error(client_socket, 404, "Execution not found");
+            return;
+        }
+        
+        json response;
+        response["execution_id"] = execution->execution_id;
+        response["workflow_id"] = execution->workflow_id;
+        
+        json logs = json::array();
+        
+        // Add execution start log
+        json start_log;
+        start_log["timestamp"] = std::chrono::duration_cast<std::chrono::seconds>(
+            execution->start_time.time_since_epoch()).count();
+        start_log["level"] = "INFO";
+        start_log["message"] = "Workflow execution started";
+        start_log["context"] = {{"workflow_id", execution->workflow_id}};
+        logs.push_back(start_log);
+        
+        // Add step execution logs
+        auto workflow = workflow_orchestrator_->get_workflow(execution->workflow_id);
+        if (workflow) {
+            for (const auto& step : workflow->steps) {
+                if (execution->step_results.find(step.id) != execution->step_results.end()) {
+                    json step_log;
+                    step_log["timestamp"] = std::chrono::duration_cast<std::chrono::seconds>(
+                        execution->start_time.time_since_epoch()).count(); // Placeholder - would need actual timestamps
+                    step_log["level"] = "INFO";
+                    step_log["message"] = "Step executed: " + step.id;
+                    step_log["context"] = {
+                        {"step_id", step.id},
+                        {"agent_name", step.agent_name},
+                        {"function_name", step.function_name}
+                    };
+                    
+                    if (execution->step_outputs.find(step.id) != execution->step_outputs.end()) {
+                        step_log["context"]["has_output"] = true;
+                    }
+                    
+                    logs.push_back(step_log);
+                }
+            }
+        }
+        
+        // Add completion or error log
+        if (execution->state == WorkflowExecutionState::COMPLETED) {
+            json completion_log;
+            completion_log["timestamp"] = std::chrono::duration_cast<std::chrono::seconds>(
+                execution->end_time.time_since_epoch()).count();
+            completion_log["level"] = "INFO";
+            completion_log["message"] = "Workflow execution completed successfully";
+            logs.push_back(completion_log);
+        } else if (execution->state == WorkflowExecutionState::FAILED) {
+            json error_log;
+            error_log["timestamp"] = std::chrono::duration_cast<std::chrono::seconds>(
+                execution->end_time.time_since_epoch()).count();
+            error_log["level"] = "ERROR";
+            error_log["message"] = "Workflow execution failed: " + execution->error_message;
+            logs.push_back(error_log);
+        }
+        
+        response["logs"] = logs;
+        response["log_count"] = logs.size();
         
         send_response(client_socket, 200, response.dump(2));
         

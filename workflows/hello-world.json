@@ -1,0 +1,63 @@
+{
+  "id": "hello_world_workflow",
+  "name": "Hello World Workflow",
+  "description": "Simple demonstration workflow that shows basic agent interaction",
+  "type": 0,
+  "version": "1.0",
+  "max_execution_time_ms": 60000,
+  "allow_partial_failure": false,
+  "global_context": {
+    "greeting_style": "friendly"
+  },
+  "retry_policy": {
+    "max_retries": 2,
+    "backoff_multiplier": 1.5,
+    "initial_delay_ms": 500,
+    "max_delay_ms": 5000
+  },
+  "steps": [
+    {
+      "id": "greet_user",
+      "agent_name": "Assistant",
+      "function_name": "chat",
+      "parameters": {
+        "message": "Hello {{user_name}}! Welcome to the Kolosal Agent system.",
+        "style": "{{greeting_style}}"
+      },
+      "dependencies": [],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 15000,
+      "optional": false
+    },
+    {
+      "id": "get_status",
+      "agent_name": "Assistant",
+      "function_name": "status",
+      "parameters": {},
+      "dependencies": ["greet_user"],
+      "condition": {
+        "field": "greet_user.status",
+        "operator": "equals",
+        "value": "success"
+      },
+      "llm_model": "",
+      "timeout_ms": 10000,
+      "optional": false
+    },
+    {
+      "id": "farewell",
+      "agent_name": "Assistant",
+      "function_name": "chat",
+      "parameters": {
+        "message": "Thank you for trying the workflow system, {{user_name}}! System status: {{get_status.result}}",
+        "style": "{{greeting_style}}"
+      },
+      "dependencies": ["get_status"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 15000,
+      "optional": false
+    }
+  ]
+}

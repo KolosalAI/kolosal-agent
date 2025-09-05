@@ -75,10 +75,17 @@ private:
     // Workflow orchestrator handlers
     void handle_list_workflows(socket_t client_socket);
     void handle_register_workflow(socket_t client_socket, const std::string& body);
+    void handle_get_workflow(socket_t client_socket, const std::string& workflow_id);
+    void handle_update_workflow(socket_t client_socket, const std::string& workflow_id, const std::string& body);
+    void handle_delete_workflow(socket_t client_socket, const std::string& workflow_id);
     void handle_execute_workflow(socket_t client_socket, const std::string& body, const std::string& workflow_id);
     void handle_get_workflow_execution(socket_t client_socket, const std::string& execution_id);
     void handle_control_workflow_execution(socket_t client_socket, const std::string& execution_id, const std::string& action);
     void handle_list_workflow_executions(socket_t client_socket);
+    void handle_get_workflow_templates(socket_t client_socket);
+    void handle_execute_workflow_template(socket_t client_socket, const std::string& template_id, const std::string& body);
+    void handle_workflow_execution_progress(socket_t client_socket, const std::string& execution_id);
+    void handle_workflow_execution_logs(socket_t client_socket, const std::string& execution_id);
     
     // Metrics and monitoring handlers
     void handle_get_system_metrics(socket_t client_socket);

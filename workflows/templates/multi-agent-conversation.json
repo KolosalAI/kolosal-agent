@@ -1,0 +1,104 @@
+{
+  "id": "multi_agent_conversation",
+  "name": "Multi-Agent Conversation",
+  "description": "Orchestrates a conversation between multiple AI agents with different roles and perspectives",
+  "type": 3,
+  "version": "1.0",
+  "max_execution_time_ms": 450000,
+  "allow_partial_failure": true,
+  "global_context": {
+    "conversation_rounds": 3,
+    "perspective_diversity": true,
+    "consensus_seeking": false
+  },
+  "retry_policy": {
+    "max_retries": 1,
+    "backoff_multiplier": 1.5,
+    "initial_delay_ms": 1500,
+    "max_delay_ms": 20000
+  },
+  "loop_config": {
+    "max_iterations": 5,
+    "break_condition": {
+      "or": [
+        {
+          "field": "iteration_count",
+          "operator": "greater_equal",
+          "value": "{{conversation_rounds}}"
+        },
+        {
+          "field": "consensus_reached",
+          "operator": "equals",
+          "value": true
+        }
+      ]
+    },
+    "iteration_context_key": "round"
+  },
+  "steps": [
+    {
+      "id": "expert_response",
+      "agent_name": "Expert",
+      "function_name": "respond",
+      "parameters": {
+        "topic": "{{discussion_topic}}",
+        "previous_responses": "{{conversation_history}}",
+        "perspective": "expert_knowledge",
+        "round": "{{round}}"
+      },
+      "dependencies": [],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 45000,
+      "optional": false
+    },
+    {
+      "id": "critic_response",
+      "agent_name": "Critic",
+      "function_name": "critique",
+      "parameters": {
+        "target_response": "{{expert_response.content}}",
+        "conversation_context": "{{conversation_history}}",
+        "perspective": "critical_analysis",
+        "round": "{{round}}"
+      },
+      "dependencies": ["expert_response"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 40000,
+      "optional": false
+    },
+    {
+      "id": "mediator_synthesis",
+      "agent_name": "Mediator",
+      "function_name": "synthesize",
+      "parameters": {
+        "expert_view": "{{expert_response.content}}",
+        "critical_view": "{{critic_response.content}}",
+        "seek_consensus": "{{consensus_seeking}}",
+        "round": "{{round}}"
+      },
+      "dependencies": ["expert_response", "critic_response"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 35000,
+      "optional": false
+    },
+    {
+      "id": "evaluate_progress",
+      "agent_name": "Evaluator",
+      "function_name": "evaluate",
+      "parameters": {
+        "conversation_history": "{{conversation_history}}",
+        "current_synthesis": "{{mediator_synthesis.result}}",
+        "progress_metrics": ["coherence", "coverage", "consensus"],
+        "round": "{{round}}"
+      },
+      "dependencies": ["mediator_synthesis"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 25000,
+      "optional": true
+    }
+  ]
+}

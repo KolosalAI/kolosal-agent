@@ -1,0 +1,104 @@
+{
+  "id": "research_and_summarize",
+  "name": "Research and Summarize",
+  "description": "Comprehensive research workflow that gathers information on a topic and produces a structured summary",
+  "type": 0,
+  "version": "1.0",
+  "max_execution_time_ms": 600000,
+  "allow_partial_failure": true,
+  "global_context": {
+    "output_format": "structured_summary",
+    "research_depth": "comprehensive"
+  },
+  "retry_policy": {
+    "max_retries": 3,
+    "backoff_multiplier": 2.0,
+    "initial_delay_ms": 1000,
+    "max_delay_ms": 30000
+  },
+  "steps": [
+    {
+      "id": "initial_research",
+      "agent_name": "Researcher",
+      "function_name": "research",
+      "parameters": {
+        "query": "{{research_topic}}",
+        "depth": "initial",
+        "sources": ["web", "academic"]
+      },
+      "dependencies": [],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 120000,
+      "optional": false
+    },
+    {
+      "id": "deep_analysis",
+      "agent_name": "Analyzer",
+      "function_name": "analyze",
+      "parameters": {
+        "text": "{{initial_research.result}}",
+        "analysis_type": "comprehensive",
+        "focus_areas": "{{focus_areas}}"
+      },
+      "dependencies": ["initial_research"],
+      "condition": {
+        "field": "initial_research.status",
+        "operator": "equals",
+        "value": "success"
+      },
+      "llm_model": "",
+      "timeout_ms": 90000,
+      "optional": false
+    },
+    {
+      "id": "fact_verification",
+      "agent_name": "Researcher",
+      "function_name": "verify",
+      "parameters": {
+        "claims": "{{deep_analysis.key_points}}",
+        "verification_level": "high"
+      },
+      "dependencies": ["deep_analysis"],
+      "condition": {
+        "field": "deep_analysis.confidence",
+        "operator": "less_than",
+        "value": 0.8
+      },
+      "llm_model": "",
+      "timeout_ms": 60000,
+      "optional": true
+    },
+    {
+      "id": "create_summary",
+      "agent_name": "Writer",
+      "function_name": "summarize",
+      "parameters": {
+        "content": "{{deep_analysis.result}}",
+        "verified_facts": "{{fact_verification.result}}",
+        "format": "{{output_format}}",
+        "length": "{{summary_length}}"
+      },
+      "dependencies": ["deep_analysis"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 60000,
+      "optional": false
+    },
+    {
+      "id": "quality_review",
+      "agent_name": "Reviewer",
+      "function_name": "review",
+      "parameters": {
+        "content": "{{create_summary.result}}",
+        "criteria": ["accuracy", "completeness", "clarity"],
+        "original_research": "{{initial_research.result}}"
+      },
+      "dependencies": ["create_summary"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 45000,
+      "optional": false
+    }
+  ]
+}

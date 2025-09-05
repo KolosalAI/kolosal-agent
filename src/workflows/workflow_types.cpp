@@ -6,10 +6,13 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <filesystem>
 #include <yaml-cpp/yaml.h>
 
 WorkflowOrchestrator::WorkflowOrchestrator(std::shared_ptr<WorkflowManager> workflow_manager)
-    : workflow_manager_(workflow_manager) {
+    : workflow_manager_(workflow_manager),
+      workflows_dir_("workflows"),
+      templates_dir_("workflows/templates") {
 }
 
 WorkflowOrchestrator::~WorkflowOrchestrator() {
@@ -420,8 +423,8 @@ void WorkflowOrchestrator::execute_sequential_workflow(std::shared_ptr<WorkflowE
             continue;
         }
         
-        // Execute step
-        if (!execute_step(step, execution)) {
+        // Execute step with retry support
+        if (!execute_step_with_retry(step, execution)) {
             if (!step.optional && !workflow->allow_partial_failure) {
                 execution->state = WorkflowExecutionState::FAILED;
                 return;
@@ -451,7 +454,7 @@ void WorkflowOrchestrator::execute_parallel_workflow(std::shared_ptr<WorkflowExe
         
         // Skip steps with unmet dependencies for now (simplified)
         auto future = std::async(std::launch::async, [this, &step, execution]() {
-            return execute_step(step, execution);
+            return execute_step_with_retry(step, execution);
         });
         
         futures.push_back(std::move(future));
@@ -493,8 +496,8 @@ void WorkflowOrchestrator::execute_conditional_workflow(std::shared_ptr<Workflow
             continue; // Skip this step
         }
         
-        // Execute step
-        if (!execute_step(step, execution)) {
+        // Execute step with retry support
+        if (!execute_step_with_retry(step, execution)) {
             if (!step.optional && !workflow->allow_partial_failure) {
                 execution->state = WorkflowExecutionState::FAILED;
                 return;
@@ -524,7 +527,7 @@ void WorkflowOrchestrator::execute_loop_workflow(std::shared_ptr<WorkflowExecuti
         
         // Execute all steps in this iteration
         for (const auto& step : workflow->steps) {
-            if (!execute_step(step, execution)) {
+            if (!execute_step_with_retry(step, execution)) {
                 if (!workflow->allow_partial_failure) {
                     execution->state = WorkflowExecutionState::FAILED;
                     return;
@@ -568,8 +571,8 @@ void WorkflowOrchestrator::execute_pipeline_workflow(std::shared_ptr<WorkflowExe
             step.parameters["pipeline_input"] = pipeline_data;
         }
         
-        // Execute step
-        if (execute_step(step, execution)) {
+        // Execute step with retry support
+        if (execute_step_with_retry(step, execution)) {
             // Get output and use as input for next step
             if (execution->step_outputs.find(step.id) != execution->step_outputs.end()) {
                 pipeline_data = execution->step_outputs[step.id];
@@ -587,6 +590,74 @@ void WorkflowOrchestrator::execute_pipeline_workflow(std::shared_ptr<WorkflowExe
     if (execution->state == WorkflowExecutionState::RUNNING) {
         execution->state = WorkflowExecutionState::COMPLETED;
     }
+}
+
+bool WorkflowOrchestrator::execute_step_with_retry(const WorkflowStep& step, std::shared_ptr<WorkflowExecution> execution) {
+    // Initialize step statistics
+    execution->step_stats[step.id] = StepExecutionStats();
+    execution->step_stats[step.id].start_time = std::chrono::system_clock::now();
+    execution->current_step_id = step.id;
+    
+    // Determine retry policy (step-specific or workflow default)
+    RetryPolicy retry_policy = step.retry_policy;
+    if (retry_policy.max_retries == 0) {
+        auto workflow = get_workflow(execution->workflow_id);
+        if (workflow) {
+            retry_policy = workflow->default_retry_policy;
+        }
+    }
+    
+    int attempt = 0;
+    int delay_ms = retry_policy.initial_delay_ms;
+    
+    while (attempt <= retry_policy.max_retries) {
+        try {
+            execution->step_stats[step.id].retry_count = attempt;
+            
+            // Log retry attempt
+            if (attempt > 0) {
+                std::string log_msg = "Retrying step '" + step.id + "', attempt " + std::to_string(attempt + 1) + 
+                                     " of " + std::to_string(retry_policy.max_retries + 1);
+                execution->execution_log.push_back(log_msg);
+                LOG_INFO_F("Retrying step '%s', attempt %d", step.id.c_str(), attempt + 1);
+            }
+            
+            bool success = execute_step(step, execution);
+            
+            if (success) {
+                execution->step_stats[step.id].completed_successfully = true;
+                execution->step_stats[step.id].end_time = std::chrono::system_clock::now();
+                return true;
+            }
+            
+        } catch (const std::exception& e) {
+            execution->step_stats[step.id].error_message = e.what();
+            
+            if (attempt == retry_policy.max_retries) {
+                // Final attempt failed
+                execution->step_stats[step.id].end_time = std::chrono::system_clock::now();
+                execution->failed_step_count++;
+                
+                std::string log_msg = "Step '" + step.id + "' failed after " + std::to_string(attempt + 1) + 
+                                     " attempts: " + e.what();
+                execution->execution_log.push_back(log_msg);
+                
+                throw; // Re-throw the exception
+            }
+        }
+        
+        attempt++;
+        
+        // Wait before retry (with exponential backoff)
+        if (attempt <= retry_policy.max_retries) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
+            delay_ms = static_cast<int>(delay_ms * retry_policy.backoff_multiplier);
+            delay_ms = std::min(delay_ms, retry_policy.max_delay_ms);
+        }
+    }
+    
+    // If we get here, all retries failed
+    return false;
 }
 
 bool WorkflowOrchestrator::execute_step(const WorkflowStep& step, std::shared_ptr<WorkflowExecution> execution) {
@@ -766,25 +837,90 @@ std::string WorkflowOrchestrator::generate_execution_id() {
 }
 
 bool WorkflowOrchestrator::evaluate_condition(const json& condition, const json& context) {
-    // Simplified condition evaluation
+    // Handle empty or null conditions
+    if (condition.is_null() || condition.empty()) {
+        return true;
+    }
+    
+    // Handle complex conditions with AND/OR logic
+    if (condition.contains("and") || condition.contains("or")) {
+        return evaluate_complex_condition(condition, context);
+    }
+    
+    // Simple condition evaluation
     if (condition.contains("field") && condition.contains("operator") && condition.contains("value")) {
         std::string field = condition["field"];
         std::string op = condition["operator"];
         json expected_value = condition["value"];
         
-        if (!context.contains(field)) {
-            return false;
+        // Navigate nested field paths (e.g., "step_output.result")
+        json actual_value;
+        std::istringstream field_stream(field);
+        std::string field_part;
+        json current_context = context;
+        
+        while (std::getline(field_stream, field_part, '.')) {
+            if (current_context.contains(field_part)) {
+                current_context = current_context[field_part];
+            } else {
+                // Field not found
+                if (op == "exists") return false;
+                return false;
+            }
         }
+        actual_value = current_context;
         
-        json actual_value = context[field];
-        
+        // Evaluate based on operator
         if (op == "equals") return actual_value == expected_value;
         if (op == "not_equals") return actual_value != expected_value;
-        if (op == "exists") return true;
-        // Add more operators as needed
+        if (op == "exists") return true; // We found the field
+        if (op == "contains" && actual_value.is_string() && expected_value.is_string()) {
+            return actual_value.get<std::string>().find(expected_value.get<std::string>()) != std::string::npos;
+        }
+        if (op == "greater_than" && actual_value.is_number() && expected_value.is_number()) {
+            return actual_value.get<double>() > expected_value.get<double>();
+        }
+        if (op == "less_than" && actual_value.is_number() && expected_value.is_number()) {
+            return actual_value.get<double>() < expected_value.get<double>();
+        }
+        if (op == "greater_equal" && actual_value.is_number() && expected_value.is_number()) {
+            return actual_value.get<double>() >= expected_value.get<double>();
+        }
+        if (op == "less_equal" && actual_value.is_number() && expected_value.is_number()) {
+            return actual_value.get<double>() <= expected_value.get<double>();
+        }
     }
     
     return true; // Default to true for invalid conditions
+}
+
+bool WorkflowOrchestrator::evaluate_complex_condition(const json& condition, const json& context) {
+    // Handle AND conditions
+    if (condition.contains("and") && condition["and"].is_array()) {
+        for (const auto& sub_condition : condition["and"]) {
+            if (!evaluate_condition(sub_condition, context)) {
+                return false; // All must be true for AND
+            }
+        }
+        return true;
+    }
+    
+    // Handle OR conditions
+    if (condition.contains("or") && condition["or"].is_array()) {
+        for (const auto& sub_condition : condition["or"]) {
+            if (evaluate_condition(sub_condition, context)) {
+                return true; // Any can be true for OR
+            }
+        }
+        return false;
+    }
+    
+    // Handle NOT conditions
+    if (condition.contains("not")) {
+        return !evaluate_condition(condition["not"], context);
+    }
+    
+    return true;
 }
 
 json WorkflowOrchestrator::resolve_parameters(const json& parameters, const json& context) {
@@ -1335,4 +1471,233 @@ namespace WorkflowTemplates {
             .add_step_dependency("execute", "decide")
             .build();
     }
+}
+
+// Workflow persistence implementation
+void WorkflowOrchestrator::ensure_workflows_directory() {
+    std::filesystem::create_directories(workflows_dir_);
+    std::filesystem::create_directories(templates_dir_);
+}
+
+bool WorkflowOrchestrator::save_workflow_definition(const WorkflowDefinition& workflow) {
+    try {
+        ensure_workflows_directory();
+        
+        // Convert WorkflowDefinition to JSON
+        json workflow_json;
+        workflow_json["id"] = workflow.id;
+        workflow_json["name"] = workflow.name;
+        workflow_json["description"] = workflow.description;
+        workflow_json["type"] = static_cast<int>(workflow.type);
+        workflow_json["version"] = workflow.version;
+        workflow_json["created_at"] = workflow.created_at;
+        workflow_json["max_execution_time_ms"] = workflow.max_execution_time_ms;
+        workflow_json["allow_partial_failure"] = workflow.allow_partial_failure;
+        workflow_json["global_context"] = workflow.global_context;
+        
+        if (workflow.retry_policy.has_value()) {
+            workflow_json["retry_policy"] = {
+                {"max_retries", workflow.retry_policy.value().max_retries},
+                {"backoff_multiplier", workflow.retry_policy.value().backoff_multiplier},
+                {"initial_delay_ms", workflow.retry_policy.value().initial_delay_ms},
+                {"max_delay_ms", workflow.retry_policy.value().max_delay_ms}
+            };
+        } else {
+            workflow_json["retry_policy"] = {
+                {"max_retries", workflow.default_retry_policy.max_retries},
+                {"backoff_multiplier", workflow.default_retry_policy.backoff_multiplier},
+                {"initial_delay_ms", workflow.default_retry_policy.initial_delay_ms},
+                {"max_delay_ms", workflow.default_retry_policy.max_delay_ms}
+            };
+        }
+        
+        // Convert steps
+        workflow_json["steps"] = json::array();
+        for (const auto& step : workflow.steps) {
+            json step_json;
+            step_json["id"] = step.id;
+            step_json["agent_name"] = step.agent_name;
+            step_json["function_name"] = step.function_name;
+            step_json["parameters"] = step.parameters;
+            step_json["dependencies"] = step.dependencies;
+            step_json["condition"] = step.condition;
+            step_json["llm_model"] = step.llm_model;
+            step_json["timeout_ms"] = step.timeout_ms;
+            step_json["optional"] = step.optional;
+            
+            if (step.retry_policy.max_retries > 0) {
+                step_json["retry_policy"] = {
+                    {"max_retries", step.retry_policy.max_retries},
+                    {"backoff_multiplier", step.retry_policy.backoff_multiplier},
+                    {"initial_delay_ms", step.retry_policy.initial_delay_ms},
+                    {"max_delay_ms", step.retry_policy.max_delay_ms}
+                };
+            }
+            
+            workflow_json["steps"].push_back(step_json);
+        }
+        
+        // Convert loop configuration if present
+        if (workflow.loop_config.has_value()) {
+            const auto& loop_cfg = workflow.loop_config.value();
+            workflow_json["loop_config"] = {
+                {"max_iterations", loop_cfg.max_iterations},
+                {"break_condition", loop_cfg.break_condition},
+                {"iteration_context_key", loop_cfg.iteration_context_key}
+            };
+        }
+        
+        // Save to file
+        std::string file_path = workflows_dir_ + "/" + workflow.name + ".json";
+        std::ofstream file(file_path);
+        if (!file.is_open()) {
+            return false;
+        }
+        
+        file << workflow_json.dump(2);
+        file.close();
+        
+        // Update in-memory cache
+        workflow_definitions_[workflow.name] = workflow;
+        
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "Error saving workflow definition: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+bool WorkflowOrchestrator::load_workflow_definition(const std::string& name, WorkflowDefinition& workflow) {
+    try {
+        // Check in-memory cache first
+        auto it = workflow_definitions_.find(name);
+        if (it != workflow_definitions_.end()) {
+            workflow = it->second;
+            return true;
+        }
+        
+        // Try loading from disk
+        std::string file_path = workflows_dir_ + "/" + name + ".json";
+        std::ifstream file(file_path);
+        if (!file.is_open()) {
+            return false;
+        }
+        
+        json workflow_json;
+        file >> workflow_json;
+        file.close();
+        
+        // Parse JSON back to WorkflowDefinition
+        workflow.id = workflow_json["id"];
+        workflow.name = workflow_json["name"];
+        workflow.description = workflow_json.value("description", "");
+        workflow.type = static_cast<WorkflowType>(workflow_json["type"]);
+        workflow.version = workflow_json.value("version", "1.0");
+        workflow.created_at = workflow_json.value("created_at", "");
+        workflow.max_execution_time_ms = workflow_json.value("max_execution_time_ms", 300000);
+        workflow.allow_partial_failure = workflow_json.value("allow_partial_failure", false);
+        workflow.global_context = workflow_json.value("global_context", json{});
+        
+        // Parse retry policy
+        if (workflow_json.contains("retry_policy")) {
+            const auto& retry_json = workflow_json["retry_policy"];
+            RetryPolicy retry_policy;
+            retry_policy.max_retries = retry_json.value("max_retries", 3);
+            retry_policy.backoff_multiplier = retry_json.value("backoff_multiplier", 2.0f);
+            retry_policy.initial_delay_ms = retry_json.value("initial_delay_ms", 1000);
+            retry_policy.max_delay_ms = retry_json.value("max_delay_ms", 30000);
+            workflow.retry_policy = retry_policy;
+        }
+        
+        // Parse steps
+        workflow.steps.clear();
+        if (workflow_json.contains("steps")) {
+            for (const auto& step_json : workflow_json["steps"]) {
+                WorkflowStep step;
+                step.id = step_json["id"];
+                step.agent_name = step_json["agent_name"];
+                step.function_name = step_json["function_name"];
+                step.parameters = step_json.value("parameters", json{});
+                step.dependencies = step_json.value("dependencies", std::vector<std::string>{});
+                step.condition = step_json.value("condition", json{});
+                step.llm_model = step_json.value("llm_model", "");
+                step.timeout_ms = step_json.value("timeout_ms", 30000);
+                step.optional = step_json.value("optional", false);
+                
+                // Parse step retry policy if present
+                if (step_json.contains("retry_policy")) {
+                    const auto& retry_json = step_json["retry_policy"];
+                    RetryPolicy step_retry;
+                    step_retry.max_retries = retry_json.value("max_retries", 3);
+                    step_retry.backoff_multiplier = retry_json.value("backoff_multiplier", 2.0);
+                    step_retry.initial_delay_ms = retry_json.value("initial_delay_ms", 1000);
+                    step_retry.max_delay_ms = retry_json.value("max_delay_ms", 30000);
+                    step.retry_policy = step_retry;
+                }
+                
+                workflow.steps.push_back(step);
+            }
+        }
+        
+        // Parse loop configuration if present
+        if (workflow_json.contains("loop_config")) {
+            const auto& loop_json = workflow_json["loop_config"];
+            WorkflowDefinition::LoopConfiguration loop_cfg;
+            loop_cfg.max_iterations = loop_json.value("max_iterations", 10);
+            loop_cfg.break_condition = loop_json.value("break_condition", json{});
+            loop_cfg.iteration_context_key = loop_json.value("iteration_context_key", "iteration");
+            workflow.loop_config = loop_cfg;
+        }
+        
+        // Cache in memory
+        workflow_definitions_[name] = workflow;
+        
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "Error loading workflow definition: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+bool WorkflowOrchestrator::delete_workflow_definition(const std::string& name) {
+    try {
+        // Remove from in-memory cache
+        workflow_definitions_.erase(name);
+        
+        // Remove from disk
+        std::string file_path = workflows_dir_ + "/" + name + ".json";
+        return std::filesystem::remove(file_path);
+    } catch (const std::exception& e) {
+        std::cerr << "Error deleting workflow definition: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+std::vector<std::string> WorkflowOrchestrator::list_workflow_definitions() {
+    std::vector<std::string> workflow_names;
+    
+    try {
+        // Scan workflows directory
+        if (std::filesystem::exists(workflows_dir_)) {
+            for (const auto& entry : std::filesystem::directory_iterator(workflows_dir_)) {
+                if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                    std::string name = entry.path().stem().string();
+                    workflow_names.push_back(name);
+                }
+            }
+        }
+        
+        // Also include any workflows currently in memory but not on disk
+        for (const auto& pair : workflow_definitions_) {
+            if (std::find(workflow_names.begin(), workflow_names.end(), pair.first) == workflow_names.end()) {
+                workflow_names.push_back(pair.first);
+            }
+        }
+        
+        std::sort(workflow_names.begin(), workflow_names.end());
+    } catch (const std::exception& e) {
+        std::cerr << "Error listing workflow definitions: " << e.what() << std::endl;
+    }
+    
+    return workflow_names;
 }
