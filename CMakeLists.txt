@@ -25,9 +25,9 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Set output directories for consistent build output
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/debug)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/debug/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/debug/lib)
 
 # Options
 option(BUILD_KOLOSAL_SERVER "Build the Kolosal Server component" ON)
@@ -173,6 +173,8 @@ set(WORKFLOW_SOURCES
 set(TOOL_SOURCES
     src/functions/retrieval.cpp
     src/functions/research.cpp
+    src/functions/research_brief.cpp
+    src/functions/research_brief_functions.cpp
 )
 
 # Add retrieval manager if kolosal-server is built
@@ -203,7 +205,7 @@ set_target_properties(kolosal-agent PROPERTIES
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
     OUTPUT_NAME "kolosal-agent"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/debug"
 )
 
 # Ensure kolosal-agent uses the correct nlohmann/json version
@@ -237,8 +239,8 @@ if(WIN32)
     add_custom_command(TARGET kolosal-agent POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "$<TARGET_FILE:kolosal-agent>"
-        "${CMAKE_BINARY_DIR}/kolosal-agent.exe"
-        COMMENT "Copying kolosal-agent.exe to main build directory"
+        "${CMAKE_BINARY_DIR}/debug/kolosal-agent.exe"
+        COMMENT "Copying kolosal-agent.exe to debug directory"
     )
     
 elseif(APPLE)
@@ -307,7 +309,7 @@ if(BUILD_KOLOSAL_SERVER)
     message(STATUS "Building Kolosal Server component")
     
     # Ensure kolosal-server builds its executable in the same output directory
-    set(KOLOSAL_SERVER_OUTPUT_DIR "${CMAKE_BINARY_DIR}" CACHE STRING "Output directory for kolosal-server")
+    set(KOLOSAL_SERVER_OUTPUT_DIR "${CMAKE_BINARY_DIR}/debug" CACHE STRING "Output directory for kolosal-server")
     
     add_subdirectory(kolosal-server)
     
@@ -349,7 +351,7 @@ if(BUILD_KOLOSAL_SERVER)
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "$<TARGET_FILE_DIR:kolosal_server_exe>/kolosal-server.exe"
                 "$<TARGET_FILE_DIR:kolosal-agent>/kolosal-server.exe"
-                COMMENT "Ensuring kolosal-server.exe is in the same directory as kolosal-agent"
+                COMMENT "Ensuring kolosal-server.exe is in the debug directory"
                 VERBATIM
             )
         endif()
@@ -360,7 +362,7 @@ if(BUILD_KOLOSAL_SERVER)
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "$<TARGET_FILE_DIR:kolosal_server_exe>/kolosal-server"
                 "$<TARGET_FILE_DIR:kolosal-agent>/kolosal-server"
-                COMMENT "Ensuring kolosal-server binary is in the same directory as kolosal-agent"
+                COMMENT "Ensuring kolosal-server binary is in the debug directory"
                 VERBATIM
             )
         endif()
@@ -600,16 +602,19 @@ logging:
   max_files: 5
 ")
 
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/agent.yaml" "${AGENT_CONFIG_CONTENT}")
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/config.yaml" "${KOLOSAL_SERVER_CONFIG_CONTENT}")
+# Create debug directory if it doesn't exist
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/debug")
+
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/debug/agent.yaml" "${AGENT_CONFIG_CONTENT}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/debug/config.yaml" "${KOLOSAL_SERVER_CONFIG_CONTENT}")
 
 # Install configuration files
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/agent.yaml"
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/debug/agent.yaml"
     DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/kolosal-agent
     COMPONENT Runtime
 )
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/config.yaml"
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/debug/config.yaml"
     DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/kolosal-agent
     COMPONENT Runtime
 )
@@ -786,17 +791,17 @@ echo \"  -d '{\\\"model\\\": \\\"default\\\", \\\"messages\\\": [{\\\"role\\\": 
 echo \"\"
 ")
 
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/examples.sh" "${EXAMPLE_CONTENT}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/debug/examples.sh" "${EXAMPLE_CONTENT}")
 
 # Make executable on Unix systems
 if(UNIX)
-    file(CHMOD "${CMAKE_CURRENT_BINARY_DIR}/examples.sh" 
+    file(CHMOD "${CMAKE_CURRENT_BINARY_DIR}/debug/examples.sh" 
          PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE 
                      GROUP_READ GROUP_EXECUTE 
                      WORLD_READ WORLD_EXECUTE)
 endif()
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/examples.sh"
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/debug/examples.sh"
     DESTINATION ${CMAKE_INSTALL_DOCDIR}
     COMPONENT Documentation
 )

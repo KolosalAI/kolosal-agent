@@ -26,7 +26,11 @@ Logger::Logger() : current_level_(LogLevel::INFO) {
 }
 
 Logger::~Logger() {
-    shutdown();
+    try {
+        shutdown();
+    } catch (...) {
+        // Suppress exceptions in destructor to prevent abort()
+    }
 }
 
 std::string Logger::level_to_string(LogLevel level) const {
@@ -199,9 +203,13 @@ bool Logger::should_log(LogLevel level) const {
 }
 
 void Logger::shutdown() {
-    std::lock_guard<std::mutex> lock(log_mutex_);
-    if (file_stream_.is_open()) {
-        file_stream_.close();
+    try {
+        std::lock_guard<std::mutex> lock(log_mutex_);
+        if (file_stream_.is_open()) {
+            file_stream_.close();
+        }
+    } catch (...) {
+        // Suppress exceptions during shutdown
     }
 }
 

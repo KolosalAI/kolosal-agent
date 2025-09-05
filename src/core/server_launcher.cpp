@@ -54,9 +54,16 @@ KolosalServerLauncher::KolosalServerLauncher(const ServerConfig& config)
 KolosalServerLauncher::~KolosalServerLauncher() {
     TRACE_FUNCTION();
     
-    if (is_running()) {
-        LOG_INFO("Stopping server during destructor");
-        stop();
+    try {
+        if (is_running()) {
+            LOG_INFO("Stopping server during destructor");
+            stop();
+        }
+    } catch (const std::exception& e) {
+        // Log error but don't throw from destructor
+        LOG_ERROR_F("Exception during server launcher destructor: %s", e.what());
+    } catch (...) {
+        // Suppress all exceptions in destructor to prevent abort()
     }
 }
 
@@ -132,10 +139,34 @@ bool KolosalServerLauncher::stop() {
     // Terminate the process
     bool success = terminate_process();
     
-    // Wait for monitor thread to finish
+    // Wait for monitor thread to finish with timeout
     if (monitor_thread_ && monitor_thread_->joinable()) {
-        monitor_thread_->join();
-        monitor_thread_.reset();
+        try {
+            // Give the monitor thread some time to finish
+            std::thread timeout_thread([this]() {
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+                // Force detach if thread is still joinable after timeout
+                if (monitor_thread_ && monitor_thread_->joinable()) {
+                    monitor_thread_->detach();
+                }
+            });
+            timeout_thread.detach();
+            
+            monitor_thread_->join();
+            monitor_thread_.reset();
+        } catch (const std::exception& e) {
+            LOG_WARN_F("Exception during monitor thread join: %s", e.what());
+            if (monitor_thread_->joinable()) {
+                monitor_thread_->detach();
+            }
+            monitor_thread_.reset();
+        } catch (...) {
+            LOG_WARN("Unknown exception during monitor thread join");
+            if (monitor_thread_->joinable()) {
+                monitor_thread_->detach();
+            }
+            monitor_thread_.reset();
+        }
     }
     
     update_status(STOPPED, success ? "Server stopped" : "Stop failed");
@@ -345,6 +376,7 @@ bool KolosalServerLauncher::terminate_process() {
     }
     
     // Try graceful termination first
+    LOG_DEBUG("Attempting graceful process termination");
     if (!TerminateProcess(process_handle_, 0)) {
         DWORD error = GetLastError();
         LOG_ERROR_F("TerminateProcess failed with error %lu", error);
@@ -357,10 +389,19 @@ bool KolosalServerLauncher::terminate_process() {
         LOG_WARN("Process did not exit gracefully within timeout");
     }
     
-    CloseHandle(process_handle_);
-    CloseHandle(thread_handle_);
-    process_handle_ = nullptr;
-    thread_handle_ = nullptr;
+    // Clean up handles
+    try {
+        if (process_handle_) {
+            CloseHandle(process_handle_);
+            process_handle_ = nullptr;
+        }
+        if (thread_handle_) {
+            CloseHandle(thread_handle_);
+            thread_handle_ = nullptr;
+        }
+    } catch (...) {
+        LOG_WARN("Exception while cleaning up process handles");
+    }
     
     return true;
     
@@ -370,6 +411,7 @@ bool KolosalServerLauncher::terminate_process() {
     }
     
     // Try graceful termination first
+    LOG_DEBUG_F("Sending SIGTERM to process %d", process_id_);
     if (kill(process_id_, SIGTERM) != 0) {
         LOG_ERROR_F("Failed to send SIGTERM to process %d", process_id_);
         return false;

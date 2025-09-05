@@ -67,6 +67,8 @@ Agent::Agent(const std::string& name)
     
     LOG_DEBUG("Setting up builtin functions");
     setup_builtin_functions();
+    LOG_DEBUG("Setting up research brief functions");
+    setup_research_brief_functions();
 #ifdef BUILD_WITH_RETRIEVAL
     LOG_DEBUG("Setting up retrieval functions");
     setup_retrieval_functions();
@@ -657,16 +659,69 @@ void Agent::setup_retrieval_functions() {
     // Search functions
     register_function("internet_search", [this](const json& params) -> json {
         if (!retrieval_manager_ || !retrieval_manager_->is_available()) {
-            throw std::runtime_error("Search system not available");
+            json fallback_response;
+            fallback_response["status"] = "unavailable";
+            fallback_response["message"] = "Search system not available - retrieval manager not initialized";
+            fallback_response["query"] = params.value("query", "");
+            fallback_response["results"] = json::array();
+            fallback_response["suggestions"] = json::array({
+                "Verify that the Kolosal server is running",
+                "Check retrieval system configuration",
+                "Use alternative research methods"
+            });
+            return fallback_response;
         }
-        return retrieval_manager_->internet_search(params);
+        
+        try {
+            auto result = retrieval_manager_->internet_search(params);
+            return result;
+        } catch (const std::exception& e) {
+            LOG_WARN_F("Internet search failed, returning graceful fallback: %s", e.what());
+            json fallback_response;
+            fallback_response["status"] = "error";
+            fallback_response["message"] = std::string("Internet search failed: ") + e.what();
+            fallback_response["query"] = params.value("query", "");
+            fallback_response["results"] = json::array();
+            fallback_response["suggestions"] = json::array({
+                "Try rephrasing your search query",
+                "Check if the search service is available",
+                "Use document management functions for local searches"
+            });
+            return fallback_response;
+        }
     });
     
     register_function("research", [this](const json& params) -> json {
         if (!retrieval_manager_ || !retrieval_manager_->is_available()) {
-            throw std::runtime_error("Retrieval system not available");
+            json fallback_response;
+            fallback_response["status"] = "unavailable";
+            fallback_response["message"] = "Retrieval system not available";
+            fallback_response["query"] = params.value("query", "");
+            fallback_response["results"] = json::array();
+            fallback_response["suggestions"] = json::array({
+                "Verify that the Kolosal server is running",
+                "Check retrieval system configuration",
+                "Use alternative research methods"
+            });
+            return fallback_response;
         }
-        return retrieval_manager_->combined_search(params);
+        
+        try {
+            return retrieval_manager_->combined_search(params);
+        } catch (const std::exception& e) {
+            LOG_WARN_F("Research function failed, returning graceful fallback: %s", e.what());
+            json fallback_response;
+            fallback_response["status"] = "error";
+            fallback_response["message"] = std::string("Research failed: ") + e.what();
+            fallback_response["query"] = params.value("query", "");
+            fallback_response["results"] = json::array();
+            fallback_response["suggestions"] = json::array({
+                "Try using document management functions",
+                "Check if search services are available",
+                "Consider breaking down the research into smaller queries"
+            });
+            return fallback_response;
+        }
     });
     
     // Enhanced retrieval function that combines document search with AI-generated answers

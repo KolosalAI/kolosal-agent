@@ -5,11 +5,14 @@
 #include <thread>
 #include <algorithm>
 #include <ctime>
+#include <mutex>
 
 #ifdef _WIN32
 static bool winsock_initialized = false;
+static std::mutex winsock_mutex;
 
 void init_winsock() {
+    std::lock_guard<std::mutex> lock(winsock_mutex);
     if (!winsock_initialized) {
         WSADATA wsaData;
         if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
@@ -20,6 +23,7 @@ void init_winsock() {
 }
 
 void cleanup_winsock() {
+    std::lock_guard<std::mutex> lock(winsock_mutex);
     if (winsock_initialized) {
         WSACleanup();
         winsock_initialized = false;
@@ -49,8 +53,12 @@ HTTPServer::HTTPServer(std::shared_ptr<AgentManager> agent_manager,
 }
 
 HTTPServer::~HTTPServer() {
-    stop();
-    cleanup_winsock();
+    try {
+        stop();
+        cleanup_winsock();
+    } catch (...) {
+        // Suppress exceptions in destructor to prevent abort()
+    }
 }
 
 bool HTTPServer::start() {
@@ -137,26 +145,6 @@ bool HTTPServer::start() {
         std::cout << "  GET    /workflow_executions/{id}/logs - Get execution logs\n";
     }
     std::cout << "\n";
-    std::cout << "Execute function format:\n";
-    std::cout << "  {\n";
-    std::cout << "    \"function\": \"chat\",\n";
-    std::cout << "    \"model\": \"model_name\",\n";
-    std::cout << "    \"params\": {\n";
-    std::cout << "      \"message\": \"your message\"\n";
-    std::cout << "    }\n";
-    std::cout << "  }\n";
-    std::cout << "\n";
-    std::cout << "Simple agent execute format (POST /agent/execute):\n";
-    std::cout << "  {\n";
-    std::cout << "    \"query\": \"What is artificial intelligence?\",\n";
-    std::cout << "    \"context\": \"Additional context (optional)\",\n";
-    std::cout << "    \"model\": \"qwen2.5-0.5b\",\n";
-    std::cout << "    \"agent\": \"Assistant\" (optional - uses first available agent if not specified)\n";
-    std::cout << "  }\n";
-    std::cout << "\n";
-    std::cout << "Special execute functions:\n";
-    std::cout << "  execute_all_tools - Run all tool functions and use results as LLM context\n";
-    std::cout << "  Note: Model parameter is required for AI-powered functions\n";
     
     return true;
 }
@@ -174,7 +162,13 @@ void HTTPServer::stop() {
     }
     
     if (server_thread_.joinable()) {
-        server_thread_.join();
+        try {
+            server_thread_.join();
+        } catch (const std::exception& e) {
+            std::cerr << "Warning: Exception during server thread join: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "Warning: Unknown exception during server thread join" << std::endl;
+        }
     }
     
     std::cout << "HTTP Server stopped\n";

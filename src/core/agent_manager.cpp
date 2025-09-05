@@ -312,10 +312,18 @@ json AgentManager::list_agents() const {
 }
 
 void AgentManager::stop_all_agents() {
-    for (auto& [agent_id, agent] : agents_) {
-        agent->stop();
+    try {
+        for (auto& [agent_id, agent] : agents_) {
+            if (agent) {
+                agent->stop();
+            }
+        }
+        std::cout << "Stopped all agents\n";
+    } catch (const std::exception& e) {
+        std::cerr << "Warning: Exception during agent shutdown: " << e.what() << std::endl;
+    } catch (...) {
+        std::cerr << "Warning: Unknown exception during agent shutdown" << std::endl;
     }
-    std::cout << "Stopped all agents\n";
 }
 
 json AgentManager::execute_agent_function(const std::string& agent_id, 
@@ -324,6 +332,16 @@ json AgentManager::execute_agent_function(const std::string& agent_id,
     auto agent = get_agent(agent_id);
     if (!agent) {
         throw std::runtime_error("Agent not found: " + agent_id);
+    }
+    
+    // Auto-start agent if it's not running
+    if (!agent->is_running()) {
+        LOG_INFO_F("Agent '%s' is not running, attempting to start it", agent_id.c_str());
+        if (!agent->start()) {
+            LOG_ERROR_F("Failed to start agent '%s'", agent_id.c_str());
+            throw std::runtime_error("Failed to start agent: " + agent_id);
+        }
+        LOG_INFO_F("Agent '%s' started successfully", agent_id.c_str());
     }
     
     return agent->execute_function(function_name, params);

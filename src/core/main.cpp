@@ -20,25 +20,39 @@ std::shared_ptr<WorkflowOrchestrator> workflow_orchestrator;
 std::unique_ptr<KolosalServerLauncher> kolosal_server_launcher;
 
 void signal_handler(int signal) {
+    static std::atomic<bool> shutdown_in_progress{false};
+    
+    // Prevent multiple shutdown attempts
+    if (shutdown_in_progress.exchange(true)) {
+        LOG_WARN("Shutdown already in progress, ignoring signal");
+        return;
+    }
+    
     LOG_INFO_F("Received signal %d, shutting down gracefully...", signal);
     system_running.store(false);
     
-    // Stop in proper order: HTTP server -> workflow system -> agents -> kolosal server
-    if (http_server) {
-        LOG_DEBUG("Stopping HTTP server...");
-        http_server->stop();
-    }
-    if (workflow_orchestrator) {
-        LOG_DEBUG("Stopping workflow orchestrator...");
-        workflow_orchestrator->stop();
-    }
-    if (workflow_manager) {
-        LOG_DEBUG("Stopping workflow manager...");
-        workflow_manager->stop();
-    }
-    if (kolosal_server_launcher) {
-        LOG_DEBUG("Stopping Kolosal Server...");
-        kolosal_server_launcher->stop();
+    try {
+        // Stop in proper order: HTTP server -> workflow system -> agents -> kolosal server
+        if (http_server) {
+            LOG_DEBUG("Stopping HTTP server...");
+            http_server->stop();
+        }
+        if (workflow_orchestrator) {
+            LOG_DEBUG("Stopping workflow orchestrator...");
+            workflow_orchestrator->stop();
+        }
+        if (workflow_manager) {
+            LOG_DEBUG("Stopping workflow manager...");
+            workflow_manager->stop();
+        }
+        if (kolosal_server_launcher) {
+            LOG_DEBUG("Stopping Kolosal Server...");
+            kolosal_server_launcher->stop();
+        }
+    } catch (const std::exception& e) {
+        LOG_ERROR_F("Exception during signal handler cleanup: %s", e.what());
+    } catch (...) {
+        LOG_ERROR("Unknown exception during signal handler cleanup");
     }
 }
 
@@ -300,40 +314,6 @@ int main(int argc, char* argv[]) {
         std::cout << "   * Default agents created and ready\n";
         std::cout << "   * Workflow system active with built-in templates\n\n";
         
-        // Get the first available agent for examples
-        auto agents_list = agent_manager->list_agents();
-        std::string example_agent_id;
-        if (agents_list.contains("agents") && !agents_list["agents"].empty()) {
-            example_agent_id = agents_list["agents"][0]["id"];
-        }
-        
-        std::cout << "📋 Quick Start Examples:\n";
-        std::cout << "   # List all agents\n";
-        std::cout << "   curl http://" << host << ":" << port << "/agents\n\n";
-        
-        if (!example_agent_id.empty()) {
-            std::cout << "   # Chat with agent (specify model)\n";
-            std::cout << "   curl -X POST http://" << host << ":" << port << "/agents/" << example_agent_id << "/execute \\\n";
-            std::cout << "     -H \"Content-Type: application/json\" \\\n";
-            std::cout << "     -d '{\"function\": \"chat\", \"model\": \"your_model_name\", \"params\": {\"message\": \"Hello!\"}}'\n\n";
-            
-            std::cout << "   # Execute simple research workflow with agent-LLM pairing\n";
-            std::cout << "   curl -X POST http://" << host << ":" << port << "/workflows/simple_research/execute \\\n";
-            std::cout << "     -H \"Content-Type: application/json\" \\\n";
-            std::cout << "     -d '{\"input_data\": {\"question\": \"What is AI?\"}}'\n\n";
-            
-            std::cout << "   # Execute analysis workflow with multiple agents\n";
-            std::cout << "   curl -X POST http://" << host << ":" << port << "/workflows/analysis_workflow/execute \\\n";
-            std::cout << "     -H \"Content-Type: application/json\" \\\n";
-            std::cout << "     -d '{\"input_data\": {\"text\": \"Sample text to analyze\"}}'\n\n";
-        }
-        
-        std::cout << "   # List workflow templates\n";
-        std::cout << "   curl http://" << host << ":" << port << "/workflows\n\n";
-        
-        std::cout << "   # System status\n";
-        std::cout << "   curl http://" << host << ":" << port << "/status\n\n";
-        
         std::cout << "Press Ctrl+C to shutdown gracefully...\n\n";
         
         // Main event loop
@@ -345,35 +325,41 @@ int main(int argc, char* argv[]) {
         // Graceful shutdown
         LOG_INFO("Shutting down system...");
         
-        // Stop HTTP server first
-        if (http_server) {
-            LOG_DEBUG("Stopping HTTP server...");
-            http_server->stop();
-            http_server.reset();
-        }
-        
-        // Stop workflow system
-        if (workflow_orchestrator) {
-            LOG_INFO("Stopping workflow orchestrator...");
-            workflow_orchestrator->stop();
-            workflow_orchestrator.reset();
-        }
-        
-        if (workflow_manager) {
-            LOG_INFO("Stopping workflow manager...");
-            workflow_manager->stop();
-            workflow_manager.reset();
-        }
-        
-        // Stop all agents
-        LOG_DEBUG("Stopping all agents...");
-        agent_manager->stop_all_agents();
-        
-        // Stop Kolosal Server LAST
-        if (kolosal_server_launcher && kolosal_server_launcher->is_running()) {
-            LOG_INFO("Stopping Kolosal Server...");
-            kolosal_server_launcher->stop();
-            LOG_INFO("✓ Kolosal Server stopped");
+        try {
+            // Stop HTTP server first
+            if (http_server) {
+                LOG_DEBUG("Stopping HTTP server...");
+                http_server->stop();
+                http_server.reset();
+            }
+            
+            // Stop workflow system
+            if (workflow_orchestrator) {
+                LOG_INFO("Stopping workflow orchestrator...");
+                workflow_orchestrator->stop();
+                workflow_orchestrator.reset();
+            }
+            
+            if (workflow_manager) {
+                LOG_INFO("Stopping workflow manager...");
+                workflow_manager->stop();
+                workflow_manager.reset();
+            }
+            
+            // Stop all agents
+            LOG_DEBUG("Stopping all agents...");
+            agent_manager->stop_all_agents();
+            
+            // Stop Kolosal Server LAST
+            if (kolosal_server_launcher && kolosal_server_launcher->is_running()) {
+                LOG_INFO("Stopping Kolosal Server...");
+                kolosal_server_launcher->stop();
+                LOG_INFO("✓ Kolosal Server stopped");
+            }
+        } catch (const std::exception& e) {
+            LOG_ERROR_F("Exception during shutdown: %s", e.what());
+        } catch (...) {
+            LOG_ERROR("Unknown exception during shutdown");
         }
         
         LOG_INFO("Kolosal Agent System shutdown complete.");

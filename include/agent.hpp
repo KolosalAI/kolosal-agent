@@ -78,6 +78,15 @@ public:
     // Helper functions
     json create_research_function_response(const std::string& function_name, const json& params, const std::string& task_description);
     
+    // Research brief functions
+    void setup_research_brief_functions();
+    int count_words(const std::string& text) const;
+    int count_sentences(const std::string& text) const;
+    int count_paragraphs(const std::string& text) const;
+    std::vector<std::string> extract_topics(const std::string& text) const;
+    std::string extract_key_sentence(const std::string& text) const;
+    std::string get_current_date_jakarta() const;
+    
 #ifdef BUILD_WITH_RETRIEVAL
     // Retrieval functions
     void setup_retrieval_functions();

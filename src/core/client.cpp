@@ -224,8 +224,26 @@ json KolosalClient::internet_search(const std::string& query, int num_results) {
         
         return make_request_with_retry("POST", "/search", request_data);
     } catch (const std::exception& e) {
-        LOG_ERROR_F("Failed to perform internet search: %s", e.what());
-        throw std::runtime_error("Failed to perform internet search: " + std::string(e.what()));
+        std::string error_msg = e.what();
+        
+        // Check if this is a 404 error indicating search functionality is not available
+        if (error_msg.find("HTTP error 404") != std::string::npos || 
+            error_msg.find("Not found") != std::string::npos) {
+            LOG_WARN_F("Internet search endpoint not available on server: %s", error_msg.c_str());
+            
+            // Return a mock response indicating search is not available
+            json mock_response;
+            mock_response["status"] = "search_not_available";
+            mock_response["message"] = "Internet search functionality is not available on this server";
+            mock_response["query"] = query;
+            mock_response["results"] = json::array();
+            mock_response["suggestion"] = "Please enable the internet search feature on the Kolosal server or use alternative research methods";
+            
+            return mock_response;
+        }
+        
+        LOG_ERROR_F("Failed to perform internet search: %s", error_msg.c_str());
+        throw std::runtime_error("Failed to perform internet search: " + error_msg);
     }
 }
 

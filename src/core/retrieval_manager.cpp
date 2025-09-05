@@ -127,7 +127,28 @@ json RetrievalManager::internet_search(const json& params) {
         std::string query = params.value("query", "");
         int results = params.value("results", config_.max_search_results);
         
-        return kolosal_client_->internet_search(query, results);
+        auto response = kolosal_client_->internet_search(query, results);
+        
+        // Check if the response indicates search is not available
+        if (response.contains("status") && response["status"] == "search_not_available") {
+            LOG_WARN("Internet search functionality is not available on the server");
+            
+            // Return a formatted response that the agent can handle
+            json fallback_response;
+            fallback_response["status"] = "unavailable";
+            fallback_response["message"] = "Internet search is not available. Please use alternative research methods or enable search on the server.";
+            fallback_response["query"] = query;
+            fallback_response["results"] = json::array();
+            fallback_response["suggestions"] = json::array({
+                "Use document management functions to search existing knowledge base",
+                "Check if the Kolosal server has internet search capabilities enabled",
+                "Consider using alternative information sources"
+            });
+            
+            return fallback_response;
+        }
+        
+        return response;
     } catch (const std::exception& e) {
         throw std::runtime_error("Failed to perform internet search: " + std::string(e.what()));
     }

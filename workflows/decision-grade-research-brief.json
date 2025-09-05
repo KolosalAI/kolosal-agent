@@ -1,0 +1,261 @@
+{
+  "id": "decision_grade_research_brief",
+  "name": "Decision-Grade Research Brief Workflow",
+  "description": "Comprehensive research workflow that produces decision-grade briefs with proper citations, source verification, and structured deliverables",
+  "type": 0,
+  "version": "1.0",
+  "max_execution_time_ms": 1800000,
+  "allow_partial_failure": false,
+  "global_context": {
+    "timezone": "Asia/Jakarta",
+    "date_format": "YYYY-MM-DD",
+    "min_sources_per_claim": 2,
+    "confidence_threshold": 0.7,
+    "max_executive_summary_words": 200,
+    "citation_style": "url_with_date"
+  },
+  "retry_policy": {
+    "max_retries": 3,
+    "backoff_multiplier": 2.0,
+    "initial_delay_ms": 2000,
+    "max_delay_ms": 30000
+  },
+  "steps": [
+    {
+      "id": "validate_parameters",
+      "agent_name": "Assistant",
+      "function_name": "analyze",
+      "parameters": {
+        "text": "Validate research brief parameters: Topic={{input.topic}}, Audience={{input.audience}}, Depth={{input.depth}}, Min Sources={{input.min_sources}}",
+        "analysis_type": "parameter_validation",
+        "model": "default"
+      },
+      "dependencies": [],
+      "condition": {},
+      "llm_model": "default",
+      "timeout_ms": 30000,
+      "optional": false
+    },
+    {
+      "id": "research_planning",
+      "agent_name": "DeepResearcher",
+      "function_name": "plan_research",
+      "parameters": {
+        "query": "{{input.topic}}",
+        "research_scope": "comprehensive",
+        "depth_level": "{{input.depth}}",
+        "audience": "{{input.audience}}",
+        "min_sources": "{{input.min_sources}}"
+      },
+      "dependencies": ["validate_parameters"],
+      "condition": {
+        "field": "validate_parameters.result.status",
+        "operator": "equals",
+        "value": "valid"
+      },
+      "llm_model": "default",
+      "timeout_ms": 120000,
+      "optional": false
+    },
+    {
+      "id": "primary_internet_research",
+      "agent_name": "Researcher", 
+      "function_name": "internet_search",
+      "parameters": {
+        "query": "{{research_planning.result.primary_query}}",
+        "results": "{{input.min_sources}}",
+        "language": "en"
+      },
+      "dependencies": ["research_planning"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 180000,
+      "optional": false
+    },
+    {
+      "id": "knowledge_base_search",
+      "agent_name": "RetrievalAgent",
+      "function_name": "search_documents", 
+      "parameters": {
+        "query": "{{input.topic}}",
+        "limit": "{{input.min_sources}}",
+        "threshold": 0.7
+      },
+      "dependencies": ["research_planning"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 120000,
+      "optional": true
+    },
+    {
+      "id": "cross_reference_search",
+      "agent_name": "DeepResearcher",
+      "function_name": "cross_reference_search",
+      "parameters": {
+        "query": "{{input.topic}}",
+        "databases": ["internet", "knowledge_base", "documents"],
+        "correlation_threshold": 0.6
+      },
+      "dependencies": ["primary_internet_research", "knowledge_base_search"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 240000,
+      "optional": false
+    },
+    {
+      "id": "source_credibility_analysis",
+      "agent_name": "DeepResearcher", 
+      "function_name": "source_credibility_analysis",
+      "parameters": {
+        "sources": "{{cross_reference_search.result.sources}}",
+        "criteria": ["authority", "currency", "accuracy", "purpose", "coverage"]
+      },
+      "dependencies": ["cross_reference_search"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 120000,
+      "optional": false
+    },
+    {
+      "id": "targeted_research",
+      "agent_name": "DeepResearcher",
+      "function_name": "targeted_research",
+      "parameters": {
+        "research_gaps": "{{cross_reference_search.result.gaps}}",
+        "search_terms": "{{research_planning.result.secondary_terms}}",
+        "sources": "{{source_credibility_analysis.result.high_credibility_sources}}"
+      },
+      "dependencies": ["source_credibility_analysis"],
+      "condition": {
+        "field": "cross_reference_search.result.gap_count",
+        "operator": "greater_than",
+        "value": 0
+      },
+      "llm_model": "",
+      "timeout_ms": 300000,
+      "optional": true
+    },
+    {
+      "id": "fact_verification",
+      "agent_name": "DeepResearcher",
+      "function_name": "verify_facts",
+      "parameters": {
+        "findings": "{{cross_reference_search.result.key_findings}}",
+        "sources": "{{source_credibility_analysis.result.verified_sources}}",
+        "verification_depth": "thorough"
+      },
+      "dependencies": ["targeted_research"],
+      "condition": {},
+      "llm_model": "",
+      "timeout_ms": 240000,
+      "optional": false
+    },
+    {
+      "id": "synthesis_and_analysis",
+      "agent_name": "Analyzer",
+      "function_name": "synthesize_research", 
+      "parameters": {
+        "primary_data": "{{cross_reference_search.result}}",
+        "knowledge_base_data": "{{knowledge_base_search.result}}",
+        "synthesis_type": "thematic",
+        "verification_data": "{{fact_verification.result}}"
+      },
+      "dependencies": ["fact_verification"],
+      "condition": {},
+      "llm_model": "default",
+      "timeout_ms": 180000,
+      "optional": false
+    },
+    {
+      "id": "contradiction_detection",
+      "agent_name": "Analyzer",
+      "function_name": "analyze",
+      "parameters": {
+        "text": "{{synthesis_and_analysis.result.synthesized_data}}",
+        "analysis_type": "contradiction_detection",
+        "model": "default"
+      },
+      "dependencies": ["synthesis_and_analysis"],
+      "condition": {},
+      "llm_model": "default",
+      "timeout_ms": 120000,
+      "optional": false
+    },
+    {
+      "id": "confidence_scoring",
+      "agent_name": "Analyzer",
+      "function_name": "analyze",
+      "parameters": {
+        "text": "{{synthesis_and_analysis.result.key_claims}}",
+        "analysis_type": "confidence_scoring",
+        "model": "default",
+        "sources": "{{source_credibility_analysis.result.source_scores}}"
+      },
+      "dependencies": ["contradiction_detection"],
+      "condition": {},
+      "llm_model": "default", 
+      "timeout_ms": 120000,
+      "optional": false
+    },
+    {
+      "id": "generate_research_report",
+      "agent_name": "DeepResearcher",
+      "function_name": "generate_research_report",
+      "parameters": {
+        "research_data": "{{synthesis_and_analysis.result}}",
+        "analysis_results": "{{confidence_scoring.result}}",
+        "report_format": "decision_brief",
+        "include_citations": true,
+        "audience": "{{input.audience}}",
+        "contradictions": "{{contradiction_detection.result}}",
+        "max_executive_summary_words": "{{global_context.max_executive_summary_words}}"
+      },
+      "dependencies": ["confidence_scoring"],
+      "condition": {},
+      "llm_model": "default",
+      "timeout_ms": 180000,
+      "optional": false
+    },
+    {
+      "id": "format_deliverables",
+      "agent_name": "Assistant",
+      "function_name": "analyze",
+      "parameters": {
+        "text": "{{generate_research_report.result.report}}",
+        "analysis_type": "format_decision_brief",
+        "model": "default",
+        "format_specs": {
+          "executive_summary_max": "{{global_context.max_executive_summary_words}}",
+          "citation_style": "{{global_context.citation_style}}",
+          "timezone": "{{global_context.timezone}}",
+          "include_json_output": true
+        }
+      },
+      "dependencies": ["generate_research_report"],
+      "condition": {},
+      "llm_model": "default",
+      "timeout_ms": 120000,
+      "optional": false
+    },
+    {
+      "id": "quality_validation",
+      "agent_name": "Analyzer",
+      "function_name": "analyze",
+      "parameters": {
+        "text": "{{format_deliverables.result.formatted_brief}}",
+        "analysis_type": "quality_validation",
+        "model": "default",
+        "validation_criteria": {
+          "min_sources": "{{input.min_sources}}",
+          "max_executive_summary_words": "{{global_context.max_executive_summary_words}}",
+          "required_sections": ["executive_summary", "key_findings", "sources", "contradictions", "json_output"]
+        }
+      },
+      "dependencies": ["format_deliverables"],
+      "condition": {},
+      "llm_model": "default",
+      "timeout_ms": 60000,
+      "optional": false
+    }
+  ]
+}
