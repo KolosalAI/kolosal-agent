@@ -1,0 +1,229 @@
+name: Static Analysis
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  clang-static-analyzer:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          clang-tools \
+          clang-tidy \
+          scan-build \
+          cmake \
+          ninja-build \
+          libcurl4-openssl-dev \
+          libssl-dev \
+          libyaml-cpp-dev
+    
+    - name: Configure CMake with Static Analysis
+      run: |
+        cmake -B build \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DENABLE_STATIC_ANALYSIS=ON \
+          -DBUILD_KOLOSAL_SERVER=OFF \
+          -DBUILD_EXAMPLES=OFF
+    
+    - name: Run Clang Static Analyzer
+      run: |
+        scan-build --status-bugs \
+          --html-title="Kolosal Agent Security Analysis" \
+          -o analysis-results \
+          cmake --build build
+    
+    - name: Upload Static Analysis Results
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: clang-static-analysis
+        path: analysis-results/
+        retention-days: 7
+    
+    - name: Check for High-Severity Issues
+      run: |
+        # Fail if high-severity security issues are found
+        if [ -d "analysis-results" ] && [ "$(find analysis-results -name "*.html" | wc -l)" -gt 1 ]; then
+          echo "Static analysis found potential issues. Check the artifacts."
+          exit 1
+        fi
+
+  clang-tidy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          clang-tidy \
+          cmake \
+          ninja-build \
+          libcurl4-openssl-dev \
+          libssl-dev \
+          libyaml-cpp-dev
+    
+    - name: Configure CMake
+      run: |
+        cmake -B build \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+          -DBUILD_KOLOSAL_SERVER=OFF \
+          -DBUILD_EXAMPLES=OFF
+    
+    - name: Run clang-tidy
+      run: |
+        clang-tidy \
+          --config-file=.clang-tidy \
+          --header-filter='include/.*\.hpp' \
+          src/core/*.cpp \
+          -- \
+          -Iinclude \
+          -Iexternal/nlohmann \
+          -std=c++20
+    
+    - name: Check for Security Issues
+      run: |
+        # Run clang-tidy with security-focused checks
+        clang-tidy \
+          --checks='-*,security-*,cert-*,bugprone-*' \
+          --warnings-as-errors='security-*,cert-*' \
+          src/core/*.cpp \
+          -- \
+          -Iinclude \
+          -Iexternal/nlohmann \
+          -std=c++20
+
+  pvs-studio:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          ninja-build \
+          libcurl4-openssl-dev \
+          libssl-dev \
+          libyaml-cpp-dev
+    
+    - name: Install PVS-Studio
+      run: |
+        # Download and install PVS-Studio (free for open source)
+        wget -q https://files.pvs-studio.com/pvs-studio-7.27.74872.100-amd64.deb
+        sudo dpkg -i pvs-studio-7.27.74872.100-amd64.deb || true
+        sudo apt-get install -f -y
+        
+        # Configure license for open source projects
+        pvs-studio-analyzer credentials ${{ secrets.PVS_NAME }} ${{ secrets.PVS_KEY }} -o pvs-studio.lic || true
+    
+    - name: Configure CMake
+      run: |
+        cmake -B build \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DENABLE_PVS_STUDIO=ON \
+          -DBUILD_KOLOSAL_SERVER=OFF \
+          -DBUILD_EXAMPLES=OFF
+    
+    - name: Run PVS-Studio Analysis
+      run: |
+        # Run PVS-Studio analysis
+        pvs-studio-analyzer trace -- cmake --build build
+        pvs-studio-analyzer analyze \
+          --lic-file pvs-studio.lic \
+          --output-file pvs-report.log \
+          --exclude-path external/ \
+          --exclude-path tests/
+        
+        # Convert to readable format
+        plog-converter \
+          -a GA:1,2,3 \
+          -t fullhtml \
+          -o pvs-report \
+          pvs-report.log
+    
+    - name: Upload PVS-Studio Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: pvs-studio-analysis
+        path: pvs-report/
+        retention-days: 30
+    
+    - name: Check for Critical Issues
+      run: |
+        # Check for high-priority security issues
+        plog-converter \
+          -a GA:1,2 \
+          -t csv \
+          -o critical-issues.csv \
+          pvs-report.log
+        
+        # Fail if critical security issues are found
+        if [ -s critical-issues.csv ]; then
+          echo "Critical security issues found:"
+          cat critical-issues.csv
+          exit 1
+        fi
+
+  security-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          ninja-build \
+          libcurl4-openssl-dev \
+          libssl-dev \
+          libyaml-cpp-dev \
+          libgtest-dev
+    
+    - name: Configure CMake
+      run: |
+        cmake -B build \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DBUILD_KOLOSAL_SERVER=OFF \
+          -DBUILD_EXAMPLES=OFF
+    
+    - name: Build
+      run: cmake --build build
+    
+    - name: Run Security Tests
+      run: |
+        cd build
+        ctest --output-on-failure --label-regex "security"
+    
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-test-results
+        path: build/Testing/
+        retention-days: 7

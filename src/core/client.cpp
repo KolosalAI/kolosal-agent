@@ -1,28 +1,11 @@
 #include "client.hpp"
+#include "http_client.hpp"
 #include "logger.hpp"
 #include <stdexcept>
 #include <chrono>
 #include <thread>
 #include <sstream>
 #include <algorithm>
-
-#ifdef _WIN32
-#include <windows.h>
-#include <winhttp.h>
-#pragma comment(lib, "winhttp.lib")
-#else
-#include <curl/curl.h>
-#endif
-
-namespace {
-    // Response callback for curl
-    #ifndef _WIN32
-    size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* userp) {
-        userp->append((char*)contents, size * nmemb);
-        return size * nmemb;
-    }
-    #endif
-}
 
 KolosalClient::KolosalClient(const Config& config) : config_(config) {
     TRACE_FUNCTION();
@@ -35,19 +18,19 @@ KolosalClient::KolosalClient(const Config& config) : config_(config) {
     
     LOG_INFO_F("KolosalClient initialized with server URL: %s", config_.server_url.c_str());
     
-    #ifndef _WIN32
-    // Initialize libcurl
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-    #endif
+    // Initialize HTTP client with configuration
+    HttpClient::Config http_config;
+    http_config.base_url = config_.server_url;
+    http_config.timeout_seconds = config_.timeout_seconds;
+    http_config.max_retries = config_.max_retries;
+    http_config.retry_delay_ms = config_.retry_delay_ms;
+    http_config.verify_ssl = config_.verify_ssl;
+    
+    http_client_ = std::make_unique<HttpClient>(http_config);
 }
 
 KolosalClient::~KolosalClient() {
     TRACE_FUNCTION();
-    
-    #ifndef _WIN32
-    // Cleanup libcurl
-    curl_global_cleanup();
-    #endif
 }
 
 bool KolosalClient::is_model_available(const std::string& model_name) {
@@ -294,6 +277,19 @@ void KolosalClient::update_config(const Config& new_config) {
     TRACE_FUNCTION();
     
     config_ = new_config;
+    
+    // Update HTTP client configuration
+    if (http_client_) {
+        HttpClient::Config http_config;
+        http_config.base_url = config_.server_url;
+        http_config.timeout_seconds = config_.timeout_seconds;
+        http_config.max_retries = config_.max_retries;
+        http_config.retry_delay_ms = config_.retry_delay_ms;
+        http_config.verify_ssl = config_.verify_ssl;
+        
+        http_client_->update_config(http_config);
+    }
+    
     LOG_INFO_F("KolosalClient configuration updated, server URL: %s", config_.server_url.c_str());
 }
 
@@ -303,193 +299,44 @@ json KolosalClient::make_request(const std::string& method,
                                const json& headers) {
     TRACE_FUNCTION();
     
-    std::string url = build_url(endpoint);
-    std::string request_body;
-    
-    if (!data.empty() && (method == "POST" || method == "PUT" || method == "PATCH")) {
-        request_body = data.dump();
+    if (!http_client_) {
+        throw std::runtime_error("HTTP client not initialized");
     }
     
-    LOG_DEBUG_F("Making %s request to: %s", method.c_str(), url.c_str());
-    if (!request_body.empty()) {
-        LOG_DEBUG_F("Request body: %s", request_body.c_str());
-    }
-
-#ifdef _WIN32
-    // Windows implementation using WinHTTP
-    HINTERNET hSession = WinHttpOpen(L"KolosalClient/1.0",
-                                     WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-                                     WINHTTP_NO_PROXY_NAME,
-                                     WINHTTP_NO_PROXY_BYPASS, 0);
-    if (!hSession) {
-        throw std::runtime_error("Failed to initialize WinHTTP session");
-    }
-
-    // Parse URL
-    std::wstring w_host;
-    std::wstring w_path;
-    INTERNET_PORT port;
-    
-    // Simple URL parsing - extract host, port, and path
-    std::string url_without_protocol = url;
-    if (url.find("http://") == 0) {
-        url_without_protocol = url.substr(7);
-    } else if (url.find("https://") == 0) {
-        url_without_protocol = url.substr(8);
-    }
-    
-    size_t slash_pos = url_without_protocol.find('/');
-    std::string host_port = url_without_protocol.substr(0, slash_pos);
-    std::string path = slash_pos != std::string::npos ? url_without_protocol.substr(slash_pos) : "/";
-    
-    size_t colon_pos = host_port.find(':');
-    std::string host = colon_pos != std::string::npos ? host_port.substr(0, colon_pos) : host_port;
-    port = colon_pos != std::string::npos ? static_cast<INTERNET_PORT>(std::stoi(host_port.substr(colon_pos + 1))) : 80;
-    
-    w_host = std::wstring(host.begin(), host.end());
-    w_path = std::wstring(path.begin(), path.end());
-    
-    HINTERNET hConnect = WinHttpConnect(hSession, w_host.c_str(), port, 0);
-    if (!hConnect) {
-        WinHttpCloseHandle(hSession);
-        throw std::runtime_error("Failed to connect to server");
-    }
-    
-    std::wstring w_method(method.begin(), method.end());
-    HINTERNET hRequest = WinHttpOpenRequest(hConnect, w_method.c_str(), w_path.c_str(),
-                                           NULL, WINHTTP_NO_REFERER,
-                                           WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
-    if (!hRequest) {
-        WinHttpCloseHandle(hConnect);
-        WinHttpCloseHandle(hSession);
-        throw std::runtime_error("Failed to create HTTP request");
-    }
-    
-    // Set timeout
-    DWORD timeout = config_.timeout_seconds * 1000;
-    WinHttpSetOption(hRequest, WINHTTP_OPTION_CONNECT_TIMEOUT, &timeout, sizeof(timeout));
-    WinHttpSetOption(hRequest, WINHTTP_OPTION_SEND_TIMEOUT, &timeout, sizeof(timeout));
-    WinHttpSetOption(hRequest, WINHTTP_OPTION_RECEIVE_TIMEOUT, &timeout, sizeof(timeout));
-    
-    // Add headers
-    std::wstring additional_headers = L"Content-Type: application/json\r\n";
-    if (!headers.empty()) {
+    // Convert headers to map
+    std::map<std::string, std::string> header_map;
+    if (!headers.empty() && headers.is_object()) {
         for (auto& [key, value] : headers.items()) {
-            additional_headers += std::wstring(key.begin(), key.end()) + L": " + 
-                                std::wstring(value.get<std::string>().begin(), value.get<std::string>().end()) + L"\r\n";
-        }
-    }
-    
-    // Send request
-    BOOL result = WinHttpSendRequest(hRequest, additional_headers.c_str(), -1,
-                                    (LPVOID)request_body.c_str(), request_body.length(),
-                                    request_body.length(), 0);
-    
-    if (!result) {
-        WinHttpCloseHandle(hRequest);
-        WinHttpCloseHandle(hConnect);
-        WinHttpCloseHandle(hSession);
-        throw std::runtime_error("Failed to send HTTP request");
-    }
-    
-    if (!WinHttpReceiveResponse(hRequest, NULL)) {
-        WinHttpCloseHandle(hRequest);
-        WinHttpCloseHandle(hConnect);
-        WinHttpCloseHandle(hSession);
-        throw std::runtime_error("Failed to receive HTTP response");
-    }
-    
-    // Get status code
-    DWORD statusCode = 0;
-    DWORD statusCodeSize = sizeof(statusCode);
-    WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-                       WINHTTP_HEADER_NAME_BY_INDEX, &statusCode, &statusCodeSize, WINHTTP_NO_HEADER_INDEX);
-    
-    // Read response body
-    std::string response_body;
-    DWORD bytesAvailable, bytesRead;
-    char buffer[4096];
-    
-    do {
-        bytesAvailable = 0;
-        if (!WinHttpQueryDataAvailable(hRequest, &bytesAvailable)) break;
-        
-        if (bytesAvailable > 0) {
-            DWORD bytesToRead = std::min(bytesAvailable, (DWORD)sizeof(buffer));
-            if (WinHttpReadData(hRequest, buffer, bytesToRead, &bytesRead)) {
-                response_body.append(buffer, bytesRead);
+            if (value.is_string()) {
+                header_map[key] = value.get<std::string>();
             }
         }
-    } while (bytesAvailable > 0);
-    
-    WinHttpCloseHandle(hRequest);
-    WinHttpCloseHandle(hConnect);
-    WinHttpCloseHandle(hSession);
-    
-    return parse_response(response_body, statusCode);
-
-#else
-    // Unix implementation using libcurl
-    CURL* curl = curl_easy_init();
-    if (!curl) {
-        throw std::runtime_error("Failed to initialize libcurl");
     }
     
-    std::string response_body;
-    long response_code = 0;
-    
-    // Set basic options
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_body);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, config_.timeout_seconds);
-    
-    // Set method and body
-    if (method == "POST") {
-        curl_easy_setopt(curl, CURLOPT_POST, 1L);
-        if (!request_body.empty()) {
-            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_body.c_str());
-        }
-    } else if (method == "PUT") {
-        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
-        if (!request_body.empty()) {
-            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_body.c_str());
-        }
-    } else if (method == "DELETE") {
-        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
-    } else if (method == "PATCH") {
-        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PATCH");
-        if (!request_body.empty()) {
-            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_body.c_str());
-        }
+    // Convert data to string
+    std::string body;
+    if (!data.empty()) {
+        body = data.dump();
     }
     
-    // Set headers
-    struct curl_slist* header_list = NULL;
-    header_list = curl_slist_append(header_list, "Content-Type: application/json");
+    // Make request using safe HTTP client
+    auto result = http_client_->request(method, endpoint, body, header_map);
     
-    if (!headers.empty()) {
-        for (auto& [key, value] : headers.items()) {
-            std::string header = key + ": " + value.get<std::string>();
-            header_list = curl_slist_append(header_list, header.c_str());
-        }
+    if (!result.is_success()) {
+        throw std::runtime_error(result.error_message);
     }
     
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_list);
-    
-    // Make request
-    CURLcode res = curl_easy_perform(curl);
-    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
-    
-    curl_slist_free_all(header_list);
-    curl_easy_cleanup(curl);
-    
-    if (res != CURLE_OK) {
-        throw std::runtime_error("HTTP request failed: " + std::string(curl_easy_strerror(res)));
+    // Parse response
+    if (result.body.empty()) {
+        return json::object();
     }
     
-    return parse_response(response_body, response_code);
-#endif
+    try {
+        return json::parse(result.body);
+    } catch (const json::parse_error& e) {
+        LOG_ERROR_F("Failed to parse JSON response: %s", e.what());
+        throw std::runtime_error("Invalid JSON response from server");
+    }
 }
 
 json KolosalClient::make_request_with_retry(const std::string& method,
@@ -498,78 +345,18 @@ json KolosalClient::make_request_with_retry(const std::string& method,
                                            const json& headers) {
     TRACE_FUNCTION();
     
-    int attempts = 0;
-    std::exception_ptr last_exception;
-    
-    while (attempts < config_.max_retries) {
-        try {
-            return make_request(method, endpoint, data, headers);
-        } catch (const std::exception& e) {
-            last_exception = std::current_exception();
-            attempts++;
-            
-            LOG_WARN_F("Request failed (attempt %d/%d): %s", attempts, config_.max_retries, e.what());
-            
-            if (attempts < config_.max_retries) {
-                LOG_DEBUG_F("Retrying in %d ms...", config_.retry_delay_ms);
-                std::this_thread::sleep_for(std::chrono::milliseconds(config_.retry_delay_ms));
-            }
-        }
-    }
-    
-    LOG_ERROR_F("Request failed after %d attempts", config_.max_retries);
-    std::rethrow_exception(last_exception);
+    // Use the safe HTTP client's retry mechanism
+    return make_request(method, endpoint, data, headers);
 }
 
 json KolosalClient::parse_response(const std::string& response_body, long status_code) {
-    LOG_DEBUG_F("HTTP response: status=%ld, body_size=%zu", status_code, response_body.size());
-    
-    if (status_code < 200 || status_code >= 300) {
-        std::string error_msg = "HTTP error " + std::to_string(status_code);
-        if (!response_body.empty()) {
-            try {
-                auto error_json = json::parse(response_body);
-                if (error_json.contains("error")) {
-                    error_msg += ": " + error_json["error"].get<std::string>();
-                }
-            } catch (...) {
-                error_msg += ": " + response_body;
-            }
-        }
-        throw std::runtime_error(error_msg);
-    }
-    
-    if (response_body.empty()) {
-        return json::object();
-    }
-    
-    try {
-        return json::parse(response_body);
-    } catch (const json::parse_error& e) {
-        LOG_ERROR_F("Failed to parse JSON response: %s", e.what());
-        LOG_DEBUG_F("Response body: %s", response_body.c_str());
-        throw std::runtime_error("Invalid JSON response from server");
-    }
+    // This method is no longer needed as HttpClient handles response parsing
+    // Kept for compatibility but should not be called
+    throw std::runtime_error("parse_response should not be called directly");
 }
 
 std::string KolosalClient::build_url(const std::string& endpoint) const {
-    std::string url = config_.server_url;
-    
-    // Handle empty server URL
-    if (url.empty()) {
-        LOG_ERROR("Server URL is empty, cannot build URL for endpoint: " + endpoint);
-        throw std::runtime_error("Server URL is not configured");
-    }
-    
-    // Handle URL path construction
-    if (!url.empty() && !endpoint.empty()) {
-        if (url.back() == '/' && endpoint.front() == '/') {
-            url.pop_back();
-        } else if (url.back() != '/' && endpoint.front() != '/') {
-            url += '/';
-        }
-    }
-    
-    url += endpoint;
-    return url;
+    // This method is no longer needed as HttpClient handles URL building
+    // Kept for compatibility but should not be called
+    throw std::runtime_error("build_url should not be called directly");
 }

@@ -7,6 +7,9 @@
 
 using json = nlohmann::json;
 
+// Forward declaration
+class HttpClient;
+
 /**
  * @brief Client for communicating with Kolosal Server
  * 
@@ -149,14 +152,10 @@ public:
 
 private:
     Config config_;
+    std::unique_ptr<HttpClient> http_client_;
     
     /**
-     * @brief Make HTTP request to the server
-     * @param method HTTP method (GET, POST, PUT, DELETE)
-     * @param endpoint API endpoint (without base URL)
-     * @param data Optional request body data
-     * @param headers Optional additional headers
-     * @return Response data as JSON
+     * @brief Make HTTP request to the server (deprecated - use HttpClient directly)
      */
     json make_request(const std::string& method,
                      const std::string& endpoint,
@@ -164,12 +163,7 @@ private:
                      const json& headers = json::object());
 
     /**
-     * @brief Make HTTP request with retry logic
-     * @param method HTTP method
-     * @param endpoint API endpoint
-     * @param data Request body data
-     * @param headers Additional headers
-     * @return Response data as JSON
+     * @brief Make HTTP request with retry logic (deprecated - use HttpClient directly)
      */
     json make_request_with_retry(const std::string& method,
                                 const std::string& endpoint,
@@ -177,17 +171,12 @@ private:
                                 const json& headers = json::object());
 
     /**
-     * @brief Parse response and check for errors
-     * @param response_body Response body as string
-     * @param status_code HTTP status code
-     * @return Parsed JSON response
+     * @brief Parse response and check for errors (deprecated)
      */
     json parse_response(const std::string& response_body, long status_code);
 
     /**
-     * @brief Build full URL for an endpoint
-     * @param endpoint API endpoint
-     * @return Full URL
+     * @brief Build full URL for an endpoint (deprecated)
      */
     std::string build_url(const std::string& endpoint) const;
 };
