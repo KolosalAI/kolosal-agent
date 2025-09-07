@@ -71,11 +71,11 @@ system_instruction: |
 # Model configuration for agents - maps to actual model files available
 models:
   - name: "default"
-    actual_name: "qwen2.5-0.5b-instruct-q4_k_m"
-    model_file: "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+    actual_name: "qwen3-0.6b:UD-Q4_K_XL"
+    model_file: "Qwen3-0.6B-UD-Q4_K_XL.gguf"
     type: "llm"
     server_url: "http://127.0.0.1:8081"
-    description: "Default LLM model (Qwen2.5-0.5B Instruct)"
+    description: "Default LLM model (Qwen3-0.6B Instruct)"
     preload: true
     context_size: 2048
     max_tokens: 1024
@@ -83,11 +83,35 @@ models:
     top_p: 0.9
   
   - name: "qwen2.5-0.5b"
-    actual_name: "qwen2.5-0.5b-instruct-q4_k_m"
-    model_file: "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+    actual_name: "qwen3-0.6b:UD-Q4_K_XL"
+    model_file: "Qwen3-0.6B-UD-Q4_K_XL.gguf"
     type: "llm"
     server_url: "http://127.0.0.1:8081"
-    description: "Qwen2.5-0.5B Instruct language model"
+    description: "Qwen3-0.6B Instruct language model"
+    preload: true
+    context_size: 2048
+    max_tokens: 1024
+    temperature: 0.7
+    top_p: 0.9
+  
+  - name: "qwen2.5-0.5b-instruct"
+    actual_name: "qwen3-0.6b:UD-Q4_K_XL"
+    model_file: "Qwen3-0.6B-UD-Q4_K_XL.gguf"
+    type: "llm"
+    server_url: "http://127.0.0.1:8081"
+    description: "Qwen3-0.6B Instruct language model (alias)"
+    preload: true
+    context_size: 2048
+    max_tokens: 1024
+    temperature: 0.7
+    top_p: 0.9
+  
+  - name: "qwen2.5-0.5b-instruct-q4_k_m"
+    actual_name: "qwen3-0.6b:UD-Q4_K_XL"
+    model_file: "Qwen3-0.6B-UD-Q4_K_XL.gguf"
+    type: "llm"
+    server_url: "http://127.0.0.1:8081"
+    description: "Qwen3-0.6B Instruct language model (original alias)"
     preload: true
     context_size: 2048
     max_tokens: 1024
@@ -100,6 +124,24 @@ models:
     type: "embedding"
     server_url: "http://127.0.0.1:8081"
     description: "Embedding model for document vectorization and semantic search"
+    preload: true
+    embedding_size: 384
+  
+  - name: "all-MiniLM-L6-v2-bf16-q4_k"
+    actual_name: "all-MiniLM-L6-v2-bf16-q4_k"
+    model_file: "all-MiniLM-L6-v2-bf16-q4_k.gguf"
+    type: "embedding"
+    server_url: "http://127.0.0.1:8081"
+    description: "Alternative name for embedding model"
+    preload: true
+    embedding_size: 384
+  
+  - name: "text-embedding-3-small"
+    actual_name: "all-MiniLM-L6-v2-bf16-q4_k"
+    model_file: "all-MiniLM-L6-v2-bf16-q4_k.gguf"
+    type: "embedding"
+    server_url: "http://127.0.0.1:8081"
+    description: "Alias for embedding model to match expected name"
     preload: true
     embedding_size: 384
 
@@ -122,7 +164,7 @@ agents:
       Provide detailed analysis with clear insights and actionable conclusions.
 
   - name: "Researcher"
-    capabilities: ["research", "web_search", "fact_checking", "retrieval", "document_management"]
+    capabilities: ["research", "web_search", "fact_checking", "retrieval"]
     auto_start: false
     retrieval:
       server_url: "http://127.0.0.1:8081"
@@ -136,7 +178,7 @@ agents:
       Always cite sources when possible and present information objectively.
 
   - name: "RetrievalAgent"
-    capabilities: ["retrieval", "document_management", "semantic_search", "knowledge_base", "vector_search"]
+    capabilities: ["retrieval", "semantic_search", "knowledge_base", "vector_search"]
     auto_start: true
     retrieval:
       server_url: "http://127.0.0.1:8081"
@@ -147,7 +189,6 @@ agents:
     system_prompt: |
       You are an AI agent specialized in information retrieval and document management.
       Your primary functions include:
-      - Managing and organizing documents in a vector database
       - Performing semantic search across document collections
       - Retrieving relevant information based to user queries
       - Maintaining knowledge bases and document repositories
@@ -159,7 +200,7 @@ agents:
       when returning information from documents.
 
   - name: "DeepResearcher"
-    capabilities: ["deep_research", "iterative_search", "fact_verification", "research_planning", "synthesis", "retrieval", "document_management", "semantic_search"]
+    capabilities: ["deep_research", "iterative_search", "fact_verification", "research_planning", "synthesis", "retrieval", "semantic_search"]
     auto_start: false
     retrieval:
       server_url: "http://127.0.0.1:8081"
@@ -242,27 +283,6 @@ functions:
     parameters: []
 
   # Retrieval and document management functions
-  add_document:
-    description: "Add a document to the vector database for future retrieval"
-    timeout: 60000
-    parameters:
-      - name: "content"
-        type: "string"
-        required: true
-        description: "Document content to be indexed"
-      - name: "title"
-        type: "string"
-        required: false
-        description: "Document title or identifier"
-      - name: "metadata"
-        type: "object"
-        required: false
-        description: "Additional metadata for the document (tags, author, date, etc.)"
-      - name: "chunk_size"
-        type: "integer"
-        required: false
-        description: "Size of text chunks for vectorization (default: 512)"
-
   search_documents:
     description: "Search for documents using semantic similarity"
     timeout: 30000
@@ -300,15 +320,6 @@ functions:
         type: "object"
         required: false
         description: "Metadata filters to apply"
-
-  remove_document:
-    description: "Remove a document from the vector database"
-    timeout: 30000
-    parameters:
-      - name: "id"
-        type: "string"
-        required: true
-        description: "Document ID to remove"
 
   internet_search:
     description: "Search the internet for information"
@@ -357,15 +368,6 @@ functions:
         type: "string"
         required: true
         description: "Document content to analyze"
-
-  batch_add_documents:
-    description: "Add multiple documents to the vector database at once"
-    timeout: 120000
-    parameters:
-      - name: "documents"
-        type: "array"
-        required: true
-        description: "Array of documents to add (each with content and optional metadata)"
 
   organize_documents:
     description: "Organize documents by similarity clustering"
@@ -598,10 +600,10 @@ logging:
 error_handling:
   enable_fallbacks: true
   fallback_responses: true
-  max_retry_attempts: 3
-  retry_backoff_multiplier: 2.0
-  timeout_escalation: true
   graceful_degradation: true
+  max_retry_attempts: 0  # Do not retry, just show the result
+  retry_backoff_multiplier: 1.0
+  timeout_escalation: false
   offline_mode:
     enable: true
     cache_responses: true
@@ -609,7 +611,7 @@ error_handling:
   
 # Circuit breaker configuration for server reliability
 circuit_breaker:
-  failure_threshold: 5
-  recovery_timeout: 30
-  half_open_max_calls: 3
-  metrics_window: 60
+  failure_threshold: 100  # Effectively disables circuit breaking
+  recovery_timeout: 1
+  half_open_max_calls: 100
+  metrics_window: 1

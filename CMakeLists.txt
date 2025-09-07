@@ -38,11 +38,16 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/debug/lib)
 
 # Options
 option(BUILD_KOLOSAL_SERVER "Build the Kolosal Server component" ON)
-option(BUILD_WITH_RETRIEVAL "Enable retrieval functionality" ON)
+option(BUILD_WITH_RETRIEVAL "Enable retrieval functionality (default: ON)" ON)
 option(ENABLE_NATIVE_OPTIMIZATION "Enable native CPU optimization (-march=native)" OFF)
 option(BUILD_EXAMPLES "Build example applications" OFF)
 option(ENABLE_STATIC_ANALYSIS "Enable static analysis tools" OFF)
 option(ENABLE_PVS_STUDIO "Enable PVS-Studio analysis (requires license)" OFF)
+
+# Force BUILD_WITH_RETRIEVAL to be ON by default if not explicitly set
+if(NOT DEFINED BUILD_WITH_RETRIEVAL)
+    set(BUILD_WITH_RETRIEVAL ON CACHE BOOL "Enable retrieval functionality" FORCE)
+endif()
 
 # Ensure BUILD_WITH_RETRIEVAL is compatible with BUILD_KOLOSAL_SERVER
 if(BUILD_WITH_RETRIEVAL AND NOT BUILD_KOLOSAL_SERVER)
@@ -262,10 +267,8 @@ if(MSVC)
     target_compile_options(kolosal-agent PRIVATE /FS)
 endif()
 
-# Define BUILD_WITH_RETRIEVAL if the option is enabled
-if(BUILD_WITH_RETRIEVAL)
-    target_compile_definitions(kolosal-agent PRIVATE BUILD_WITH_RETRIEVAL)
-endif()
+# Always define BUILD_WITH_RETRIEVAL (activated by default)
+target_compile_definitions(kolosal-agent PRIVATE BUILD_WITH_RETRIEVAL)
 
 # Link basic libraries
 target_link_libraries(kolosal-agent PRIVATE Threads::Threads yaml-cpp CURL::libcurl)
