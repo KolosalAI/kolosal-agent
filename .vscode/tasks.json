@@ -31,13 +31,13 @@
 		{
 			"label": "CMake: Build with Kolosal Server (minimal features)",
 			"type": "shell",
-			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_KOLOSAL_SERVER=ON -DUSE_PODOFO=OFF -DUSE_FAISS=OFF; cmake --build . --config Debug",
+			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_KOLOSAL_SERVER=ON -DUSE_PODOFO=OFF -DUSE_FAISS=ON; cmake --build . --config Debug",
 			"group": "build"
 		},
 		{
 			"label": "CMake: Build with Kolosal Server (main target only)",
 			"type": "shell",
-			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake .. -DBUILD_KOLOSAL_SERVER=ON -DUSE_PODOFO=OFF -DUSE_FAISS=OFF; cmake --build . --config Debug",
+			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake .. -DBUILD_KOLOSAL_SERVER=ON -DUSE_PODOFO=OFF -DUSE_FAISS=ON; cmake --build . --config Debug",
 			"group": "build"
 		},
 		{
@@ -59,6 +59,12 @@
 			"options": {
 				"cwd": "${workspaceFolder}"
 			}
+		},
+		{
+			"label": "CMake: Build with FAISS Enabled",
+			"type": "shell",
+			"command": "$ErrorActionPreference = 'Stop'; if (!(Test-Path -Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_KOLOSAL_SERVER=ON -DUSE_FAISS=ON; cmake --build . --config Debug",
+			"group": "build"
 		}
 	]
 }
