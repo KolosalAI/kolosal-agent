@@ -8,14 +8,7 @@ project(KolosalAgent
 )
 
 # Include UCM for runtime library management (if available)
-if(EXISTS     )
-    
-    # Link found system libraries
-    if(ZLIB_FOUND)
-        target_link_libraries(kolosal-agent PRIVATE ZLIB::ZLIB)
-    endif()
-    
-    # Link filesystem library for older GCC versionsRCE_DIR}/cmake/ucm.cmake")
+if(EXISTS "${CMAKE_SOURCE_DIR}/cmake/ucm.cmake")
     include(${CMAKE_SOURCE_DIR}/cmake/ucm.cmake)
     # Static link the runtime libraries for better distribution
     ucm_set_runtime(STATIC)
@@ -31,10 +24,16 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build" FORCE)
 endif()
 
-# Set output directories for consistent build output
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/debug)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/debug/lib)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/debug/lib)
+# Set output directories based on build type
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Debug)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Debug/lib)
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Debug/lib)
+else()
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Release)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Release/lib)
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Release/lib)
+endif()
 
 # Options
 option(BUILD_KOLOSAL_SERVER "Build the Kolosal Server component" ON)
@@ -102,6 +101,14 @@ if(MSVC)
         # Remove default /RTC1 flag to avoid conflicts with subprojects using /O2
         string(REPLACE "/RTC1" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
         string(REPLACE "/RTC1" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+        # Also remove any optimization flags from debug configuration
+        string(REPLACE "/O2" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        string(REPLACE "/O2" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+        string(REPLACE "/Ob2" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        string(REPLACE "/Ob2" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+        # Ensure debug build uses no optimization
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Od")
+        set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Od")
     else()
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
     endif()
@@ -145,9 +152,44 @@ if(ENABLE_STATIC_ANALYSIS)
     endif()
 endif()
 
+# Setup external CURL before finding packages
+set(CURL_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/external/curl")
+set(CURL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/curl/include")
+set(CURL_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/external/curl/lib/libcurl.lib")
+
 # Find required packages with version constraints
 find_package(Threads REQUIRED)
 find_package(CURL 8.4.0 REQUIRED)
+
+# Ensure CURL variables are properly set for subprojects
+if(CURL_FOUND)
+    # Set additional CURL variables that might be expected by subprojects
+    if(NOT DEFINED CURL_INCLUDE_DIRS)
+        set(CURL_INCLUDE_DIRS "${CURL_INCLUDE_DIR}")
+    endif()
+    if(NOT DEFINED CURL_LIBRARIES)
+        if(TARGET CURL::libcurl)
+            get_target_property(CURL_LIBRARIES CURL::libcurl IMPORTED_LOCATION)
+            if(NOT CURL_LIBRARIES)
+                get_target_property(CURL_LIBRARIES CURL::libcurl IMPORTED_LOCATION_RELEASE)
+            endif()
+            if(NOT CURL_LIBRARIES)
+                get_target_property(CURL_LIBRARIES CURL::libcurl IMPORTED_LOCATION_DEBUG)
+            endif()
+        endif()
+        if(NOT CURL_LIBRARIES)
+            set(CURL_LIBRARIES "${CURL_LIBRARY}")
+        endif()
+    endif()
+    
+    # Export these variables for subprojects
+    set(CURL_INCLUDE_DIR "${CURL_INCLUDE_DIR}" CACHE PATH "CURL include directory" FORCE)
+    set(CURL_INCLUDE_DIRS "${CURL_INCLUDE_DIRS}" CACHE PATH "CURL include directories" FORCE)
+    set(CURL_LIBRARIES "${CURL_LIBRARIES}" CACHE FILEPATH "CURL libraries" FORCE)
+    set(CURL_LIBRARY "${CURL_LIBRARY}" CACHE FILEPATH "CURL library" FORCE)
+    
+    message(STATUS "CURL configured - Include: ${CURL_INCLUDE_DIR}, Library: ${CURL_LIBRARY}")
+endif()
 # Make OpenSSL optional for Windows development
 find_package(OpenSSL 3.0.7 QUIET)
 if(NOT OpenSSL_FOUND)
@@ -186,8 +228,13 @@ endif()
 # YAML-CPP setup
 set(YAML_CPP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/yaml-cpp")
 if(EXISTS "${YAML_CPP_DIR}/CMakeLists.txt")
-    add_subdirectory(${YAML_CPP_DIR})
-    message(STATUS "Using yaml-cpp from: ${YAML_CPP_DIR}")
+    # Only add yaml-cpp if it's not already added by kolosal-server
+    if(NOT TARGET yaml-cpp)
+        add_subdirectory(${YAML_CPP_DIR})
+        message(STATUS "Using yaml-cpp from: ${YAML_CPP_DIR}")
+    else()
+        message(STATUS "yaml-cpp target already exists, skipping subdirectory")
+    endif()
 else()
     message(FATAL_ERROR "yaml-cpp not found at ${YAML_CPP_DIR}")
 endif()
@@ -254,7 +301,7 @@ set_target_properties(kolosal-agent PROPERTIES
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
     OUTPUT_NAME "kolosal-agent"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/debug"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
 )
 
 # Ensure kolosal-agent uses the correct nlohmann/json version
@@ -288,12 +335,12 @@ if(WIN32)
         bcrypt
     )
     
-    # Ensure kolosal-agent.exe is also copied to the main build directory for convenience
+    # Ensure kolosal-agent.exe is also copied to the output directory for convenience
     add_custom_command(TARGET kolosal-agent POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "$<TARGET_FILE:kolosal-agent>"
-        "${CMAKE_BINARY_DIR}/debug/kolosal-agent.exe"
-        COMMENT "Copying kolosal-agent.exe to debug directory"
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/kolosal-agent.exe"
+        COMMENT "Copying kolosal-agent.exe to output directory"
     )
     
 elseif(APPLE)
@@ -358,7 +405,7 @@ if(BUILD_KOLOSAL_SERVER)
     message(STATUS "Building Kolosal Server component")
     
     # Ensure kolosal-server builds its executable in the same output directory
-    set(KOLOSAL_SERVER_OUTPUT_DIR "${CMAKE_BINARY_DIR}/debug" CACHE STRING "Output directory for kolosal-server")
+    set(KOLOSAL_SERVER_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}" CACHE STRING "Output directory for kolosal-server")
     
     add_subdirectory(kolosal-server)
     
@@ -400,7 +447,7 @@ if(BUILD_KOLOSAL_SERVER)
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "$<TARGET_FILE_DIR:kolosal_server_exe>/kolosal-server.exe"
                 "$<TARGET_FILE_DIR:kolosal-agent>/kolosal-server.exe"
-                COMMENT "Ensuring kolosal-server.exe is in the debug directory"
+                COMMENT "Ensuring kolosal-server.exe is in the output directory"
                 VERBATIM
             )
         endif()
@@ -411,7 +458,7 @@ if(BUILD_KOLOSAL_SERVER)
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "$<TARGET_FILE_DIR:kolosal_server_exe>/kolosal-server"
                 "$<TARGET_FILE_DIR:kolosal-agent>/kolosal-server"
-                COMMENT "Ensuring kolosal-server binary is in the debug directory"
+                COMMENT "Ensuring kolosal-server binary is in the output directory"
                 VERBATIM
             )
         endif()
@@ -659,19 +706,19 @@ logging:
   max_files: 5
 ")
 
-# Create debug directory if it doesn't exist
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/debug")
+# Create output directory if it doesn't exist
+file(MAKE_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/debug/agent.yaml" "${AGENT_CONFIG_CONTENT}")
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/debug/config.yaml" "${KOLOSAL_SERVER_CONFIG_CONTENT}")
+file(WRITE "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/agent.yaml" "${AGENT_CONFIG_CONTENT}")
+file(WRITE "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/config.yaml" "${KOLOSAL_SERVER_CONFIG_CONTENT}")
 
 # Install configuration files
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/debug/agent.yaml"
+install(FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/agent.yaml"
     DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/kolosal-agent
     COMPONENT Runtime
 )
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/debug/config.yaml"
+install(FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/config.yaml"
     DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/kolosal-agent
     COMPONENT Runtime
 )
@@ -860,17 +907,17 @@ echo \"  -d '{\\\"model\\\": \\\"default\\\", \\\"messages\\\": [{\\\"role\\\": 
 echo \"\"
 ")
 
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/debug/examples.sh" "${EXAMPLE_CONTENT}")
+file(WRITE "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/examples.sh" "${EXAMPLE_CONTENT}")
 
 # Make executable on Unix systems
 if(UNIX)
-    file(CHMOD "${CMAKE_CURRENT_BINARY_DIR}/debug/examples.sh" 
+    file(CHMOD "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/examples.sh" 
          PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE 
                      GROUP_READ GROUP_EXECUTE 
                      WORLD_READ WORLD_EXECUTE)
 endif()
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/debug/examples.sh"
+install(FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/examples.sh"
     DESTINATION ${CMAKE_INSTALL_DOCDIR}
     COMPONENT Documentation
 )

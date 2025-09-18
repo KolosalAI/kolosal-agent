@@ -231,8 +231,7 @@ void HTTPServer::handle_client(socket_t client_socket) {
                     route_matched = true;
                     handle_get_agent(client_socket, agent_id);
                 } else {
-                    std::cout << "[HTTP-ERROR] Agent not found: " << agent_identifier << "\n";
-                    send_error(client_socket, 404, "Agent not found: " + agent_identifier);
+                    send_agent_not_found_error(client_socket, agent_identifier, "/agents/Assistant");
                     route_matched = true;
                 }
             }
@@ -245,8 +244,7 @@ void HTTPServer::handle_client(socket_t client_socket) {
                 route_matched = true;
                 handle_start_agent(client_socket, agent_id);
             } else {
-                std::cout << "[HTTP-ERROR] Agent not found: " << agent_identifier << "\n";
-                send_error(client_socket, 404, "Agent not found: " + agent_identifier);
+                send_agent_not_found_error(client_socket, agent_identifier, "/agents/Assistant/start");
                 route_matched = true;
             }
         } else if (path.find("/agents/") == 0 && path.find("/stop") != std::string::npos && method == "PUT") {
@@ -258,8 +256,7 @@ void HTTPServer::handle_client(socket_t client_socket) {
                 route_matched = true;
                 handle_stop_agent(client_socket, agent_id);
             } else {
-                std::cout << "[HTTP-ERROR] Agent not found: " << agent_identifier << "\n";
-                send_error(client_socket, 404, "Agent not found: " + agent_identifier);
+                send_agent_not_found_error(client_socket, agent_identifier, "/agents/Assistant/stop");
                 route_matched = true;
             }
         } else if (path.find("/agents/") == 0 && path.find("/execute") != std::string::npos && method == "POST") {
@@ -271,8 +268,7 @@ void HTTPServer::handle_client(socket_t client_socket) {
                 route_matched = true;
                 handle_execute_function(client_socket, agent_id, body);
             } else {
-                std::cout << "[HTTP-ERROR] Agent not found: " << agent_identifier << "\n";
-                send_error(client_socket, 404, "Agent not found: " + agent_identifier);
+                send_agent_not_found_error(client_socket, agent_identifier, "/agents/Assistant/execute");
                 route_matched = true;
             }
         } else if (path == "/agent/execute" && method == "POST") {
@@ -287,8 +283,7 @@ void HTTPServer::handle_client(socket_t client_socket) {
                 route_matched = true;
                 handle_delete_agent(client_socket, agent_id);
             } else {
-                std::cout << "[HTTP-ERROR] Agent not found: " << agent_identifier << "\n";
-                send_error(client_socket, 404, "Agent not found: " + agent_identifier);
+                send_agent_not_found_error(client_socket, agent_identifier, "/agents/Assistant");
                 route_matched = true;
             }
         } else if (path == "/status" && method == "GET") {
@@ -948,6 +943,37 @@ std::string HTTPServer::resolve_agent_identifier(const std::string& agent_identi
     
     // Neither ID nor name found
     return "";
+}
+
+void HTTPServer::send_agent_not_found_error(socket_t client_socket, const std::string& agent_identifier, const std::string& endpoint_example) {
+    std::cout << "[HTTP-ERROR] Agent not found: " << agent_identifier << "\n";
+    
+    // Get list of available agents for better error message
+    json available_agents = agent_manager_->list_agents();
+    json error_response;
+    error_response["error"] = "Agent not found: " + agent_identifier;
+    error_response["status_code"] = 404;
+    
+    if (available_agents.contains("agents") && available_agents["agents"].is_array()) {
+        json agent_info = json::array();
+        for (const auto& agent : available_agents["agents"]) {
+            if (agent.contains("name") && agent.contains("id")) {
+                agent_info.push_back({
+                    {"name", agent["name"]},
+                    {"id", agent["id"]}
+                });
+            }
+        }
+        error_response["available_agents"] = agent_info;
+        
+        std::string suggestion = "Use agent name or one of the available IDs above";
+        if (!endpoint_example.empty()) {
+            suggestion = "Use agent name (e.g., " + endpoint_example + ") or one of the available IDs above";
+        }
+        error_response["suggestion"] = suggestion;
+    }
+    
+    send_response(client_socket, 404, error_response.dump(2));
 }
 
 // Workflow Management Handlers

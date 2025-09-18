@@ -64,6 +64,9 @@ public:
     void add_capability(const std::string& capability);
     const std::vector<std::string>& get_capabilities() const { return capabilities_; }
     
+    // Function initialization (call after setting capabilities)
+    void initialize_functions();
+    
     // Information
     json get_info() const;
     const std::string& get_id() const { return id_; }

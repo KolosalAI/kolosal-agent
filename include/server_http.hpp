@@ -96,6 +96,7 @@ private:
     // Utility
     std::string extract_path_parameter(const std::string& path, const std::string& prefix);
     std::string resolve_agent_identifier(const std::string& agent_identifier);
+    void send_agent_not_found_error(socket_t client_socket, const std::string& agent_identifier, const std::string& endpoint_example = "");
     
 public:
     HTTPServer(std::shared_ptr<AgentManager> agent_manager, 

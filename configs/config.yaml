@@ -1,6 +1,6 @@
 server:
-  port: 8081
-  host: 127.0.0.1
+  port: 8080
+  host: 0.0.0.0
   idle_timeout: 300
   allow_public_access: false
   allow_internet_access: false
@@ -14,7 +14,8 @@ auth:
   enabled: false
   require_api_key: false
   api_key_header: X-API-Key
-  api_keys: []
+  api_keys:
+    []
   rate_limit:
     enabled: true
     max_requests: 100
@@ -23,7 +24,8 @@ auth:
     enabled: true
     allow_credentials: false
     max_age: 86400
-    allowed_origins: []
+    allowed_origins:
+      - "*"
     allowed_methods:
       - GET
       - POST
@@ -40,32 +42,21 @@ auth:
       - Origin
 search:
   enabled: true
-  searxng_url: ${KOLOSAL_SEARXNG_URL:-https://searx.stream/}
+  searxng_url: https://searx.stream/
   timeout: 30
   max_results: 20
   default_engine: ""
-  api_key: ${KOLOSAL_SEARCH_API_KEY:-}
+  api_key: ""
   enable_safe_search: true
   default_format: json
   default_language: en
   default_category: general
 database:
-  vector_database: qdrant
-  retrieval_embedding_model: "all-MiniLM-L6-v2-bf16-q4_k"
-  qdrant:
-    enabled: true
-    host: ${KOLOSAL_QDRANT_HOST:-localhost}
-    port: ${KOLOSAL_QDRANT_PORT:-6333}
-    collection_name: ${KOLOSAL_QDRANT_COLLECTION:-documents}
-    default_embedding_model: "all-MiniLM-L6-v2-bf16-q4_k"
-    timeout: 30
-    api_key: ${KOLOSAL_QDRANT_API_KEY:-}
-    max_connections: 10
-    connection_timeout: 5
-    embedding_batch_size: 5
+  vector_database: faiss
+  retrieval_embedding_model: qwen3-embedding-0.6b
   faiss:
     index_type: Flat
-    index_path: ${KOLOSAL_FAISS_INDEX_PATH:-./data/faiss_index}
+    index_path: .\data\faiss_index
     dimensions: 1536
     normalize_vectors: true
     nlist: 100
@@ -74,8 +65,8 @@ database:
     gpu_device: 0
     metric_type: IP
 models:
-  - id: qwen2.5-0.5b
-    path: ${KOLOSAL_MODEL_PATH:-./models}/qwen2.5-0.5b-instruct-q4_k_m.gguf
+  - id: gemma3-1b
+    path: https://huggingface.co/kolosal/gemma-3-1b/resolve/main/google_gemma-3-1b-it_q4_k_m.gguf
     type: llm
     load_immediately: true
     main_gpu_id: 0
@@ -88,23 +79,29 @@ models:
       n_parallel: 1
       cont_batching: true
       warmup: false
-      n_gpu_layers: 0
+      n_gpu_layers: 100
       n_batch: 2048
       n_ubatch: 512
-  - id: all-MiniLM-L6-v2-bf16-q4_k
-    path: ${KOLOSAL_MODEL_PATH:-./models}/all-MiniLM-L6-v2-bf16-q4_k.gguf
+  - id: qwen3-embedding-0.6b
+    path: https://huggingface.co/kolosal/qwen3-embedding-0.6b/resolve/main/Qwen3-Embedding-0.6B-Q8_0.gguf
     type: embedding
     load_immediately: true
     main_gpu_id: 0
     inference_engine: llama-cpu
     load_params:
       n_ctx: 512
+      n_keep: 0
       use_mmap: true
       use_mlock: false
-      embedding_only: true
+      n_parallel: 2
+      cont_batching: true
+      warmup: false
+      n_gpu_layers: 100
+      n_batch: 256
+      n_ubatch: 64
 inference_engines:
   - name: llama-cpu
-    library_path: ${KOLOSAL_ENGINE_PATH:-./build/Debug}/llama-cpu.dll
+    library_path: ./build/Release/llama-cpu.dll
     version: 1.0.0
     description: CPU-based inference engine for LLaMA models
     load_on_startup: true

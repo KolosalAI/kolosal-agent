@@ -82,6 +82,9 @@ std::string AgentManager::create_agent(const std::string& name, const std::vecto
         LOG_DEBUG_F("Added capability '%s' to agent '%s'", capability.c_str(), name.c_str());
     }
     
+    // Initialize functions based on capabilities
+    agent->initialize_functions();
+    
     // Apply system instruction if available
     if (config_manager_) {
         const std::string& system_instruction = config_manager_->get_system_instruction();
@@ -143,6 +146,9 @@ std::string AgentManager::create_agent_with_config(const std::string& name, cons
             }
         }
     }
+    
+    // Initialize functions based on capabilities
+    agent->initialize_functions();
     
     // Apply system instruction if available
     if (config_manager_) {
