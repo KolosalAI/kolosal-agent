@@ -85,15 +85,6 @@ std::string AgentManager::create_agent(const std::string& name, const std::vecto
     // Initialize functions based on capabilities
     agent->initialize_functions();
     
-    // Apply system instruction if available
-    if (config_manager_) {
-        const std::string& system_instruction = config_manager_->get_system_instruction();
-        if (!system_instruction.empty()) {
-            agent->set_system_instruction(system_instruction);
-            LOG_DEBUG_F("Applied system instruction to agent '%s' (length: %zu)", name.c_str(), system_instruction.length());
-        }
-    }
-    
     agents_[agent_id] = std::move(agent);
     
     LOG_INFO_F("Created agent '%s' with ID: %s", name.c_str(), agent_id.c_str());
@@ -126,9 +117,18 @@ std::string AgentManager::create_agent_with_config(const std::string& name, cons
         }
         
         if (has_retrieval_capabilities) {
-            // Apply default retrieval configuration
+            // Apply default retrieval configuration - server URL should come from agent.yaml models
             json default_retrieval_config;
-            default_retrieval_config["retrieval"]["server_url"] = "http://127.0.0.1:8081";
+            // Try to get server URL from any configured model, fallback to empty (will cause error if not configured)
+            std::string server_url = "";
+            if (config_manager_) {
+                const auto& models = config_manager_->get_models();
+                if (!models.empty()) {
+                    // Use server URL from first model as they should all use the same server
+                    server_url = models.begin()->second.server_url;
+                }
+            }
+            default_retrieval_config["retrieval"]["server_url"] = server_url;
             default_retrieval_config["retrieval"]["timeout_seconds"] = 30;
             default_retrieval_config["retrieval"]["max_retries"] = 3;
             default_retrieval_config["retrieval"]["search_enabled"] = true;
@@ -149,14 +149,6 @@ std::string AgentManager::create_agent_with_config(const std::string& name, cons
     
     // Initialize functions based on capabilities
     agent->initialize_functions();
-    
-    // Apply system instruction if available
-    if (config_manager_) {
-        const std::string& system_instruction = config_manager_->get_system_instruction();
-        if (!system_instruction.empty()) {
-            agent->set_system_instruction(system_instruction);
-        }
-    }
     
     // Apply agent-specific system prompt if provided
     if (config.contains("system_prompt") && !config["system_prompt"].is_null() && !config["system_prompt"].empty()) {
@@ -518,12 +510,9 @@ void AgentManager::initialize_server_launcher() {
     if (config_manager_) {
         const auto& system_config = config_manager_->get_config();
         
-        // Check if there's server configuration in the system config
-        // For now, we use hardcoded defaults but this could be extended
-        // to read from the config.yaml file
-        server_config.port = 8081;  // Use different port from main agent system
-        server_config.host = "127.0.0.1";
-        server_config.log_level = "INFO";
+        // Use server configuration from config files only
+        // Server host and port should come from ./configs/config.yaml via kolosal-server
+        server_config.config_file = "./configs/config.yaml";  // Explicitly use our config file
         server_config.quiet_mode = false;
         
         // Look for kolosal-server executable in the build directory

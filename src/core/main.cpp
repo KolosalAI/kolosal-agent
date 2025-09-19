@@ -86,10 +86,10 @@ Usage: )" << program_name << R"( [OPTIONS]
 Kolosal Agent System - A multi-agent platform
 
 OPTIONS:
-    --host HOST        Server host (default: from agent.yaml or 127.0.0.1)
-    --port PORT        Server port (default: from agent.yaml or 8080)
-    --config FILE      Agent configuration file (default: agent.yaml)
-    --workflow FILE    Workflow configuration file (default: workflow.yaml)
+    --host HOST        Server host (default: from ./configs/agent.yaml)
+    --port PORT        Server port (default: from ./configs/agent.yaml)
+    --config FILE      Agent configuration file (default: ./configs/agent.yaml)
+    --workflow FILE    Workflow configuration file (default: ./configs/workflow.yaml)
     --help             Show this help message
 
 EXAMPLES:
@@ -118,9 +118,9 @@ WORKFLOW ORCHESTRATION:
     GET    /workflows/executions  - List workflow executions
 
 Configuration:
-    - Agent system: agent.yaml (or specified with --config)
-    - Workflow definitions: workflow.yaml (or specified with --workflow)
-    - Kolosal server: config.yaml (separate component)
+    - Agent system: ./configs/agent.yaml (or specified with --config)
+    - Workflow definitions: ./configs/workflow.yaml (or specified with --workflow)
+    - Kolosal server: ./configs/config.yaml (separate component)
 
 For more information, visit: https://github.com/KolosalAI/kolosal-agent
 )";
@@ -131,8 +131,8 @@ int main(int argc, char* argv[]) {
     
     std::string host;
     int port = 0;
-    std::string config_file = "agent.yaml";
-    std::string workflow_config_file = "workflow.yaml";
+    std::string config_file = "./configs/agent.yaml";
+    std::string workflow_config_file = "./configs/workflow.yaml";
     bool host_override = false;
     bool port_override = false;
     
@@ -180,12 +180,10 @@ int main(int argc, char* argv[]) {
         {
             SCOPED_TIMER("kolosal_server_startup");
             
-            // Create server configuration
-            auto server_config = create_default_server_config();
-            server_config.host = "127.0.0.1";
-            server_config.port = 8081;
+            // Create server configuration using configs/config.yaml only
+            auto server_config = create_default_server_config(".");
+            server_config.config_file = "./configs/config.yaml"; // Use designated server config file
             server_config.quiet_mode = true; // Run in background quietly
-            server_config.log_level = "INFO";
             server_config.timeout = 45; // Give more time for startup
             
             kolosal_server_launcher = std::make_unique<KolosalServerLauncher>(server_config);

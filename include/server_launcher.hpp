@@ -21,10 +21,10 @@ public:
      */
     struct ServerConfig {
         std::string executable_path;      // Path to kolosal-server executable
-        std::string host = "127.0.0.1";   // Server host
-        int port = 8081;                  // Server port
+        std::string host;                 // Server host (from config.yaml)
+        int port = 0;                     // Server port (from config.yaml) 
         std::string config_file;          // Optional config file path
-        std::string log_level = "INFO";   // Log level (ERROR, WARN, INFO, DEBUG)
+        std::string log_level;            // Log level (from config.yaml)
         bool quiet_mode = false;          // Quiet mode
         bool public_access = false;       // Allow public access
         bool internet_access = false;    // Allow internet access

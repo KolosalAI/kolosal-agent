@@ -37,8 +37,8 @@ enum class SearchProvider {
 class RetrievalManager {
 public:
     struct Config {
-        // Server connection config
-        std::string server_url = "http://127.0.0.1:8081";
+        // Server connection config (loaded from agent.yaml)
+        std::string server_url;
         int timeout_seconds = 30;
         int max_retries = 3;
         
@@ -48,7 +48,7 @@ public:
         int embedding_batch_size = 32;
         
         // Qdrant specific settings
-        std::string qdrant_host = "localhost";
+        std::string qdrant_host;
         int qdrant_port = 6333;
         std::string qdrant_api_key = "";
         std::string qdrant_collection = "documents";

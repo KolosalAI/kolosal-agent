@@ -63,12 +63,9 @@ Agent::Agent(const std::string& name)
     
     LOG_DEBUG_F("Creating agent '%s' with ID: %s", name.c_str(), id_.c_str());
     
-    // Set default system instruction
-    system_instruction_ = "You are a helpful AI assistant. Be accurate, helpful, and professional in your responses.";
-    
     // Initialize model interface with correct server URL
     LOG_DEBUG("Initializing model interface");
-    model_interface_ = std::make_unique<ModelInterface>("http://127.0.0.1:8081");
+    model_interface_ = nullptr;  // Will be initialized in configure_models() with proper server URL
     
     // Note: Function setup is deferred to initialize_functions() 
     // which is called after capabilities are set
@@ -205,14 +202,6 @@ void Agent::add_capability(const std::string& capability) {
     }
 }
 
-void Agent::set_system_instruction(const std::string& instruction) {
-    TRACE_FUNCTION();
-    
-    system_instruction_ = instruction;
-    LOG_INFO_F("System instruction updated for agent '%s' (length: %zu)", name_.c_str(), instruction.length());
-    LOG_DEBUG_F("System instruction content: %s", instruction.c_str());
-}
-
 void Agent::set_agent_specific_prompt(const std::string& prompt) {
     TRACE_FUNCTION();
     
@@ -224,12 +213,28 @@ void Agent::set_agent_specific_prompt(const std::string& prompt) {
 void Agent::configure_models(const json& model_configs) {
     TRACE_FUNCTION();
     
-    if (!model_interface_) {
-        LOG_ERROR_F("Model interface not initialized for agent '%s'", name_.c_str());
-        return;
-    }
-    
     try {
+        // Initialize model interface if not already done, using server URL from first model
+        if (!model_interface_) {
+            std::string server_url = "";
+            if (model_configs.is_array() && !model_configs.empty()) {
+                for (const auto& model : model_configs) {
+                    if (model.contains("server_url")) {
+                        server_url = model["server_url"].get<std::string>();
+                        break;
+                    }
+                }
+            }
+            
+            if (server_url.empty()) {
+                LOG_ERROR_F("No server URL found in model configurations for agent '%s'", name_.c_str());
+                throw std::runtime_error("Model server URL not configured - check ./configs/agent.yaml");
+            }
+            
+            LOG_DEBUG_F("Initializing model interface for agent '%s' with server URL: %s", name_.c_str(), server_url.c_str());
+            model_interface_ = std::make_unique<ModelInterface>(server_url);
+        }
+        
         // Pass model configurations to the model interface
         model_interface_->configure_models(model_configs);
         LOG_INFO_F("Model configurations loaded for agent '%s'", name_.c_str());
@@ -239,13 +244,7 @@ void Agent::configure_models(const json& model_configs) {
 }
 
 std::string Agent::get_combined_prompt() const {
-    std::string combined = system_instruction_;
-    
-    if (!agent_specific_prompt_.empty()) {
-        combined += "\n\nRole-specific instructions:\n" + agent_specific_prompt_;
-    }
-    
-    return combined;
+    return agent_specific_prompt_;
 }
 
 json Agent::get_info() const {
@@ -254,7 +253,6 @@ json Agent::get_info() const {
     info["name"] = name_;
     info["running"] = running_.load();
     info["capabilities"] = capabilities_;
-    info["system_instruction"] = system_instruction_;
     info["agent_specific_prompt"] = agent_specific_prompt_;
     
     json available_functions = json::array();

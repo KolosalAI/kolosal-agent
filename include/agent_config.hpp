@@ -93,9 +93,6 @@ struct AgentSystemConfig {
         int max_concurrent_requests;
     } system;
     
-    // System instruction for all agents
-    std::string system_instruction;
-    
     // Agent configurations
     struct AgentConfig {
         std::string name;
@@ -313,7 +310,6 @@ public:
     const std::string& get_config_file_path() const { return config_file_path_; }
     
     // Specific configuration getters
-    std::string get_system_instruction() const { return config_.system_instruction; }
     std::string get_host() const { return config_.system.host; }
     int get_port() const { return config_.system.port; }
     const std::vector<AgentSystemConfig::AgentConfig>& get_agent_configs() const { return config_.agents; }

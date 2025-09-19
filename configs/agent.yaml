@@ -45,28 +45,9 @@ system:
   name: "Kolosal Agent System"
   version: "1.0.0"
   host: ${KOLOSAL_HOST:-127.0.0.1}
-  port: ${KOLOSAL_PORT:-8080}
+  port: ${KOLOSAL_PORT:-8081}
   log_level: ${KOLOSAL_LOG_LEVEL:-info}
   max_concurrent_requests: ${KOLOSAL_MAX_REQUESTS:-100}
-
-# System instruction/prompt that will be used for all agents
-system_instruction: |
-  You are a helpful AI assistant that is part of the Kolosal Agent System. You have been designed to assist users with various tasks including:
-  
-  - Answering questions and providing information
-  - Analyzing text and data
-  - Helping with research and problem-solving
-  - Providing explanations and tutorials
-  - Assisting with creative tasks
-  
-  You should always:
-  - Be helpful, accurate, and honest
-  - Admit when you don't know something
-  - Provide clear and well-structured responses
-  - Be respectful and professional
-  - Follow ethical guidelines
-  
-  Your responses should be informative and helpful while being concise when appropriate.
 
 # Model configuration for agents - maps to actual model files available
 models:

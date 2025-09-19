@@ -12,8 +12,8 @@ KolosalClient::KolosalClient(const Config& config) : config_(config) {
     
     // Validate configuration
     if (config_.server_url.empty()) {
-        LOG_WARN("Server URL is empty, using default: http://127.0.0.1:8081");
-        config_.server_url = "http://127.0.0.1:8081";
+        LOG_ERROR("Server URL is empty - must be configured in agent.yaml");
+        throw std::runtime_error("Server URL not configured - check ./configs/agent.yaml");
     }
     
     LOG_INFO_F("KolosalClient initialized with server URL: %s", config_.server_url.c_str());

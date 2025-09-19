@@ -433,7 +433,7 @@ ValidationResult AgentConfigManager::load_config(const std::string& file_path) {
     result.is_valid = true;
     
     // If a specific file path is provided, only try that file
-    if (!file_path.empty() && file_path != "agent.yaml") {
+    if (!file_path.empty() && file_path != "./configs/agent.yaml") {
         if (std::filesystem::exists(file_path)) {
             if (load_from_file(file_path)) {
                 config_file_path_ = std::filesystem::absolute(file_path).string();
@@ -446,11 +446,11 @@ ValidationResult AgentConfigManager::load_config(const std::string& file_path) {
         return result;
     }
     
-    // Default behavior: search for agent.yaml in multiple locations
+    // Default behavior: search for agent.yaml in configs directory
     std::vector<std::string> search_paths = {
-        "agent.yaml",
-        "./agent.yaml",
-        "../agent.yaml"
+        "./configs/agent.yaml",
+        "configs/agent.yaml",
+        "../configs/agent.yaml"
     };
     
     for (const auto& path : search_paths) {
@@ -464,7 +464,7 @@ ValidationResult AgentConfigManager::load_config(const std::string& file_path) {
         }
     }
     
-    std::cout << "Could not find agent.yaml, using default configuration" << std::endl;
+    std::cout << "Could not find ./configs/agent.yaml, using default configuration" << std::endl;
     apply_resource_based_defaults();
     result = validate_and_adjust_config();
     return result;
@@ -616,31 +616,14 @@ void AgentConfigManager::set_default_config() {
     config_.validation.port_ranges.min_port = 1024;
     config_.validation.port_ranges.max_port = 65535;
     
-    // Set default system configuration
+    // Set default system configuration (only used when config file is missing)
     config_.system.name = "Kolosal Agent System";
     config_.system.version = "1.0.0";
-    config_.system.host = "127.0.0.1";
-    config_.system.port = 8080;
+    // Host and port should come from ./configs/agent.yaml
+    config_.system.host = "";  // MUST be configured in agent.yaml
+    config_.system.port = 0;   // MUST be configured in agent.yaml 
     config_.system.log_level = "info";
     config_.system.max_concurrent_requests = 100;
-    
-    // Set default system instruction
-    config_.system_instruction = R"(You are a helpful AI assistant that is part of the Kolosal Agent System. You have been designed to assist users with various tasks including:
-
-- Answering questions and providing information
-- Analyzing text and data
-- Helping with research and problem-solving
-- Providing explanations and tutorials
-- Assisting with creative tasks
-
-You should always:
-- Be helpful, accurate, and honest
-- Admit when you don't know something
-- Provide clear and well-structured responses
-- Be respectful and professional
-- Follow ethical guidelines
-
-Your responses should be informative and helpful while being concise when appropriate.)";
     
     // Set default agents
     config_.agents.clear();
@@ -668,7 +651,7 @@ Your responses should be informative and helpful while being concise when approp
     default_model.actual_name = "qwen2.5-0.5b-instruct-q4_k_m";
     default_model.model_file = "qwen2.5-0.5b-instruct-q4_k_m.gguf";
     default_model.type = "llm";
-    default_model.server_url = "http://127.0.0.1:8081";
+    default_model.server_url = "";  // MUST be configured in agent.yaml
     default_model.description = "Default LLM model (Qwen2.5-0.5B Instruct)";
     default_model.preload = true;
     default_model.context_size = 2048;
@@ -682,7 +665,7 @@ Your responses should be informative and helpful while being concise when approp
     embedding_model.actual_name = "all-MiniLM-L6-v2-bf16-q4_k";
     embedding_model.model_file = "all-MiniLM-L6-v2-bf16-q4_k.gguf";
     embedding_model.type = "embedding";
-    embedding_model.server_url = "http://127.0.0.1:8081";
+    embedding_model.server_url = "";  // MUST be configured in agent.yaml
     embedding_model.description = "Embedding model for document vectorization and semantic search";
     embedding_model.preload = true;
     embedding_model.embedding_size = 384;
@@ -846,15 +829,10 @@ bool AgentConfigManager::load_from_file(const std::string& file_path) {
             auto system_node = config["system"];
             config_.system.name = system_node["name"].as<std::string>("Kolosal Agent System");
             config_.system.version = system_node["version"].as<std::string>("1.0.0");
-            config_.system.host = system_node["host"].as<std::string>("127.0.0.1");
-            config_.system.port = system_node["port"].as<int>(8080);
+            config_.system.host = system_node["host"].as<std::string>();  // Must be provided in agent.yaml
+            config_.system.port = system_node["port"].as<int>();         // Must be provided in agent.yaml
             config_.system.log_level = system_node["log_level"].as<std::string>("info");
             config_.system.max_concurrent_requests = system_node["max_concurrent_requests"].as<int>(100);
-        }
-        
-        // Load system instruction
-        if (config["system_instruction"]) {
-            config_.system_instruction = config["system_instruction"].as<std::string>();
         }
         
         // Load agent configurations
@@ -897,7 +875,7 @@ bool AgentConfigManager::load_from_file(const std::string& file_path) {
                 model_config.actual_name = model_node["actual_name"].as<std::string>(model_config.id);
                 model_config.model_file = model_node["model_file"].as<std::string>("");
                 model_config.type = model_node["type"].as<std::string>("llm");
-                model_config.server_url = model_node["server_url"].as<std::string>("http://127.0.0.1:8081");
+                model_config.server_url = model_node["server_url"].as<std::string>();  // Must be provided in agent.yaml
                 model_config.description = model_node["description"].as<std::string>("");
                 model_config.preload = model_node["preload"].as<bool>(true);
                 model_config.context_size = model_node["context_size"].as<int>(2048);
@@ -1123,9 +1101,6 @@ json AgentConfigManager::to_json() const {
     config_json["system"]["port"] = config_.system.port;
     config_json["system"]["log_level"] = config_.system.log_level;
     config_json["system"]["max_concurrent_requests"] = config_.system.max_concurrent_requests;
-    
-    // System instruction
-    config_json["system_instruction"] = config_.system_instruction;
     
     // Agents
     config_json["agents"] = json::array();
