@@ -40,6 +40,14 @@ validation:
     required_functions: ["chat", "status", "analyze"]
     validate_parameters: true
 
+# Server configuration
+server:
+  host: ${KOLOSAL_SERVER_HOST:-127.0.0.1}
+  port: ${KOLOSAL_SERVER_PORT:-8081}
+  idle_timeout: ${KOLOSAL_SERVER_IDLE_TIMEOUT:-300}
+  allow_public_access: ${KOLOSAL_SERVER_PUBLIC_ACCESS:-false}
+  allow_internet_access: ${KOLOSAL_SERVER_INTERNET_ACCESS:-true}
+
 # Kolosal Agent System Configuration
 system:
   name: "Kolosal Agent System"
@@ -55,7 +63,6 @@ models:
     actual_name: "qwen3-0.6b:UD-Q4_K_XL"
     model_file: "Qwen3-0.6B-UD-Q4_K_XL.gguf"
     type: "llm"
-    server_url: "http://127.0.0.1:8081"
     description: "Default LLM model (Qwen3-0.6B Instruct)"
     preload: true
     context_size: 2048
@@ -67,7 +74,6 @@ models:
     actual_name: "qwen3-0.6b:UD-Q4_K_XL"
     model_file: "Qwen3-0.6B-UD-Q4_K_XL.gguf"
     type: "llm"
-    server_url: "http://127.0.0.1:8081"
     description: "Qwen3-0.6B Instruct language model"
     preload: true
     context_size: 2048
@@ -79,7 +85,6 @@ models:
     actual_name: "qwen3-0.6b:UD-Q4_K_XL"
     model_file: "Qwen3-0.6B-UD-Q4_K_XL.gguf"
     type: "llm"
-    server_url: "http://127.0.0.1:8081"
     description: "Qwen3-0.6B Instruct language model (alias)"
     preload: true
     context_size: 2048
@@ -91,7 +96,6 @@ models:
     actual_name: "qwen3-0.6b:UD-Q4_K_XL"
     model_file: "Qwen3-0.6B-UD-Q4_K_XL.gguf"
     type: "llm"
-    server_url: "http://127.0.0.1:8081"
     description: "Qwen3-0.6B Instruct language model (original alias)"
     preload: true
     context_size: 2048
@@ -103,7 +107,6 @@ models:
     actual_name: "all-MiniLM-L6-v2-bf16-q4_k"
     model_file: "all-MiniLM-L6-v2-bf16-q4_k.gguf"
     type: "embedding"
-    server_url: "http://127.0.0.1:8081"
     description: "Embedding model for document vectorization and semantic search"
     preload: true
     embedding_size: 384
@@ -112,7 +115,6 @@ models:
     actual_name: "all-MiniLM-L6-v2-bf16-q4_k"
     model_file: "all-MiniLM-L6-v2-bf16-q4_k.gguf"
     type: "embedding"
-    server_url: "http://127.0.0.1:8081"
     description: "Alternative name for embedding model"
     preload: true
     embedding_size: 384
@@ -121,92 +123,17 @@ models:
     actual_name: "all-MiniLM-L6-v2-bf16-q4_k"
     model_file: "all-MiniLM-L6-v2-bf16-q4_k.gguf"
     type: "embedding"
-    server_url: "http://127.0.0.1:8081"
     description: "Alias for embedding model to match expected name"
     preload: true
     embedding_size: 384
 
 # Default agents to create on startup
 agents:
-  - name: "Assistant"
+  # 1. LLM Only Agent - Pure language model without external capabilities
+  - name: "LLMOnly"
     capabilities: ["chat", "analysis", "reasoning"]
     auto_start: true
-    system_prompt: |
-      You are an AI assistant specialized in general conversation and help. 
-      You excel at answering questions, providing explanations, and helping users with various tasks.
-      Be friendly, helpful, and informative in your responses.
-  
-  - name: "Analyzer" 
-    capabilities: ["analysis", "data_processing", "summarization"]
-    auto_start: true
-    system_prompt: |
-      You are an AI analyst specialized in text and data analysis.
-      Your role is to examine, process, and summarize information effectively.
-      Provide detailed analysis with clear insights and actionable conclusions.
-
-  - name: "Researcher"
-    capabilities: ["research", "web_search", "fact_checking", "retrieval"]
-    auto_start: false
-    retrieval:
-      server_url: "http://127.0.0.1:8081"
-      timeout_seconds: 30
-      max_retries: 3
-      search_enabled: true
-      max_results: 20
-    system_prompt: |
-      You are an AI researcher specialized in information gathering and fact-checking.
-      Your role is to help users find accurate information and verify facts.
-      Always cite sources when possible and present information objectively.
-
-  - name: "RetrievalAgent"
-    capabilities: ["retrieval", "semantic_search", "knowledge_base", "vector_search"]
-    auto_start: true
-    retrieval:
-      server_url: "http://127.0.0.1:8081"
-      timeout_seconds: 30
-      max_retries: 3
-      search_enabled: true
-      max_results: 10
-    system_prompt: |
-      You are an AI agent specialized in information retrieval and document management.
-      Your primary functions include:
-      - Performing semantic search across document collections
-      - Retrieving relevant information based to user queries
-      - Maintaining knowledge bases and document repositories
-      - Providing context-aware responses using retrieved information
-      
-      You excel at finding relevant information quickly and accurately, 
-      understanding document relationships, and presenting retrieved information 
-      in a clear and organized manner. Always provide source references 
-      when returning information from documents.
-
-  - name: "DeepResearcher"
-    capabilities: ["deep_research", "iterative_search", "fact_verification", "research_planning", "synthesis", "retrieval", "semantic_search"]
-    auto_start: false
-    retrieval:
-      server_url: "http://127.0.0.1:8081"
-      timeout_seconds: 60
-      max_retries: 3
-      search_enabled: true
-      max_results: 15
-    system_prompt: |
-      You are an AI agent specialized in comprehensive deep research and analysis.
-      Your primary functions include:
-      - Planning multi-phase research strategies based on query complexity
-      - Conducting iterative research with progressive refinement
-      - Cross-validating information from multiple sources
-      - Identifying research gaps and conducting targeted follow-up research
-      - Synthesizing complex information from diverse sources
-      - Fact-checking and source verification
-      - Generating comprehensive research reports with proper citations
-      
-      You approach research systematically, ensuring thoroughness, accuracy, and 
-      objectivity. You excel at breaking down complex topics into researchable 
-      components and building comprehensive understanding through iterative investigation.
-
-  - name: "LLMOnlyAgent"
-    capabilities: ["chat"]
-    auto_start: true
+    model: "default"
     system_prompt: |
       You are a pure LLM-based AI assistant without any integrated tools or external capabilities.
       Your role is focused solely on:
@@ -226,6 +153,72 @@ agents:
       
       Focus on providing helpful responses using only your built-in language model capabilities.
       Be transparent about your limitations and knowledge cutoff when relevant.
+
+  # 2. LLM with Search Agent - Uses Kolosal search capabilities
+  - name: "LLMWithSearch"
+    capabilities: ["chat", "web_search", "internet_search", "fact_checking"]
+    auto_start: true
+    model: "default"
+    search:
+      enabled: true
+      timeout_seconds: 30
+      max_retries: 3
+      max_results: 10
+      use_kolosal_search: true
+    system_prompt: |
+      You are an AI assistant equipped with internet search capabilities through Kolosal search.
+      Your primary functions include:
+      - Natural language conversation enhanced with real-time information
+      - Internet search and web browsing to gather current information
+      - Fact-checking using live web sources
+      - Providing up-to-date information beyond your training cutoff
+      - Combining your knowledge with current web-based information
+      
+      Search capabilities:
+      - Real-time web search using Kolosal search engine
+      - Access to current news, articles, and web content
+      - Ability to verify and cross-reference information
+      - Support for multi-query search strategies
+      
+      Always cite sources when using information from searches and be clear about
+      the distinction between your training knowledge and information gathered from searches.
+
+  # 3. LLM with Retrieval Agent - Uses FAISS for document retrieval
+  - name: "LLMWithRetrieval"
+    capabilities: ["chat", "retrieval", "semantic_search", "knowledge_base", "vector_search", "document_analysis"]
+    auto_start: true
+    model: "default"
+    embedding_model: "embedding"
+    retrieval:
+      enabled: true
+      timeout_seconds: 30
+      max_retries: 3
+      search_enabled: true
+      max_results: 10
+      use_faiss: true
+      vector_store: "faiss"
+      similarity_threshold: 0.7
+      embedding_model: "embedding"
+    system_prompt: |
+      You are an AI assistant equipped with advanced document retrieval capabilities using FAISS vector search.
+      Your primary functions include:
+      - Natural language conversation enhanced with document knowledge
+      - Semantic search across indexed document collections
+      - Vector-based similarity matching for precise information retrieval
+      - Knowledge base management and document analysis
+      - Context-aware responses using retrieved document fragments
+      
+      Retrieval capabilities:
+      - FAISS-powered vector search for high-performance similarity matching
+      - Semantic understanding of document content and relationships
+      - Multi-document synthesis and cross-referencing
+      - Metadata filtering and advanced search strategies
+      - Real-time document indexing and retrieval
+      
+      You excel at finding relevant information from document collections,
+      understanding document relationships, and presenting retrieved information
+      in a clear and organized manner. Always provide source references and
+      document citations when returning information from the knowledge base.
 
 # Available functions that agents can execute
 functions:

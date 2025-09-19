@@ -3,7 +3,7 @@ server:
   host: 0.0.0.0
   idle_timeout: 300
   allow_public_access: false
-  allow_internet_access: false
+  allow_internet_access: true
 logging:
   level: INFO
   file: ""
