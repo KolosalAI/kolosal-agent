@@ -122,7 +122,7 @@ std::string AgentManager::create_agent_with_config(const std::string& name, cons
             // Try to get server URL from any configured model, fallback to empty (will cause error if not configured)
             std::string server_url = "";
             if (config_manager_) {
-                const auto& models = config_manager_->get_models();
+                const auto& models = config_manager_->get_model_configs();
                 if (!models.empty()) {
                     // Use server URL from first model as they should all use the same server
                     server_url = models.begin()->second.server_url;

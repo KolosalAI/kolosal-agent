@@ -42,90 +42,97 @@ validation:
 
 # Server configuration
 server:
-  host: ${KOLOSAL_SERVER_HOST:-127.0.0.1}
-  port: ${KOLOSAL_SERVER_PORT:-8081}
-  idle_timeout: ${KOLOSAL_SERVER_IDLE_TIMEOUT:-300}
-  allow_public_access: ${KOLOSAL_SERVER_PUBLIC_ACCESS:-false}
-  allow_internet_access: ${KOLOSAL_SERVER_INTERNET_ACCESS:-true}
+  host: 127.0.0.1
+  port: 8082
+  idle_timeout: 300
+  allow_public_access: true
+  allow_internet_access: true
 
 # Kolosal Agent System Configuration
 system:
   name: "Kolosal Agent System"
   version: "1.0.0"
-  host: ${KOLOSAL_HOST:-127.0.0.1}
-  port: ${KOLOSAL_PORT:-8081}
-  log_level: ${KOLOSAL_LOG_LEVEL:-info}
-  max_concurrent_requests: ${KOLOSAL_MAX_REQUESTS:-100}
+  host: 127.0.0.1
+  port: 8082
+  log_level: info
+  max_concurrent_requests: 100
 
 # Model configuration for agents - maps to actual model files available
 models:
   - name: "default"
-    actual_name: "qwen3-0.6b:UD-Q4_K_XL"
-    model_file: "Qwen3-0.6B-UD-Q4_K_XL.gguf"
+    actual_name: "gemma3-1b"
+    model_file: "google_gemma-3-1b-it_q4_k_m.gguf"
     type: "llm"
-    description: "Default LLM model (Qwen3-0.6B Instruct)"
+    description: "Default LLM model (Gemma3-1B Instruct)"
     preload: true
     context_size: 2048
     max_tokens: 1024
     temperature: 0.7
     top_p: 0.9
+    server_url: "http://127.0.0.1:8082"
   
   - name: "qwen2.5-0.5b"
-    actual_name: "qwen3-0.6b:UD-Q4_K_XL"
-    model_file: "Qwen3-0.6B-UD-Q4_K_XL.gguf"
+    actual_name: "gemma3-1b"
+    model_file: "google_gemma-3-1b-it_q4_k_m.gguf"
     type: "llm"
-    description: "Qwen3-0.6B Instruct language model"
+    description: "Gemma3-1B Instruct language model"
     preload: true
     context_size: 2048
     max_tokens: 1024
     temperature: 0.7
     top_p: 0.9
+    server_url: "http://127.0.0.1:8082"
   
   - name: "qwen2.5-0.5b-instruct"
-    actual_name: "qwen3-0.6b:UD-Q4_K_XL"
-    model_file: "Qwen3-0.6B-UD-Q4_K_XL.gguf"
+    actual_name: "gemma3-1b"
+    model_file: "google_gemma-3-1b-it_q4_k_m.gguf"
     type: "llm"
-    description: "Qwen3-0.6B Instruct language model (alias)"
+    description: "Gemma3-1B Instruct language model (alias)"
     preload: true
     context_size: 2048
     max_tokens: 1024
     temperature: 0.7
     top_p: 0.9
+    server_url: "http://127.0.0.1:8082"
   
   - name: "qwen2.5-0.5b-instruct-q4_k_m"
-    actual_name: "qwen3-0.6b:UD-Q4_K_XL"
-    model_file: "Qwen3-0.6B-UD-Q4_K_XL.gguf"
+    actual_name: "gemma3-1b"
+    model_file: "google_gemma-3-1b-it_q4_k_m.gguf"
     type: "llm"
-    description: "Qwen3-0.6B Instruct language model (original alias)"
+    description: "Gemma3-1B Instruct language model (original alias)"
     preload: true
     context_size: 2048
     max_tokens: 1024
     temperature: 0.7
     top_p: 0.9
+    server_url: "http://127.0.0.1:8082"
   
   - name: "embedding"
-    actual_name: "all-MiniLM-L6-v2-bf16-q4_k"
+    actual_name: "qwen3-embedding-0.6b"
     model_file: "all-MiniLM-L6-v2-bf16-q4_k.gguf"
     type: "embedding"
     description: "Embedding model for document vectorization and semantic search"
     preload: true
     embedding_size: 384
+    server_url: "http://127.0.0.1:8082"
   
   - name: "all-MiniLM-L6-v2-bf16-q4_k"
-    actual_name: "all-MiniLM-L6-v2-bf16-q4_k"
+    actual_name: "qwen3-embedding-0.6b"
     model_file: "all-MiniLM-L6-v2-bf16-q4_k.gguf"
     type: "embedding"
     description: "Alternative name for embedding model"
     preload: true
     embedding_size: 384
+    server_url: "http://127.0.0.1:8082"
   
   - name: "text-embedding-3-small"
-    actual_name: "all-MiniLM-L6-v2-bf16-q4_k"
+    actual_name: "qwen3-embedding-0.6b"
     model_file: "all-MiniLM-L6-v2-bf16-q4_k.gguf"
     type: "embedding"
     description: "Alias for embedding model to match expected name"
     preload: true
     embedding_size: 384
+    server_url: "http://127.0.0.1:8082"
 
 # Default agents to create on startup
 agents:
@@ -564,34 +571,34 @@ performance:
 
 # Kolosal Server configuration
 kolosal_server:
-  auto_start: ${KOLOSAL_SERVER_AUTO_START:-true}
-  startup_timeout: ${KOLOSAL_SERVER_STARTUP_TIMEOUT:-60}
-  health_check_interval: ${KOLOSAL_SERVER_HEALTH_INTERVAL:-10}
-  max_retries: ${KOLOSAL_SERVER_MAX_RETRIES:-3}
-  retry_delay: ${KOLOSAL_SERVER_RETRY_DELAY:-2000}
+  auto_start: true
+  startup_timeout: 60
+  health_check_interval: 10
+  max_retries: 3
+  retry_delay: 2000
   resource_limits:
-    max_memory: ${KOLOSAL_SERVER_MAX_MEMORY:-1.5GB}
-    max_cpu_percent: ${KOLOSAL_SERVER_MAX_CPU:-80}
-  models_directory: ${KOLOSAL_MODEL_PATH:-./models}
+    max_memory: "1.5GB"
+    max_cpu_percent: 80
+  models_directory: "./models"
   required_models:
-    - name: ${KOLOSAL_LLM_MODEL_NAME:-qwen2.5-0.5b-instruct-q4_k_m}
-      file: ${KOLOSAL_LLM_MODEL_FILE:-qwen2.5-0.5b-instruct-q4_k_m.gguf}
+    - name: "gemma3-1b"
+      file: "google_gemma-3-1b-it_q4_k_m.gguf"
       type: "llm"
       required: true
-    - name: ${KOLOSAL_EMBEDDING_MODEL_NAME:-all-MiniLM-L6-v2-bf16-q4_k}
-      file: ${KOLOSAL_EMBEDDING_MODEL_FILE:-all-MiniLM-L6-v2-bf16-q4_k.gguf}
+    - name: "qwen3-embedding-0.6b"
+      file: "all-MiniLM-L6-v2-bf16-q4_k.gguf"
       type: "embedding"
       required: true
-  model_preload_timeout: ${KOLOSAL_MODEL_PRELOAD_TIMEOUT:-120}
-  graceful_shutdown_timeout: ${KOLOSAL_SHUTDOWN_TIMEOUT:-30}
+  model_preload_timeout: 120
+  graceful_shutdown_timeout: 30
 
 # Logging configuration
 logging:
-  level: ${KOLOSAL_LOG_LEVEL:-info}
-  file: ${KOLOSAL_LOG_FILE:-agent_system.log}
-  max_file_size: ${KOLOSAL_LOG_MAX_SIZE:-100MB}
-  max_files: ${KOLOSAL_LOG_MAX_FILES:-10}
-  console_output: ${KOLOSAL_LOG_CONSOLE:-true}
+  level: info
+  file: "agent_system.log"
+  max_file_size: "100MB"
+  max_files: 10
+  console_output: true
 
 # Error handling and fallback configuration
 error_handling:

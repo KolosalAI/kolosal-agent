@@ -1,8 +1,8 @@
 server:
-  port: 8080
+  port: 8082
   host: 0.0.0.0
   idle_timeout: 300
-  allow_public_access: false
+  allow_public_access: true
   allow_internet_access: true
 logging:
   level: INFO
@@ -53,7 +53,7 @@ search:
   default_category: general
 database:
   vector_database: faiss
-  retrieval_embedding_model: qwen3-embedding-0.6b
+  retrieval_embedding_model: all-MiniLM-L6-v2-bf16-q4_k
   qdrant:
     enabled: false
     host: localhost
@@ -94,7 +94,7 @@ models:
       n_batch: 2048
       n_ubatch: 512
   - id: qwen3-embedding-0.6b
-    path: D:\Works\Genta\codes\kolosal-agent\https:\huggingface.co\kolosal\qwen3-embedding-0.6b\resolve\main\Qwen3-Embedding-0.6B-Q8_0.gguf
+    path: D:\Works\Genta\codes\kolosal-agent\models\all-MiniLM-L6-v2-bf16-q4_k.gguf
     type: embedding
     load_immediately: true
     main_gpu_id: 0

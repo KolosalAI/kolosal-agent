@@ -703,7 +703,7 @@ KolosalServerLauncher::ServerConfig create_default_server_config(const std::stri
     
     // Set default values
     config.host = "127.0.0.1";
-    config.port = 8081;
+    config.port = 8082;
     config.log_level = "INFO";
     config.quiet_mode = false;
     config.public_access = false;
